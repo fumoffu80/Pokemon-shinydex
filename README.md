@@ -33,7 +33,16 @@ les copies locale et cloud sont fusionnées en conservant les quantités les plu
 élevées.
 
 Les règles privées par utilisateur nécessaires sont fournies dans
-`firestore.rules`.
+`firestore.rules`. Elles n’autorisent l’accès qu’au document Shinydex du compte
+connecté. Les fichiers `.firebaserc` et `firebase.json` ciblent directement le
+projet `pokemon-shinydex`.
+
+Pour publier les règles depuis un terminal :
+
+```bash
+npx firebase-tools login
+npx firebase-tools deploy --only firestore:rules
+```
 
 ## Mise à jour automatique
 

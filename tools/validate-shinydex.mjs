@@ -92,6 +92,7 @@ check(manifest?.display === "standalone", "Le manifeste ne permet pas l’instal
 check(firebaseBundle.includes("pokemon-shinydex"), "La configuration Firebase attendue est absente.");
 check(firebaseBundle.includes("users") && firebaseBundle.includes("shinydex"), "Le document Firebase Shinydex est absent.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
+check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
 check(serviceWorker.includes("firebase-sync.js"), "Le module Firebase local n’est pas mis en cache.");
 
 const runtime = [html, css, app, firebaseBundle, dataSource, serviceWorker].join("\n").toLowerCase();
