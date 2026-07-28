@@ -2,7 +2,8 @@
   "use strict";
 
   const DATA = window.SHINYDEX_DATA;
-  if (!DATA?.entries?.length) {
+  const I18N = window.SHINYDEX_I18N;
+  if (!DATA?.entries?.length || !I18N?.strings?.fr) {
     document.body.innerHTML = "<p style='padding:2rem'>La base locale du Shinydex est introuvable.</p>";
     return;
   }
@@ -10,45 +11,84 @@
   const STORAGE_KEY = "pokemonShinydex:v1";
   const LEGACY_KEYS = ["pokemonShinydex", "shinydex"];
   const MAX_QUANTITY = 999;
-  const REGION_NAMES = {
-    1: "Kanto",
-    2: "Johto",
-    3: "Hoenn",
-    4: "Sinnoh",
-    5: "Unys",
-    6: "Kalos",
-    7: "Alola",
-    8: "Galar & Hisui",
-    9: "Paldea"
+  const ROTATION_DELAY = 2600;
+  const HOVER_DELAY = 2000;
+  const SPINDA_ID = 327;
+  const TYPE_COLORS = {
+    normal: "#A8A77A",
+    fire: "#EE8130",
+    water: "#6390F0",
+    electric: "#F7D02C",
+    grass: "#7AC74C",
+    ice: "#96D9D6",
+    fighting: "#C22E28",
+    poison: "#A33EA1",
+    ground: "#E2BF65",
+    flying: "#A98FF3",
+    psychic: "#F95587",
+    bug: "#A6B91A",
+    rock: "#B6A136",
+    ghost: "#735797",
+    dragon: "#6F35FC",
+    dark: "#705746",
+    steel: "#B7B7CE",
+    fairy: "#D685AD"
   };
 
   const elements = Object.fromEntries([
-    "searchInput", "generationFilter", "typeFilter", "statusFilter", "sortSelect",
-    "pokemonGrid", "pokemonCardTemplate", "ownedCount", "appearanceTotal", "speciesCount",
-    "speciesTotal", "copyCount", "progressPercent", "progressBar", "progressMessage",
-    "resultCount", "activeFilter", "activeFilterText", "clearFiltersButton", "emptyState",
-    "emptyResetButton", "densityButton", "settingsButton", "settingsDialog", "animationSetting",
-    "confirmSetting", "openResetButton", "resetDialog", "confirmResetButton", "removeDialog",
-    "removeDialogText", "confirmRemoveButton", "exportButton", "importButton", "importInput",
-    "toast", "dataVersion", "accountButton", "accountLabel", "cloudStatusLabel", "cloudDot",
-    "authDialog", "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail",
-    "cloudStatusText", "cloudStatusDetail", "dialogCloudDot"
+    "metaDescription", "languageSelect", "searchInput", "generationFilter", "typeFilter",
+    "statusFilter", "sortSelect", "pokemonGrid", "pokemonCardTemplate", "variantCardTemplate",
+    "ownedCount", "appearanceTotal", "speciesCount", "speciesTotal", "copyCount",
+    "progressPercent", "progressBar", "progressMessage", "resultCount", "activeFilter",
+    "activeFilterText", "clearFiltersButton", "emptyState", "emptyResetButton",
+    "settingsButton", "settingsDialog", "animationSetting", "confirmSetting", "openResetButton",
+    "resetDialog", "confirmResetButton", "removeDialog", "removeDialogText",
+    "confirmRemoveButton", "variantDialog", "variantDialogTitle", "variantGrid",
+    "closeVariantButton", "exportButton", "importButton", "importInput", "toast", "dataVersion",
+    "accountButton", "accountLabel", "cloudStatusLabel", "cloudDot", "authDialog",
+    "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail", "cloudStatusText",
+    "cloudStatusDetail", "dialogCloudDot", "authPassword", "togglePasswordButton"
   ].map(id => [id, document.getElementById(id)]));
 
   const validKeys = new Set(DATA.entries.map(entry => entry.key));
   const entryByKey = new Map(DATA.entries.map(entry => [entry.key, entry]));
+  const groupsBySpecies = new Map();
+  for (const entry of DATA.entries) {
+    const group = groupsBySpecies.get(entry.speciesId) || {
+      speciesId: entry.speciesId,
+      slug: entry.slug,
+      generation: entry.generation,
+      names: entry.names,
+      entries: []
+    };
+    group.entries.push(entry);
+    groupsBySpecies.set(entry.speciesId, group);
+  }
+  const speciesGroups = [...groupsBySpecies.values()].sort((a, b) => a.speciesId - b.speciesId);
+  const groupByEntryKey = new Map(
+    speciesGroups.flatMap(group => group.entries.map(entry => [entry.key, group]))
+  );
+
   const cardNodes = new Map();
+  const activeVariantIndex = new Map();
+  const visibleSpecies = new Set();
   let state = loadState();
   let pendingRemovalKey = null;
+  let activeDialogSpecies = null;
   let toastTimer;
   let renderFrame;
+  let lastCloudDescriptor = { status: "local" };
+
+  function preferredLanguage() {
+    return "fr";
+  }
 
   function defaultState() {
     return {
       schemaVersion: 1,
       collection: {},
       preferences: {
-        compact: false,
+        language: preferredLanguage(),
         animations: true,
         confirmRemove: false
       }
@@ -69,7 +109,8 @@
     const clean = defaultState();
     if (!raw || typeof raw !== "object") return clean;
     clean.collection = sanitizeCollection(raw.collection || raw.caught || raw);
-    clean.preferences.compact = Boolean(raw.preferences?.compact);
+    const language = raw.preferences?.language;
+    clean.preferences.language = DATA.languages?.includes(language) ? language : clean.preferences.language;
     clean.preferences.animations = raw.preferences?.animations !== false;
     clean.preferences.confirmRemove = Boolean(raw.preferences?.confirmRemove);
     return clean;
@@ -94,20 +135,63 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      showToast("La sauvegarde locale est saturée ou indisponible.");
+      showToast(t("localStorageError"));
     }
-    if (notifyCloud) {
-      document.dispatchEvent(new CustomEvent("shinydex:local-change"));
-    }
+    if (notifyCloud) document.dispatchEvent(new CustomEvent("shinydex:local-change"));
+  }
+
+  function language() {
+    return state.preferences.language || "fr";
+  }
+
+  function locale() {
+    return I18N.locales[language()] || "fr-FR";
+  }
+
+  function t(key, values = {}) {
+    const template = I18N.strings[language()]?.[key] ?? I18N.strings.fr[key] ?? key;
+    return String(template).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? `{${name}}`);
+  }
+
+  function localizedName(entry) {
+    return entry.names?.[language()] || entry.names?.fr || entry.name || entry.slug;
+  }
+
+  function localizedForm(entry) {
+    return entry.formNames?.[language()] || entry.formNames?.fr || entry.label || "";
+  }
+
+  function localizedType(identifier) {
+    return DATA.typeNames?.[identifier]?.[language()]
+      || DATA.typeNames?.[identifier]?.fr
+      || identifier;
+  }
+
+  function genderText(entry) {
+    const symbol = { male: "♂", female: "♀", genderless: "∅" }[entry.gender] || "";
+    return `${symbol} ${t(entry.gender || "genderless")}`.trim();
+  }
+
+  function variantLabel(entry, { alwaysGender = false } = {}) {
+    const form = localizedForm(entry);
+    const showGender = alwaysGender || entry.genderAvailability === "mixed";
+    const gender = showGender ? genderText(entry) : "";
+    if (form && gender) return `${form} · ${gender}`;
+    return form || gender;
+  }
+
+  function fullVariantName(entry) {
+    const label = variantLabel(entry, { alwaysGender: true }) || t("defaultForm");
+    return `${localizedName(entry)} — ${label}`;
   }
 
   function normalize(value) {
     return String(value ?? "")
       .normalize("NFD")
       .replace(/\p{Diacritic}/gu, "")
-      .toLocaleLowerCase("fr")
+      .toLocaleLowerCase(locale())
       .replace(/[’']/g, "")
-      .replace(/[^a-z0-9♀♂]+/g, " ")
+      .replace(/[^\p{Letter}\p{Number}♀♂]+/gu, " ")
       .trim();
   }
 
@@ -119,18 +203,101 @@
     return quantityFor(key) > 0;
   }
 
-  function initializeFilters() {
-    for (const generation of DATA.generations) {
+  function ownedInGroup(group) {
+    return group.entries.reduce((count, entry) => count + Number(isOwned(entry.key)), 0);
+  }
+
+  function formatNumber(value) {
+    return Number(value).toLocaleString(locale());
+  }
+
+  function showDialog(dialog) {
+    if (!dialog) return;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+  }
+
+  function closeDialog(dialog) {
+    if (!dialog) return;
+    if (typeof dialog.close === "function") dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  function populateLanguageOptions() {
+    elements.languageSelect.replaceChildren();
+    for (const item of I18N.languages) {
       const option = document.createElement("option");
-      option.value = String(generation);
-      option.textContent = `Génération ${generation} · ${REGION_NAMES[generation] || "Nouvelle région"}`;
-      elements.generationFilter.append(option);
+      option.value = item.code;
+      option.textContent = `${item.flag} ${item.label}`;
+      elements.languageSelect.append(option);
     }
-    for (const type of DATA.types) {
-      const option = document.createElement("option");
-      option.value = type;
-      option.textContent = type;
-      elements.typeFilter.append(option);
+    elements.languageSelect.value = language();
+  }
+
+  function initializeFilters() {
+    const previous = {
+      generation: elements.generationFilter.value || "all",
+      type: elements.typeFilter.value || "all",
+      status: elements.statusFilter.value || "all",
+      sort: elements.sortSelect.value || "number"
+    };
+
+    elements.generationFilter.replaceChildren(new Option(t("allGenerations"), "all"));
+    for (const generation of DATA.generations) {
+      const region = I18N.regions[language()]?.[generation - 1] || t("newRegion");
+      elements.generationFilter.append(new Option(
+        `${t("generation", { number: generation })} · ${region}`,
+        String(generation)
+      ));
+    }
+
+    elements.typeFilter.replaceChildren(new Option(t("allTypes"), "all"));
+    for (const type of [...DATA.types].sort((a, b) =>
+      localizedType(a).localeCompare(localizedType(b), locale())
+    )) {
+      elements.typeFilter.append(new Option(localizedType(type), type));
+    }
+
+    elements.statusFilter.replaceChildren(
+      new Option(t("allStatuses"), "all"),
+      new Option(t("ownedOnly"), "owned"),
+      new Option(t("missingOnly"), "missing"),
+      new Option(t("variantsOnly"), "variants")
+    );
+    elements.sortSelect.replaceChildren(
+      new Option(t("sortNumber"), "number"),
+      new Option(t("sortName"), "name"),
+      new Option(t("sortOwned"), "owned"),
+      new Option(t("sortMissing"), "missing")
+    );
+
+    elements.generationFilter.value = previous.generation;
+    elements.typeFilter.value = previous.type;
+    elements.statusFilter.value = previous.status;
+    elements.sortSelect.value = previous.sort;
+  }
+
+  function applyStaticTranslations() {
+    document.documentElement.lang = language();
+    document.title = t("pageTitle");
+    if (elements.metaDescription) elements.metaDescription.content = t("metaDescription");
+    for (const node of document.querySelectorAll("[data-i18n]")) {
+      node.textContent = t(node.dataset.i18n);
+    }
+    for (const node of document.querySelectorAll("[data-i18n-placeholder]")) {
+      node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder));
+    }
+    for (const node of document.querySelectorAll("[data-i18n-title]")) {
+      node.setAttribute("title", t(node.dataset.i18nTitle));
+    }
+    for (const node of document.querySelectorAll("[data-i18n-aria]")) {
+      node.setAttribute("aria-label", t(node.dataset.i18nAria));
+    }
+    elements.languageSelect.value = language();
+    const revealing = elements.authPassword?.type === "text";
+    if (elements.togglePasswordButton) {
+      elements.togglePasswordButton.textContent = t(revealing ? "hide" : "show");
+      elements.togglePasswordButton.setAttribute("aria-label", t(revealing ? "hide" : "show"));
     }
   }
 
@@ -143,42 +310,103 @@
     sprite.style.backgroundSize = `${DATA.atlasSize}px ${DATA.atlasSize}px`;
     sprite.setAttribute(
       "aria-label",
-      `${entry.name}${entry.label ? `, ${entry.label}` : ""}${shiny ? " chromatique" : ""}`
+      `${localizedName(entry)}, ${variantLabel(entry, { alwaysGender: true }) || t("defaultForm")}${shiny ? " ✦" : ""}`
     );
   }
 
-  function createCard(entry) {
-    const fragment = elements.pokemonCardTemplate.content.cloneNode(true);
-    const card = fragment.querySelector(".pokemon-card");
-    const toggle = fragment.querySelector(".pokemon-card__toggle");
-    const sprite = fragment.querySelector(".pokemon-sprite");
-    const form = fragment.querySelector(".pokemon-card__form");
-    const typeContainer = fragment.querySelector(".pokemon-card__types");
-    const quantityInput = fragment.querySelector(".quantity__input");
-    const quantity = quantityFor(entry.key);
-    const owned = quantity > 0;
-
-    card.dataset.key = entry.key;
-    card.classList.toggle("is-owned", owned);
-    toggle.setAttribute("aria-pressed", String(owned));
-    toggle.setAttribute(
-      "aria-label",
-      `${owned ? "Retirer" : "Ajouter"} ${entry.name}${entry.label ? `, ${entry.label}` : ""} ${owned ? "de" : "à"} la collection`
-    );
-    fragment.querySelector(".pokemon-card__number").textContent = `#${String(entry.speciesId).padStart(4, "0")}`;
-    fragment.querySelector(".pokemon-card__name").textContent = entry.name;
-    form.textContent = entry.label;
-    form.hidden = !entry.label;
-    fragment.querySelector(".pokemon-card__hint").textContent = owned ? "Shiny possédé" : "Cliquer pour marquer";
-    quantityInput.value = String(quantity || 1);
-    quantityInput.setAttribute("aria-label", `Quantité de ${entry.name}${entry.label ? ` ${entry.label}` : ""}`);
-    spriteStyle(sprite, entry, owned);
-
-    for (const type of entry.types) {
+  function renderTypes(container, types) {
+    container.replaceChildren();
+    for (const type of types) {
       const pill = document.createElement("span");
       pill.className = "type-pill";
-      pill.textContent = type;
-      typeContainer.append(pill);
+      pill.dataset.type = type;
+      pill.textContent = localizedType(type);
+      pill.style.setProperty("--type-color", TYPE_COLORS[type] || "#64748b");
+      typeContainerTextColor(pill, type);
+      container.append(pill);
+    }
+  }
+
+  function typeContainerTextColor(pill, type) {
+    const darkTextTypes = new Set(["normal", "electric", "grass", "ice", "ground", "flying", "bug", "rock", "steel", "fairy"]);
+    pill.classList.toggle("type-pill--dark", darkTextTypes.has(type));
+  }
+
+  function currentEntry(group) {
+    const index = (activeVariantIndex.get(group.speciesId) || 0) % group.entries.length;
+    return group.entries[index];
+  }
+
+  function updateCardView(group, card = cardNodes.get(group.speciesId)) {
+    if (!card) return;
+    const entry = currentEntry(group);
+    const ownedCount = ownedInGroup(group);
+    const currentOwned = isOwned(entry.key);
+    const complete = ownedCount === group.entries.length;
+    const multiple = group.entries.length > 1;
+    const toggle = card.querySelector(".pokemon-card__toggle");
+    const form = card.querySelector(".pokemon-card__form");
+    const progress = card.querySelector(".pokemon-card__progress");
+    const quantityInput = card.querySelector(".quantity__input");
+
+    card.dataset.key = entry.key;
+    card.classList.toggle("has-variants", multiple);
+    card.classList.toggle("has-owned", ownedCount > 0);
+    card.classList.toggle("is-complete", complete);
+    card.classList.toggle("is-current-owned", currentOwned);
+    toggle.setAttribute("aria-pressed", String(multiple ? complete : currentOwned));
+    toggle.setAttribute(
+      "aria-label",
+      multiple
+        ? `${localizedName(entry)} · ${t("openVariants")}`
+        : t(currentOwned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
+    );
+
+    card.querySelector(".pokemon-card__number").textContent = `#${String(entry.speciesId).padStart(4, "0")}`;
+    card.querySelector(".pokemon-card__name").textContent = localizedName(entry);
+    const label = variantLabel(entry);
+    form.textContent = label;
+    form.hidden = !label;
+    progress.textContent = multiple
+      ? t("variantProgress", { owned: ownedCount, count: group.entries.length })
+      : "";
+    progress.hidden = !multiple;
+
+    const badge = card.querySelector(".variant-badge");
+    const showBadge = multiple && group.speciesId !== SPINDA_ID;
+    badge.hidden = !showBadge;
+    badge.querySelector("strong").textContent = String(group.entries.length);
+    badge.setAttribute("title", t("variantBadge", { count: group.entries.length }));
+    badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.entries.length })}`);
+
+    quantityInput.value = String(quantityFor(entry.key) || 1);
+    quantityInput.setAttribute("aria-label", `${t("quantity")} · ${fullVariantName(entry)}`);
+    spriteStyle(card.querySelector(".pokemon-sprite"), entry, currentOwned);
+    renderTypes(card.querySelector(".pokemon-card__types"), entry.types);
+  }
+
+  function createCard(group) {
+    const fragment = elements.pokemonCardTemplate.content.cloneNode(true);
+    const card = fragment.querySelector(".pokemon-card");
+    card.dataset.speciesId = String(group.speciesId);
+    updateCardView(group, card);
+
+    if (group.entries.length > 1) {
+      let hoverTimer;
+      card.addEventListener("pointerenter", event => {
+        if (event.pointerType === "touch") return;
+        card.dataset.hovering = "true";
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(() => {
+          if (card.isConnected && card.dataset.hovering === "true") {
+            openVariantDialog(group.speciesId, currentEntry(group).key);
+          }
+        }, HOVER_DELAY);
+      });
+      card.addEventListener("pointerleave", () => {
+        card.dataset.hovering = "";
+        clearTimeout(hoverTimer);
+      });
     }
     return card;
   }
@@ -193,55 +421,83 @@
     };
   }
 
-  function filteredEntries() {
+  function filteredGroups() {
     const filters = currentFilters();
     const numericSearch = filters.search.replace(/\D/g, "");
     const isNumberSearch = Boolean(filters.search) && /^#?\s*\d+$/.test(elements.searchInput.value.trim());
-    const list = DATA.entries.filter(entry => {
+    const list = speciesGroups.filter(group => {
       if (filters.search) {
-        const haystack = normalize(`${entry.name} ${entry.label} ${entry.slug}`);
+        const searchable = group.entries.flatMap(entry => [
+          localizedName(entry),
+          localizedForm(entry),
+          entry.slug,
+          genderText(entry)
+        ]).join(" ");
         const matchesSearch = isNumberSearch
-          ? String(entry.speciesId) === String(Number(numericSearch))
-          : haystack.includes(filters.search);
+          ? String(group.speciesId) === String(Number(numericSearch))
+          : normalize(searchable).includes(filters.search);
         if (!matchesSearch) return false;
       }
-      if (filters.generation !== "all" && entry.generation !== Number(filters.generation)) return false;
-      if (filters.type !== "all" && !entry.types.includes(filters.type)) return false;
-      if (filters.status === "owned" && !isOwned(entry.key)) return false;
-      if (filters.status === "missing" && isOwned(entry.key)) return false;
-      if (filters.status === "variants" && !entry.variant) return false;
+      if (filters.generation !== "all" && group.generation !== Number(filters.generation)) return false;
+      if (filters.type !== "all" && !group.entries.some(entry => entry.types.includes(filters.type))) return false;
+      const ownedCount = ownedInGroup(group);
+      if (filters.status === "owned" && ownedCount === 0) return false;
+      if (filters.status === "missing" && ownedCount > 0) return false;
+      if (filters.status === "variants" && (group.entries.length < 2 || group.speciesId === SPINDA_ID)) return false;
       return true;
     });
 
-    const byNumber = (a, b) =>
-      a.speciesId - b.speciesId
-      || a.sheet - b.sheet
-      || a.slot - b.slot;
+    const byNumber = (a, b) => a.speciesId - b.speciesId;
     if (filters.sort === "name") {
-      list.sort((a, b) => a.name.localeCompare(b.name, "fr") || byNumber(a, b));
+      list.sort((a, b) =>
+        localizedName(a.entries[0]).localeCompare(localizedName(b.entries[0]), locale()) || byNumber(a, b)
+      );
     } else if (filters.sort === "owned") {
-      list.sort((a, b) => Number(isOwned(b.key)) - Number(isOwned(a.key)) || byNumber(a, b));
+      list.sort((a, b) => Number(ownedInGroup(b) > 0) - Number(ownedInGroup(a) > 0) || byNumber(a, b));
     } else if (filters.sort === "missing") {
-      list.sort((a, b) => Number(isOwned(a.key)) - Number(isOwned(b.key)) || byNumber(a, b));
+      list.sort((a, b) => Number(ownedInGroup(a) > 0) - Number(ownedInGroup(b) > 0) || byNumber(a, b));
     } else {
       list.sort(byNumber);
     }
     return list;
   }
 
+  function observeCard(card, speciesId) {
+    if (!cardObserver) {
+      visibleSpecies.add(speciesId);
+      return;
+    }
+    cardObserver.observe(card);
+  }
+
+  const cardObserver = "IntersectionObserver" in window
+    ? new IntersectionObserver(entries => {
+        for (const observed of entries) {
+          const speciesId = Number(observed.target.dataset.speciesId);
+          if (observed.isIntersecting) visibleSpecies.add(speciesId);
+          else visibleSpecies.delete(speciesId);
+        }
+      }, { rootMargin: "180px" })
+    : null;
+
   function render() {
-    const entries = filteredEntries();
+    const groups = filteredGroups();
     const fragment = document.createDocumentFragment();
+    cardObserver?.disconnect();
     cardNodes.clear();
-    for (const entry of entries) {
-      const card = createCard(entry);
-      cardNodes.set(entry.key, card);
+    visibleSpecies.clear();
+    for (const group of groups) {
+      const card = createCard(group);
+      cardNodes.set(group.speciesId, card);
       fragment.append(card);
     }
     elements.pokemonGrid.replaceChildren(fragment);
-    elements.emptyState.hidden = entries.length > 0;
-    elements.pokemonGrid.hidden = entries.length === 0;
-    elements.resultCount.textContent = `${entries.length.toLocaleString("fr-FR")} apparence${entries.length > 1 ? "s" : ""}`;
+    for (const [speciesId, card] of cardNodes) observeCard(card, speciesId);
+    elements.emptyState.hidden = groups.length > 0;
+    elements.pokemonGrid.hidden = groups.length === 0;
+    elements.resultCount.textContent = t(groups.length === 1 ? "resultOne" : "results", {
+      count: formatNumber(groups.length)
+    });
     updateActiveFilter();
   }
 
@@ -253,18 +509,20 @@
   function updateActiveFilter() {
     const filters = currentFilters();
     const labels = [];
-    if (filters.search) labels.push(`recherche « ${elements.searchInput.value.trim()} »`);
-    if (filters.generation !== "all") labels.push(`génération ${filters.generation}`);
-    if (filters.type !== "all") labels.push(`type ${filters.type}`);
+    if (filters.search) labels.push(t("filterSearch", { value: elements.searchInput.value.trim() }));
+    if (filters.generation !== "all") labels.push(t("filterGeneration", { value: filters.generation }));
+    if (filters.type !== "all") labels.push(t("filterType", { value: localizedType(filters.type) }));
     if (filters.status !== "all") {
-      labels.push({
-        owned: "collection uniquement",
-        missing: "manquants uniquement",
-        variants: "formes multiples"
-      }[filters.status]);
+      labels.push(t({
+        owned: "filterOwned",
+        missing: "filterMissing",
+        variants: "filterVariants"
+      }[filters.status]));
     }
     elements.activeFilter.hidden = labels.length === 0;
-    elements.activeFilterText.textContent = labels.length ? `Filtres actifs : ${labels.join(" · ")}` : "";
+    elements.activeFilterText.textContent = labels.length
+      ? t("activeFilters", { filters: labels.join(" · ") })
+      : "";
   }
 
   function updateStats() {
@@ -272,49 +530,36 @@
     const ownedSpecies = new Set(ownedEntries.map(entry => entry.speciesId)).size;
     const totalCopies = Object.values(state.collection).reduce((sum, value) => sum + (Number(value) || 0), 0);
     const percentage = DATA.appearanceCount ? (ownedEntries.length / DATA.appearanceCount) * 100 : 0;
-    const rounded = percentage < 1 && percentage > 0 ? percentage.toFixed(1) : Math.round(percentage);
+    const rounded = percentage < 1 && percentage > 0
+      ? percentage.toLocaleString(locale(), { maximumFractionDigits: 1 })
+      : Math.round(percentage).toLocaleString(locale());
 
-    elements.ownedCount.textContent = ownedEntries.length.toLocaleString("fr-FR");
-    elements.appearanceTotal.textContent = DATA.appearanceCount.toLocaleString("fr-FR");
-    elements.speciesCount.textContent = ownedSpecies.toLocaleString("fr-FR");
-    elements.speciesTotal.textContent = DATA.speciesCount.toLocaleString("fr-FR");
-    elements.copyCount.textContent = totalCopies.toLocaleString("fr-FR");
+    elements.ownedCount.textContent = formatNumber(ownedEntries.length);
+    elements.appearanceTotal.textContent = formatNumber(DATA.appearanceCount);
+    elements.speciesCount.textContent = formatNumber(ownedSpecies);
+    elements.speciesTotal.textContent = formatNumber(DATA.speciesCount);
+    elements.copyCount.textContent = formatNumber(totalCopies);
     elements.progressPercent.textContent = `${rounded} %`;
     elements.progressBar.style.width = `${Math.min(100, percentage)}%`;
     elements.progressBar.parentElement.setAttribute("aria-valuenow", String(Math.round(percentage)));
 
-    if (percentage === 0) {
-      elements.progressMessage.textContent = "Votre aventure chromatique commence ici.";
-    } else if (percentage < 25) {
-      elements.progressMessage.textContent = "La collection prend forme, shiny après shiny.";
-    } else if (percentage < 50) {
-      elements.progressMessage.textContent = "Un quart du chemin est déjà derrière vous.";
-    } else if (percentage < 75) {
-      elements.progressMessage.textContent = "Plus de la moitié du Shinydex se met à briller.";
-    } else if (percentage < 100) {
-      elements.progressMessage.textContent = "La collection complète est à portée de main.";
-    } else {
-      elements.progressMessage.textContent = "Shinydex complet — une collection exceptionnelle !";
-    }
+    const messageKey = percentage === 0
+      ? "progressStart"
+      : percentage < 25
+        ? "progressLow"
+        : percentage < 50
+          ? "progressQuarter"
+          : percentage < 75
+            ? "progressHalf"
+            : percentage < 100
+              ? "progressNear"
+              : "progressDone";
+    elements.progressMessage.textContent = t(messageKey);
   }
 
-  function updateVisibleCard(key) {
-    const card = cardNodes.get(key);
-    const entry = entryByKey.get(key);
-    if (!card || !entry) return;
-    const owned = isOwned(key);
-    const quantity = quantityFor(key);
-    const toggle = card.querySelector(".pokemon-card__toggle");
-    const input = card.querySelector(".quantity__input");
-    card.classList.toggle("is-owned", owned);
-    toggle.setAttribute("aria-pressed", String(owned));
-    toggle.setAttribute(
-      "aria-label",
-      `${owned ? "Retirer" : "Ajouter"} ${entry.name}${entry.label ? `, ${entry.label}` : ""} ${owned ? "de" : "à"} la collection`
-    );
-    card.querySelector(".pokemon-card__hint").textContent = owned ? "Shiny possédé" : "Cliquer pour marquer";
-    input.value = String(quantity || 1);
-    spriteStyle(card.querySelector(".pokemon-sprite"), entry, owned);
+  function updateSpeciesCard(speciesId) {
+    const group = groupsBySpecies.get(speciesId);
+    if (group) updateCardView(group);
   }
 
   function setQuantity(key, rawQuantity, { sparkle = false } = {}) {
@@ -325,6 +570,7 @@
     saveState();
     updateStats();
 
+    const group = groupByEntryKey.get(key);
     const filters = currentFilters();
     if (
       filters.status === "owned"
@@ -333,12 +579,15 @@
       || filters.sort === "missing"
     ) {
       render();
-    } else {
-      updateVisibleCard(key);
+    } else if (group) {
+      updateSpeciesCard(group.speciesId);
+    }
+    if (activeDialogSpecies === group?.speciesId && elements.variantDialog.hasAttribute("open")) {
+      renderVariantDialog(group, key);
     }
 
     if (sparkle && previous === 0 && quantity > 0 && state.preferences.animations) {
-      const card = cardNodes.get(key);
+      const card = group ? cardNodes.get(group.speciesId) : null;
       if (card) createSparkles(card);
     }
   }
@@ -351,9 +600,8 @@
       return;
     }
     pendingRemovalKey = key;
-    elements.removeDialogText.textContent =
-      `${entry.name}${entry.label ? ` — ${entry.label}` : ""} sera retiré de votre collection.`;
-    elements.removeDialog.showModal();
+    elements.removeDialogText.textContent = t("removeDialogText", { name: fullVariantName(entry) });
+    showDialog(elements.removeDialog);
   }
 
   function toggleEntry(key) {
@@ -392,9 +640,7 @@
   function syncPreferences() {
     elements.animationSetting.checked = state.preferences.animations;
     elements.confirmSetting.checked = state.preferences.confirmRemove;
-    elements.densityButton.setAttribute("aria-pressed", String(state.preferences.compact));
-    elements.pokemonGrid.classList.toggle("is-compact", state.preferences.compact);
-    elements.densityButton.querySelector("span").textContent = state.preferences.compact ? "Confort" : "Compact";
+    elements.languageSelect.value = language();
   }
 
   function showToast(message) {
@@ -413,15 +659,31 @@
   }
 
   function applySyncedState(nextState, notification = "") {
+    const previousLanguage = language();
     state = normalizeState(nextState);
     saveState(false);
     syncPreferences();
-    updateStats();
-    render();
+    if (language() !== previousLanguage) applyLanguage();
+    else {
+      updateStats();
+      render();
+      if (activeDialogSpecies) {
+        const group = groupsBySpecies.get(activeDialogSpecies);
+        if (group) renderVariantDialog(group);
+      }
+    }
     if (notification) showToast(notification);
   }
 
-  function setCloudStatus({ user = null, status = "local", label = "", detail = "" } = {}) {
+  function renderCloudStatus() {
+    const {
+      user = null,
+      status = "local",
+      label = "",
+      labelKey = "",
+      detail = "",
+      detailKey = ""
+    } = lastCloudDescriptor;
     const connected = Boolean(user);
     const stateClass = {
       syncing: "is-syncing",
@@ -429,36 +691,41 @@
       error: "is-error",
       offline: "is-error"
     }[status] || "";
-    const shortLabel = {
-      local: "Sauvegarde locale",
-      syncing: "Synchronisation…",
-      synced: "Sauvegarde cloud",
-      error: "Erreur Firebase",
-      offline: "Mode hors ligne"
-    }[status] || "Sauvegarde locale";
-    const longLabel = label || {
-      local: "Non connecté",
-      syncing: "Synchronisation en cours",
-      synced: "Collection synchronisée",
-      error: "Synchronisation impossible",
-      offline: "En attente de connexion"
-    }[status] || "Sauvegarde locale";
+    const shortLabel = t({
+      local: "statusLocalShort",
+      syncing: "statusSyncingShort",
+      synced: "statusSyncedShort",
+      error: "statusErrorShort",
+      offline: "statusOfflineShort"
+    }[status] || "statusLocalShort");
+    const longLabel = labelKey
+      ? t(labelKey)
+      : label || t({
+          local: "statusLocalLong",
+          syncing: "statusSyncingLong",
+          synced: "statusSyncedLong",
+          error: "statusErrorLong",
+          offline: "statusOfflineLong"
+        }[status] || "statusLocalLong");
 
     for (const dot of [elements.cloudDot, elements.dialogCloudDot]) {
       dot?.classList.remove("is-syncing", "is-synced", "is-error");
       if (stateClass) dot?.classList.add(stateClass);
     }
     elements.cloudStatusLabel.textContent = shortLabel;
-    elements.accountLabel.textContent = connected ? user.email : "Connexion";
+    elements.accountLabel.textContent = connected ? user.email : t("login");
     elements.signedOutPanel.hidden = connected;
     elements.signedInPanel.hidden = !connected;
     elements.accountEmail.textContent = user?.email || "";
     elements.cloudStatusText.textContent = longLabel;
-    elements.cloudStatusDetail.textContent = detail || (
-      connected
-        ? "Vos modifications sont conservées localement et dans Firebase."
-        : "Connectez-vous pour activer la sauvegarde cloud."
-    );
+    elements.cloudStatusDetail.textContent = detailKey
+      ? t(detailKey)
+      : detail || t(connected ? "statusConnectedDetail" : "statusLocalDetail");
+  }
+
+  function setCloudStatus(descriptor = {}) {
+    lastCloudDescriptor = { ...descriptor };
+    renderCloudStatus();
   }
 
   function exportCollection() {
@@ -477,30 +744,102 @@
     link.download = `pokemon-shinydex-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    showToast("Sauvegarde exportée.");
+    showToast(t("exportDone"));
   }
 
   async function importCollection(file) {
     try {
       const payload = JSON.parse(await file.text());
       if (payload.format && payload.format !== "pokemon-shinydex") {
-        throw new Error("Ce fichier ne provient pas du Shinydex.");
+        throw new Error(t("invalidOrigin"));
       }
       const imported = normalizeState(payload);
       if (Object.keys(imported.collection).length === 0 && Object.keys(payload.collection || {}).length > 0) {
-        throw new Error("Aucune fiche compatible avec cette version.");
+        throw new Error(t("noCompatibleCard"));
       }
       state = imported;
       saveState();
       syncPreferences();
-      updateStats();
-      render();
-      showToast("Collection importée avec succès.");
+      applyLanguage();
+      showToast(t("importDone"));
     } catch (error) {
-      showToast(error.message || "Le fichier de sauvegarde est invalide.");
+      showToast(error.message || t("invalidFile"));
     } finally {
       elements.importInput.value = "";
     }
+  }
+
+  function renderVariantDialog(group, preferredKey = "") {
+    activeDialogSpecies = group.speciesId;
+    const previousScroll = elements.variantGrid.scrollTop;
+    elements.variantDialogTitle.textContent = t("variantsTitle", {
+      name: localizedName(group.entries[0])
+    });
+    const fragment = document.createDocumentFragment();
+    for (const entry of group.entries) {
+      const item = elements.variantCardTemplate.content.cloneNode(true);
+      const card = item.querySelector(".variant-option");
+      const toggle = item.querySelector(".variant-option__toggle");
+      const owned = isOwned(entry.key);
+      card.dataset.key = entry.key;
+      card.classList.toggle("is-owned", owned);
+      if (entry.key === preferredKey) card.classList.add("is-current");
+      toggle.setAttribute("aria-pressed", String(owned));
+      toggle.setAttribute(
+        "aria-label",
+        t(owned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
+      );
+      spriteStyle(item.querySelector(".variant-option__sprite"), entry, owned);
+      item.querySelector(".variant-option__form").textContent =
+        localizedForm(entry) || t("defaultForm");
+      item.querySelector(".variant-option__gender").textContent = genderText(entry);
+      item.querySelector(".variant-option__status").textContent = t(owned ? "owned" : "missing");
+      renderTypes(item.querySelector(".variant-option__types"), entry.types);
+      const input = item.querySelector(".quantity__input");
+      input.value = String(quantityFor(entry.key) || 1);
+      input.setAttribute("aria-label", `${t("quantity")} · ${fullVariantName(entry)}`);
+      fragment.append(item);
+    }
+    elements.variantGrid.replaceChildren(fragment);
+    elements.variantGrid.scrollTop = previousScroll;
+  }
+
+  function openVariantDialog(speciesId, preferredKey = "") {
+    const group = groupsBySpecies.get(speciesId);
+    if (!group || group.entries.length < 2) return;
+    if (activeDialogSpecies !== speciesId) elements.variantGrid.scrollTop = 0;
+    renderVariantDialog(group, preferredKey);
+    showDialog(elements.variantDialog);
+  }
+
+  function applyLanguage() {
+    populateLanguageOptions();
+    applyStaticTranslations();
+    initializeFilters();
+    syncPreferences();
+    updateStats();
+    render();
+    renderCloudStatus();
+    updateDataVersion();
+    if (activeDialogSpecies && elements.variantDialog.hasAttribute("open")) {
+      const group = groupsBySpecies.get(activeDialogSpecies);
+      if (group) renderVariantDialog(group);
+    }
+    document.dispatchEvent(new CustomEvent("shinydex:language-change"));
+  }
+
+  function updateDataVersion() {
+    const generatedDate = new Date(DATA.generatedAt);
+    elements.dataVersion.textContent = Number.isNaN(generatedDate.getTime())
+      ? t("dataVersionFallback", {
+          species: formatNumber(DATA.speciesCount),
+          appearances: formatNumber(DATA.appearanceCount)
+        })
+      : t("dataVersion", {
+          date: generatedDate.toLocaleDateString(locale()),
+          species: formatNumber(DATA.speciesCount),
+          appearances: formatNumber(DATA.appearanceCount)
+        });
   }
 
   function preloadShinySheets() {
@@ -520,11 +859,49 @@
     else setTimeout(() => loadNext(), 500);
   }
 
+  function rotateVisibleVariants() {
+    if (document.hidden || elements.variantDialog.hasAttribute("open")) return;
+    for (const speciesId of visibleSpecies) {
+      const group = groupsBySpecies.get(speciesId);
+      const card = cardNodes.get(speciesId);
+      if (!group || !card || group.entries.length < 2 || card.dataset.hovering === "true") continue;
+      const nextIndex = ((activeVariantIndex.get(speciesId) || 0) + 1) % group.entries.length;
+      activeVariantIndex.set(speciesId, nextIndex);
+      updateCardView(group, card);
+    }
+  }
+
   elements.pokemonGrid.addEventListener("click", event => {
     const card = event.target.closest(".pokemon-card");
     if (!card) return;
-    const key = card.dataset.key;
-    if (event.target.closest(".pokemon-card__toggle")) {
+    const speciesId = Number(card.dataset.speciesId);
+    const group = groupsBySpecies.get(speciesId);
+    const entry = currentEntry(group);
+    if (event.target.closest(".variant-badge")) {
+      openVariantDialog(speciesId, entry.key);
+    } else if (event.target.closest(".pokemon-card__toggle")) {
+      if (group.entries.length > 1) openVariantDialog(speciesId, entry.key);
+      else toggleEntry(entry.key);
+    } else if (event.target.closest(".quantity__plus")) {
+      setQuantity(entry.key, quantityFor(entry.key) + 1);
+    } else if (event.target.closest(".quantity__minus")) {
+      const quantity = quantityFor(entry.key);
+      if (quantity <= 1) requestRemoval(entry.key);
+      else setQuantity(entry.key, quantity - 1);
+    }
+  });
+
+  elements.pokemonGrid.addEventListener("change", event => {
+    if (!event.target.matches(".quantity__input")) return;
+    const key = event.target.closest(".pokemon-card")?.dataset.key;
+    if (key) setQuantity(key, event.target.value || 1);
+  });
+
+  elements.variantGrid.addEventListener("click", event => {
+    const option = event.target.closest(".variant-option");
+    const key = option?.dataset.key;
+    if (!key) return;
+    if (event.target.closest(".variant-option__toggle")) {
       toggleEntry(key);
     } else if (event.target.closest(".quantity__plus")) {
       setQuantity(key, quantityFor(key) + 1);
@@ -535,9 +912,9 @@
     }
   });
 
-  elements.pokemonGrid.addEventListener("change", event => {
+  elements.variantGrid.addEventListener("change", event => {
     if (!event.target.matches(".quantity__input")) return;
-    const key = event.target.closest(".pokemon-card")?.dataset.key;
+    const key = event.target.closest(".variant-option")?.dataset.key;
     if (key) setQuantity(key, event.target.value || 1);
   });
 
@@ -551,16 +928,20 @@
     control.addEventListener("change", render);
   }
 
+  elements.languageSelect.addEventListener("change", event => {
+    state.preferences.language = DATA.languages.includes(event.target.value) ? event.target.value : "fr";
+    saveState();
+    applyLanguage();
+  });
   elements.clearFiltersButton.addEventListener("click", resetFilters);
   elements.emptyResetButton.addEventListener("click", resetFilters);
-  elements.densityButton.addEventListener("click", () => {
-    state.preferences.compact = !state.preferences.compact;
-    saveState();
-    syncPreferences();
+  elements.settingsButton.addEventListener("click", () => showDialog(elements.settingsDialog));
+  elements.accountButton.addEventListener("click", () => showDialog(elements.authDialog));
+  elements.closeAuthButton.addEventListener("click", () => closeDialog(elements.authDialog));
+  elements.closeVariantButton.addEventListener("click", () => closeDialog(elements.variantDialog));
+  elements.variantDialog.addEventListener("close", () => {
+    activeDialogSpecies = null;
   });
-  elements.settingsButton.addEventListener("click", () => elements.settingsDialog.showModal());
-  elements.accountButton.addEventListener("click", () => elements.authDialog.showModal());
-  elements.closeAuthButton.addEventListener("click", () => elements.authDialog.close());
   elements.animationSetting.addEventListener("change", () => {
     state.preferences.animations = elements.animationSetting.checked;
     saveState();
@@ -570,17 +951,15 @@
     saveState();
   });
   elements.openResetButton.addEventListener("click", () => {
-    elements.settingsDialog.close();
-    elements.resetDialog.showModal();
+    closeDialog(elements.settingsDialog);
+    showDialog(elements.resetDialog);
   });
   elements.confirmResetButton.addEventListener("click", () => {
     state = defaultState();
     for (const key of [STORAGE_KEY, ...LEGACY_KEYS]) localStorage.removeItem(key);
     saveState();
-    syncPreferences();
-    updateStats();
-    render();
-    showToast("Le Shinydex a été réinitialisé.");
+    applyLanguage();
+    showToast(t("resetDone"));
   });
   elements.confirmRemoveButton.addEventListener("click", () => {
     if (pendingRemovalKey) setQuantity(pendingRemovalKey, 0);
@@ -612,28 +991,24 @@
       && event.clientX <= rectangle.right
       && event.clientY >= rectangle.top
       && event.clientY <= rectangle.bottom;
-    if (!inside) dialog.close();
+    if (!inside) closeDialog(dialog);
   });
 
-  initializeFilters();
-  syncPreferences();
+  populateLanguageOptions();
+  applyLanguage();
   setCloudStatus();
-  updateStats();
-  render();
   preloadShinySheets();
+  setInterval(rotateVisibleVariants, ROTATION_DELAY);
 
   window.SHINYDEX_APP = Object.freeze({
     getState: publicState,
     applySyncedState,
     setCloudStatus,
     showToast,
+    t,
+    getLanguage: language,
     dataGeneratedAt: DATA.generatedAt
   });
-
-  const generatedDate = new Date(DATA.generatedAt);
-  elements.dataVersion.textContent = Number.isNaN(generatedDate.getTime())
-    ? `${DATA.speciesCount} espèces · ${DATA.appearanceCount} apparences`
-    : `Base générée le ${generatedDate.toLocaleDateString("fr-FR")} · ${DATA.speciesCount} espèces · ${DATA.appearanceCount} apparences`;
 
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     window.addEventListener("load", () => {

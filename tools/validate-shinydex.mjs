@@ -8,14 +8,26 @@ import sharp from "sharp";
 
 const root = resolve(import.meta.dirname, "..");
 const errors = [];
+const languages = ["fr", "en", "es", "de", "it", "ja"];
 
 function check(condition, message) {
   if (!condition) errors.push(message);
 }
 
-const [html, css, app, firebaseBundle, dataSource, serviceWorker, manifestSource, firestoreRules] = await Promise.all([
+const [
+  html,
+  css,
+  i18nSource,
+  app,
+  firebaseBundle,
+  dataSource,
+  serviceWorker,
+  manifestSource,
+  firestoreRules
+] = await Promise.all([
   readFile(resolve(root, "index.html"), "utf8"),
   readFile(resolve(root, "styles.css"), "utf8"),
+  readFile(resolve(root, "i18n.js"), "utf8"),
   readFile(resolve(root, "app.js"), "utf8"),
   readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
@@ -24,7 +36,12 @@ const [html, css, app, firebaseBundle, dataSource, serviceWorker, manifestSource
   readFile(resolve(root, "firestore.rules"), "utf8")
 ]);
 
-for (const [source, name] of [[app, "app.js"], [firebaseBundle, "firebase-sync.js"], [serviceWorker, "sw.js"]]) {
+for (const [source, name] of [
+  [i18nSource, "i18n.js"],
+  [app, "app.js"],
+  [firebaseBundle, "firebase-sync.js"],
+  [serviceWorker, "sw.js"]
+]) {
   try {
     new vm.Script(source, { filename: name });
   } catch (error) {
@@ -41,6 +58,15 @@ try {
   errors.push(`Base Pokédex illisible : ${error.message}`);
 }
 
+let translations;
+try {
+  const context = { window: {} };
+  vm.runInNewContext(i18nSource, context, { filename: "i18n.js" });
+  translations = context.window.SHINYDEX_I18N;
+} catch (error) {
+  errors.push(`Traductions illisibles : ${error.message}`);
+}
+
 let manifest;
 try {
   manifest = JSON.parse(manifestSource);
@@ -48,17 +74,42 @@ try {
   errors.push(`Manifest invalide : ${error.message}`);
 }
 
-check(data?.schemaVersion === 1, "Version de schéma inattendue.");
+check(data?.schemaVersion === 2, "Version de schéma inattendue.");
 check(data?.speciesCount >= 1025, "Les 1 025 espèces Pokémon ne sont pas toutes présentes.");
-check(data?.entries?.length === data?.appearanceCount, "Le nombre d’apparences est incohérent.");
-check(new Set(data?.entries?.map(entry => entry.speciesId)).size === data?.speciesCount, "Une espèce n’a aucune apparence.");
-check(data?.entries?.some(entry => entry.name === "Zarbi" && entry.label === "B"), "Les formes de Zarbi sont incomplètes.");
-check(data?.entries?.filter(entry => entry.name === "Zarbi").length >= 28, "Les 28 apparences de Zarbi sont absentes.");
-check(data?.entries?.filter(entry => entry.name === "Vivaldaim").length >= 4, "Les quatre saisons de Vivaldaim sont absentes.");
-check(data?.entries?.every(entry => entry.key && entry.name && Number.isInteger(entry.sheet)), "Une fiche Pokémon est invalide.");
-check(new Set(data?.entries?.map(entry => entry.key)).size === data?.entries?.length, "Des identifiants d’apparence sont dupliqués.");
+check(data?.entries?.length === data?.appearanceCount, "Le nombre de variantes est incohérent.");
+check(new Set(data?.entries?.map(entry => entry.speciesId)).size === data?.speciesCount, "Une espèce n’a aucune variante.");
+check(data?.visualCount < data?.appearanceCount, "Les sprites identiques des deux sexes ne sont pas mutualisés.");
+check(new Set(data?.entries?.map(entry => entry.key)).size === data?.entries?.length, "Des identifiants de variante sont dupliqués.");
 check(data?.normalSheets?.length === data?.shinySheets?.length, "Les planches normales et shiny ne correspondent pas.");
 check(data?.normalSheets?.length > 0, "Aucune planche de sprites.");
+check(languages.every(language => data?.languages?.includes(language)), "Les six langues de données ne sont pas disponibles.");
+
+const florizarre = data?.entries?.filter(entry => entry.speciesId === 3) || [];
+check(florizarre.length === 2, "Florizarre doit proposer exactement un mâle et une femelle.");
+check(new Set(florizarre.map(entry => entry.gender)).size === 2, "Les deux sexes de Florizarre sont incomplets.");
+check(data?.entries?.filter(entry => entry.speciesId === 29).every(entry => entry.gender === "female"), "Nidoran♀ ne doit pas proposer de mâle.");
+check(data?.entries?.filter(entry => entry.speciesId === 32).every(entry => entry.gender === "male"), "Nidoran♂ ne doit pas proposer de femelle.");
+check(data?.entries?.filter(entry => entry.speciesId === 81).every(entry => entry.gender === "genderless"), "Magnéti doit rester asexué.");
+check(data?.entries?.filter(entry => entry.speciesId === 201).length >= 28, "Les 28 formes de Zarbi sont absentes.");
+check(data?.entries?.filter(entry => entry.speciesId === 585).length >= 8, "Les saisons et sexes de Vivaldaim sont incomplets.");
+check(data?.entries?.every(entry =>
+  entry.key
+  && entry.names?.fr
+  && languages.every(language => entry.names?.[language])
+  && languages.every(language => typeof entry.formNames?.[language] === "string")
+  && ["male", "female", "genderless"].includes(entry.gender)
+  && Number.isInteger(entry.sheet)
+), "Une variante Pokémon est invalide ou mal traduite.");
+check(data?.types?.every(type =>
+  languages.every(language => data.typeNames?.[type]?.[language])
+), "Les noms de types ne sont pas disponibles dans les six langues.");
+
+for (const language of languages) {
+  const missing = Object.keys(translations?.strings?.fr || {}).filter(
+    key => !translations?.strings?.[language]?.[key]
+  );
+  check(missing.length === 0, `Textes ${language} manquants : ${missing.join(", ")}`);
+}
 
 for (const file of [...(data?.normalSheets || []), ...(data?.shinySheets || [])]) {
   const path = resolve(root, file);
@@ -72,30 +123,47 @@ for (const file of [...(data?.normalSheets || []), ...(data?.shinySheets || [])]
   }
 }
 
+try {
+  const favicon = await sharp(resolve(root, "assets/mew-shiny.png")).metadata();
+  check(favicon.format === "png" && favicon.width === 128 && favicon.height === 128, "Le favicon Mew shiny est invalide.");
+} catch (error) {
+  errors.push(`Le favicon Mew shiny est absent : ${error.message}`);
+}
+
 for (const id of [
-  "searchInput", "generationFilter", "typeFilter", "statusFilter", "sortSelect",
-  "pokemonGrid", "ownedCount", "speciesCount", "copyCount", "resetDialog", "importInput",
-  "accountButton", "authDialog", "authEmail", "authPassword", "signInButton",
-  "createAccountButton", "syncNowButton", "signOutButton"
+  "languageSelect", "searchInput", "generationFilter", "typeFilter", "statusFilter",
+  "sortSelect", "pokemonGrid", "ownedCount", "speciesCount", "copyCount", "variantDialog",
+  "variantGrid", "variantCardTemplate", "resetDialog", "importInput", "accountButton",
+  "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
+  "syncNowButton", "signOutButton"
 ]) {
   check(html.includes(`id="${id}"`), `Élément #${id} absent.`);
 }
 
+check(html.includes("i18n.js"), "Le module multilingue n’est pas chargé.");
 check(html.includes("data/pokedex-data.js"), "La base locale n’est pas chargée.");
+check(html.includes("assets/mew-shiny.png"), "Le favicon Mew shiny n’est pas relié.");
 check(html.includes("manifest.webmanifest"), "Le manifeste PWA n’est pas relié.");
+check(!/compact|densityButton|is-compact/i.test(`${html}\n${app}\n${css}`), "Le mode compact n’a pas été entièrement supprimé.");
+check(!html.toLowerCase().includes("cliquer pour marquer"), "La consigne répétée est encore présente dans les fiches.");
+check(html.includes('data-i18n="instruction"'), "La consigne générale au-dessus du Pokédex est absente.");
 check(css.includes("content-visibility: auto"), "Le rendu différé des cartes n’est pas activé.");
+check(css.includes("--type-color"), "Les couleurs propres aux types sont absentes.");
+check(app.includes("HOVER_DELAY = 2000"), "L’ouverture après deux secondes de survol n’est pas configurée.");
+check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
 check(app.includes("localStorage"), "La sauvegarde locale est absente.");
 check(app.includes("requestIdleCallback"), "Le préchargement différé n’est pas configuré.");
 check(app.includes("navigator.serviceWorker.register"), "Le mode hors ligne n’est pas activé.");
 check(app.includes("window.SHINYDEX_APP"), "Le pont de synchronisation Firebase est absent.");
 check(manifest?.display === "standalone", "Le manifeste ne permet pas l’installation.");
+check(manifest?.icons?.some(icon => icon.src === "assets/mew-shiny.png"), "Le favicon Mew shiny est absent du manifeste.");
 check(firebaseBundle.includes("pokemon-shinydex"), "La configuration Firebase attendue est absente.");
 check(firebaseBundle.includes("users") && firebaseBundle.includes("shinydex"), "Le document Firebase Shinydex est absent.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("firebase-sync.js"), "Le module Firebase local n’est pas mis en cache.");
+check(serviceWorker.includes("i18n.js") && serviceWorker.includes("mew-shiny.png"), "Les nouvelles ressources ne sont pas mises en cache.");
 
-const runtime = [html, css, app, firebaseBundle, dataSource, serviceWorker].join("\n").toLowerCase();
+const runtime = [html, css, i18nSource, app, firebaseBundle, dataSource, serviceWorker].join("\n").toLowerCase();
 for (const forbidden of ["pokeapi.co", "raw.githubusercontent.com"]) {
   check(!runtime.includes(forbidden), `Dépendance réseau interdite dans le site : ${forbidden}`);
 }
@@ -107,28 +175,58 @@ try {
     runScripts: "outside-only",
     pretendToBeVisual: true
   });
+  dom.window.HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute("open", "");
+  };
+  dom.window.HTMLDialogElement.prototype.close = function close(returnValue = "") {
+    this.returnValue = returnValue;
+    this.removeAttribute("open");
+    this.dispatchEvent(new dom.window.Event("close"));
+  };
+  dom.window.eval(i18nSource);
   dom.window.eval(dataSource);
   dom.window.eval(app);
-  await new Promise(resolveDelay => setTimeout(resolveDelay, 40));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 80));
 
   const cards = dom.window.document.querySelectorAll(".pokemon-card");
-  check(cards.length === data.appearanceCount, `Le rendu affiche ${cards.length} fiches au lieu de ${data.appearanceCount}.`);
-  const firstCard = cards[0];
-  const beforeSprite = firstCard.querySelector(".pokemon-sprite").style.backgroundImage;
-  firstCard.querySelector(".pokemon-card__toggle").click();
-  const afterSprite = firstCard.querySelector(".pokemon-sprite").style.backgroundImage;
-  check(firstCard.classList.contains("is-owned"), "Un clic ne marque pas le Pokémon comme possédé.");
-  check(beforeSprite !== afterSprite && afterSprite.includes("sprites-shiny"), "Un clic ne remplace pas le sprite normal par le shiny.");
-  check(firstCard.querySelector(".quantity").querySelector("input").value === "1", "Le compteur shiny ne démarre pas à 1.");
+  check(cards.length === data.speciesCount, `Le rendu affiche ${cards.length} fiches au lieu d’une par espèce.`);
+  check(dom.window.document.querySelectorAll('.pokemon-card[data-species-id="3"]').length === 1, "Florizarre apparaît sur plusieurs fiches.");
+
+  const florizarreCard = dom.window.document.querySelector('.pokemon-card[data-species-id="3"]');
+  florizarreCard.querySelector(".pokemon-card__toggle").click();
+  check(dom.window.document.getElementById("variantDialog").hasAttribute("open"), "Un clic sur une espèce à variantes n’ouvre pas le sélecteur.");
+  check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length === 2, "Le sélecteur de Florizarre ne propose pas les deux sexes.");
+
+  const firstVariant = dom.window.document.querySelector("#variantGrid .variant-option");
+  const beforeSprite = firstVariant.querySelector(".variant-option__sprite").style.backgroundImage;
+  firstVariant.querySelector(".variant-option__toggle").click();
+  const refreshedVariant = dom.window.document.querySelector("#variantGrid .variant-option");
+  const afterSprite = refreshedVariant.querySelector(".variant-option__sprite").style.backgroundImage;
+  check(refreshedVariant.classList.contains("is-owned"), "Le clic ne marque pas la variante comme possédée.");
+  check(beforeSprite !== afterSprite && afterSprite.includes("sprites-shiny"), "Le sprite normal n’est pas remplacé par le shiny.");
+  check(refreshedVariant.querySelector(".quantity__input").value === "1", "Le compteur shiny ne démarre pas à 1.");
   check(dom.window.localStorage.getItem("pokemonShinydex:v1"), "Le clic n’est pas sauvegardé dans localStorage.");
   check(typeof dom.window.SHINYDEX_APP?.getState === "function", "Le pont Firebase n’est pas exposé.");
-  check(dom.window.SHINYDEX_APP.getState().collection[data.entries[0].key] === 1, "Le pont Firebase ne lit pas la collection.");
+  check(dom.window.SHINYDEX_APP.getState().collection[florizarre[0].key] === 1, "Le pont Firebase ne lit pas la nouvelle collection.");
 
+  dom.window.document.getElementById("variantDialog").close();
   const search = dom.window.document.getElementById("searchInput");
   search.value = "Zarbi";
   search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-  await new Promise(resolveDelay => setTimeout(resolveDelay, 40));
-  check(dom.window.document.querySelectorAll(".pokemon-card").length >= 28, "La recherche ne retrouve pas les formes de Zarbi.");
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
+  check(dom.window.document.querySelectorAll(".pokemon-card").length === 1, "Les formes de Zarbi ne sont pas regroupées.");
+  dom.window.document.querySelector(".pokemon-card__toggle").click();
+  check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length >= 28, "Les 28 formes de Zarbi ne sont pas proposées.");
+
+  const languageSelect = dom.window.document.getElementById("languageSelect");
+  languageSelect.value = "en";
+  languageSelect.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  check(dom.window.document.documentElement.lang === "en", "Le changement de langue ne met pas à jour le document.");
+  check(dom.window.document.getElementById("exportButton").textContent.includes("Export"), "L’interface anglaise n’est pas appliquée.");
+  check(dom.window.SHINYDEX_APP.getState().preferences.language === "en", "La langue n’est pas sauvegardée.");
+
+  const coloredType = dom.window.document.querySelector(".type-pill");
+  check(coloredType?.style.getPropertyValue("--type-color"), "Une bulle de type n’a pas sa couleur dédiée.");
   dom.window.close();
 } catch (error) {
   errors.push(`Test fonctionnel du navigateur simulé impossible : ${error.message}`);
@@ -141,6 +239,6 @@ if (errors.length) {
 }
 
 console.log(
-  `Validation réussie : ${data.speciesCount} espèces, ${data.appearanceCount} apparences, `
-  + `${data.normalSheets.length * 2} planches locales, sauvegarde et PWA autonomes.`
+  `Validation réussie : ${data.speciesCount} fiches d’espèce, ${data.appearanceCount} variantes forme/sexe, `
+  + `${languages.length} langues, ${data.normalSheets.length * 2} planches locales, Firebase et PWA autonomes.`
 );

@@ -7,8 +7,19 @@ différences mâle/femelle disponibles, etc.
 
 ## Fonctions
 
-- clic sur une fiche : passage du sprite normal au sprite shiny et ajout à la
-  collection ;
+- une seule fiche par espèce, même lorsque plusieurs formes ou différences
+  mâle/femelle existent ;
+- sélection détaillée des variantes par clic ou après deux secondes de survol ;
+- défilement automatique des formes dans la fiche principale et compteur de
+  variantes dans son coin supérieur droit ;
+- sexes mâle et femelle enregistrables séparément lorsque l’espèce accepte les
+  deux, sans inventer de second sexe pour les espèces exclusivement mâles,
+  femelles ou asexuées ;
+- interface et noms Pokémon disponibles en français, anglais, espagnol,
+  allemand, italien et japonais ;
+- couleurs distinctes correspondant à chaque type dans les bulles ;
+- clic sur une variante : passage du sprite normal au sprite shiny et ajout à
+  la collection ;
 - quantité personnalisable pour chaque shiny possédé ;
 - sauvegarde automatique dans le navigateur, export et import JSON ;
 - compte Firebase facultatif par e-mail/mot de passe avec synchronisation entre
@@ -16,6 +27,7 @@ différences mâle/femelle disponibles, etc.
 - recherche tolérante aux accents, filtres par génération, type et état ;
 - statistiques par apparence, espèce et nombre total d’exemplaires ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
+- favicon généré à partir du sprite exact de Mew shiny ;
 - données, sprites normaux et shiny entièrement locaux : aucune requête PokeAPI
   ou GitHub depuis le site.
 

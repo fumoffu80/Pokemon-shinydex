@@ -44,6 +44,10 @@ let saveTimer = null;
 let cloudReady = false;
 let lastCloudState = "";
 
+function tr(key, values) {
+  return bridge.t(key, values);
+}
+
 function serializableState(state) {
   return {
     schemaVersion: 1,
@@ -81,20 +85,21 @@ function setAuthBusy(busy) {
   elements.signInButton.disabled = busy;
   elements.createAccountButton.disabled = busy;
   elements.resetPasswordButton.disabled = busy;
-  elements.signInButton.textContent = busy ? "Connexion…" : "Se connecter";
+  elements.signInButton.textContent = tr(busy ? "authSigningIn" : "signIn");
 }
 
 function authMessage(error) {
-  return {
-    "auth/invalid-email": "L’adresse e-mail n’est pas valide.",
-    "auth/invalid-credential": "Adresse e-mail ou mot de passe incorrect.",
-    "auth/user-disabled": "Ce compte a été désactivé.",
-    "auth/too-many-requests": "Trop de tentatives. Réessayez dans quelques minutes.",
-    "auth/network-request-failed": "Connexion réseau indisponible.",
-    "auth/email-already-in-use": "Un compte existe déjà avec cette adresse e-mail.",
-    "auth/weak-password": "Le mot de passe doit contenir au moins 6 caractères.",
-    "auth/missing-password": "Saisissez votre mot de passe."
-  }[error?.code] || "Firebase n’a pas pu effectuer cette opération.";
+  const key = {
+    "auth/invalid-email": "authInvalidEmail",
+    "auth/invalid-credential": "authInvalidCredential",
+    "auth/user-disabled": "authDisabled",
+    "auth/too-many-requests": "authTooMany",
+    "auth/network-request-failed": "authNetwork",
+    "auth/email-already-in-use": "authEmailUsed",
+    "auth/weak-password": "authWeakPassword",
+    "auth/missing-password": "authMissingPassword"
+  }[error?.code] || "firebaseError";
+  return tr(key);
 }
 
 async function writeCloudState({ notify = false } = {}) {
@@ -103,8 +108,8 @@ async function writeCloudState({ notify = false } = {}) {
     bridge.setCloudStatus({
       user: currentUser,
       status: "offline",
-      label: "Sauvegarde locale en attente",
-      detail: "La synchronisation reprendra automatiquement au retour d’Internet."
+      labelKey: "cloudWaiting",
+      detailKey: "cloudResume"
     });
     return;
   }
@@ -113,7 +118,7 @@ async function writeCloudState({ notify = false } = {}) {
   bridge.setCloudStatus({
     user: currentUser,
     status: "syncing",
-    detail: "Envoi de votre collection vers Firebase…"
+    detailKey: "cloudSending"
   });
 
   try {
@@ -126,18 +131,18 @@ async function writeCloudState({ notify = false } = {}) {
     bridge.setCloudStatus({
       user: currentUser,
       status: "synced",
-      detail: "Vos shiny et leurs quantités sont à jour dans Firebase."
+      detailKey: "cloudUpToDate"
     });
-    if (notify) bridge.showToast("Collection synchronisée avec Firebase.");
+    if (notify) bridge.showToast(tr("cloudSyncedToast"));
   } catch (error) {
     console.error("Échec de la sauvegarde Firebase", error);
     bridge.setCloudStatus({
       user: currentUser,
       status: navigator.onLine ? "error" : "offline",
-      label: navigator.onLine ? "Sauvegarde Firebase impossible" : "Sauvegarde locale en attente",
-      detail: error?.code === "permission-denied"
-        ? "Les règles Firestore doivent autoriser users/{uid}/apps/shinydex."
-        : "La copie locale est intacte. Une nouvelle tentative sera faite automatiquement."
+      labelKey: navigator.onLine ? "cloudImpossible" : "cloudWaiting",
+      detailKey: error?.code === "permission-denied"
+        ? "cloudRulesNeeded"
+        : "cloudLocalSafe"
     });
   }
 }
@@ -169,7 +174,7 @@ function listenToCloud(user) {
 
         const cloud = serializableState(snapshot.data());
         const merged = mergeWithoutLoss(local, cloud);
-        bridge.applySyncedState(merged, "Sauvegarde locale et cloud fusionnées.");
+        bridge.applySyncedState(merged, tr("cloudMerged"));
         cloudReady = true;
         lastCloudState = fingerprint(cloud);
         if (fingerprint(merged) !== lastCloudState) {
@@ -178,7 +183,7 @@ function listenToCloud(user) {
           bridge.setCloudStatus({
             user,
             status: snapshot.metadata.fromCache && !navigator.onLine ? "offline" : "synced",
-            detail: "Votre collection Firebase a été chargée."
+            detailKey: "cloudLoaded"
           });
         }
         return;
@@ -188,7 +193,7 @@ function listenToCloud(user) {
       const cloud = serializableState(snapshot.data());
       const remoteFingerprint = fingerprint(cloud);
       if (!snapshot.metadata.hasPendingWrites && remoteFingerprint !== fingerprint(bridge.getState())) {
-        bridge.applySyncedState(cloud, "Collection mise à jour depuis un autre appareil.");
+        bridge.applySyncedState(cloud, tr("cloudOtherDevice"));
       }
       lastCloudState = remoteFingerprint;
       bridge.setCloudStatus({
@@ -196,9 +201,9 @@ function listenToCloud(user) {
         status: snapshot.metadata.hasPendingWrites
           ? "syncing"
           : (snapshot.metadata.fromCache && !navigator.onLine ? "offline" : "synced"),
-        detail: snapshot.metadata.hasPendingWrites
-          ? "Firebase confirme vos dernières modifications…"
-          : "Vos shiny et leurs quantités sont à jour dans Firebase."
+        detailKey: snapshot.metadata.hasPendingWrites
+          ? "cloudConfirming"
+          : "cloudUpToDate"
       });
     },
     error => {
@@ -207,10 +212,10 @@ function listenToCloud(user) {
       bridge.setCloudStatus({
         user,
         status: "error",
-        label: "Lecture Firebase impossible",
-        detail: error?.code === "permission-denied"
-          ? "Publiez les règles Firestore fournies dans le dépôt."
-          : "La sauvegarde locale reste disponible."
+        labelKey: "cloudReadImpossible",
+        detailKey: error?.code === "permission-denied"
+          ? "cloudPublishRules"
+          : "cloudLocalAvailable"
       });
     }
   );
@@ -221,11 +226,11 @@ async function authenticate(mode) {
   const password = elements.authPassword.value;
   setAuthError();
   if (!email || !password) {
-    setAuthError("Saisissez votre adresse e-mail et votre mot de passe.");
+    setAuthError(tr("authFillBoth"));
     return;
   }
   if (mode === "create" && password.length < 6) {
-    setAuthError("Le mot de passe doit contenir au moins 6 caractères.");
+    setAuthError(tr("authWeakPassword"));
     return;
   }
 
@@ -233,10 +238,10 @@ async function authenticate(mode) {
   try {
     if (mode === "create") {
       await createUserWithEmailAndPassword(auth, email, password);
-      bridge.showToast("Compte créé. Votre Shinydex va être sauvegardé.");
+      bridge.showToast(tr("accountCreated"));
     } else {
       await signInWithEmailAndPassword(auth, email, password);
-      bridge.showToast("Connexion réussie.");
+      bridge.showToast(tr("loginDone"));
     }
     elements.authPassword.value = "";
   } catch (error) {
@@ -255,20 +260,20 @@ elements.createAccountButton.addEventListener("click", () => authenticate("creat
 elements.togglePasswordButton.addEventListener("click", () => {
   const reveal = elements.authPassword.type === "password";
   elements.authPassword.type = reveal ? "text" : "password";
-  elements.togglePasswordButton.textContent = reveal ? "Masquer" : "Afficher";
-  elements.togglePasswordButton.setAttribute("aria-label", reveal ? "Masquer le mot de passe" : "Afficher le mot de passe");
+  elements.togglePasswordButton.textContent = tr(reveal ? "hide" : "show");
+  elements.togglePasswordButton.setAttribute("aria-label", tr(reveal ? "hide" : "show"));
 });
 elements.resetPasswordButton.addEventListener("click", async () => {
   const email = elements.authEmail.value.trim();
   setAuthError();
   if (!email) {
-    setAuthError("Saisissez d’abord votre adresse e-mail.");
+    setAuthError(tr("enterEmailFirst"));
     return;
   }
   setAuthBusy(true);
   try {
     await sendPasswordResetEmail(auth, email);
-    bridge.showToast("Si ce compte existe, un e-mail de réinitialisation a été envoyé.");
+    bridge.showToast(tr("resetEmailSent"));
   } catch (error) {
     setAuthError(authMessage(error));
   } finally {
@@ -279,7 +284,7 @@ elements.syncNowButton.addEventListener("click", () => writeCloudState({ notify:
 elements.signOutButton.addEventListener("click", async () => {
   try {
     await signOut(auth);
-    bridge.showToast("Déconnecté. La sauvegarde locale reste disponible.");
+    bridge.showToast(tr("signedOut"));
   } catch (error) {
     bridge.showToast(authMessage(error));
   }
@@ -294,7 +299,7 @@ window.addEventListener("offline", () => {
     bridge.setCloudStatus({
       user: currentUser,
       status: "offline",
-      detail: "La copie locale fonctionne. Firebase reprendra au retour d’Internet."
+      detailKey: "cloudLocalCopy"
     });
   }
 });
@@ -316,14 +321,28 @@ setPersistence(auth, browserLocalPersistence)
         bridge.setCloudStatus({
           user,
           status: "syncing",
-          detail: "Chargement de votre sauvegarde Firebase…"
+          detailKey: "cloudLoading"
         });
         listenToCloud(user);
       } else {
         bridge.setCloudStatus({
           status: "local",
-          detail: "Connectez-vous pour retrouver votre Shinydex sur tous vos appareils."
+          detailKey: "cloudConnectPrompt"
         });
       }
     });
   });
+
+document.addEventListener("shinydex:language-change", () => {
+  setAuthBusy(elements.signInButton.disabled);
+  const reveal = elements.authPassword.type === "text";
+  elements.togglePasswordButton.textContent = tr(reveal ? "hide" : "show");
+  elements.togglePasswordButton.setAttribute("aria-label", tr(reveal ? "hide" : "show"));
+  if (currentUser) {
+    bridge.setCloudStatus({
+      user: currentUser,
+      status: cloudReady ? "synced" : "syncing",
+      detailKey: cloudReady ? "cloudUpToDate" : "cloudLoading"
+    });
+  }
+});

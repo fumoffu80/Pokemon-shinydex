@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import sharp from "sharp";
 
@@ -11,8 +11,7 @@ const ASSET_DIR = resolve(ROOT, "assets");
 const CACHE_DIR = resolve(ROOT, ".cache/sprites");
 const CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv";
 const SPRITE_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
-const LANGUAGE_FR = 5;
-const LANGUAGE_EN = 9;
+const LANGUAGES = { fr: 5, en: 9, es: 7, de: 6, it: 8, ja: 1 };
 const CELL_SIZE = 96;
 const ATLAS_COLUMNS = 20;
 const ATLAS_ROWS = 20;
@@ -26,6 +25,7 @@ const CSV_FILES = [
   "pokemon_forms.csv",
   "pokemon_form_names.csv",
   "pokemon_types.csv",
+  "types.csv",
   "type_names.csv"
 ];
 
@@ -136,8 +136,7 @@ async function downloadSprite(url) {
   try {
     const response = await fetchWithRetry(url, 3);
     const buffer = Buffer.from(await response.arrayBuffer());
-    const signature = buffer.subarray(0, 8).toString("hex");
-    if (signature !== "89504e470d0a1a0a") return null;
+    if (buffer.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") return null;
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, buffer);
     return buffer;
@@ -146,24 +145,95 @@ async function downloadSprite(url) {
   }
 }
 
+async function downloadFirst(urls) {
+  for (const url of [...new Set(urls.filter(Boolean))]) {
+    const sprite = await downloadSprite(url);
+    if (sprite) return sprite;
+  }
+  return null;
+}
+
 function spriteStem(form) {
   if (form.is_default === "1") return form.pokemon_id;
   if (!form.form_identifier) return null;
   return `${form.pokemon_id}-${form.form_identifier}`;
 }
 
-function compactLabel(form, namesByForm) {
-  const localized = namesByForm.get(`${form.id}:${LANGUAGE_FR}`);
-  if (localized?.form_name) return localized.form_name;
-  if (localized?.pokemon_name) return localized.pokemon_name;
-  return form.form_identifier ? titleCase(form.form_identifier) : "";
+function explicitGender(form) {
+  const tokens = String(form.form_identifier || "").toLowerCase().split("-");
+  if (tokens.includes("female")) return "female";
+  if (tokens.includes("male")) return "male";
+  return "";
 }
 
-async function buildAtlas(entries, kind, atlasIndex) {
+function speciesGender(species) {
+  if (species.genderRate === -1) return "genderless";
+  if (species.genderRate === 0) return "male";
+  if (species.genderRate === 8) return "female";
+  return "mixed";
+}
+
+function localizedValues(map, id, fallback = "") {
+  const en = map.get(`${id}:${LANGUAGES.en}`) || fallback;
+  return Object.fromEntries(
+    Object.entries(LANGUAGES).map(([language, languageId]) => [
+      language,
+      map.get(`${id}:${languageId}`) || en || fallback
+    ])
+  );
+}
+
+function localizedFormNames(form, namesByForm) {
+  const fallback = form.form_identifier ? titleCase(form.form_identifier) : "";
+  const english = namesByForm.get(`${form.id}:${LANGUAGES.en}`);
+  const englishLabel = english?.form_name || english?.pokemon_name || fallback;
+  return Object.fromEntries(
+    Object.entries(LANGUAGES).map(([language, languageId]) => {
+      const localized = namesByForm.get(`${form.id}:${languageId}`);
+      return [language, localized?.form_name || localized?.pokemon_name || englishLabel];
+    })
+  );
+}
+
+function gendersForForm(species, form, explicitBySpecies) {
+  const explicit = explicitGender(form);
+  if (explicit) return [explicit];
+
+  const availability = speciesGender(species);
+  if (availability !== "mixed") return [availability];
+
+  const explicitSet = explicitBySpecies.get(species.id);
+  if (form.is_default === "1" && explicitSet?.has("female") && !explicitSet.has("male")) return ["male"];
+  if (form.is_default === "1" && explicitSet?.has("male") && !explicitSet.has("female")) return ["female"];
+  return ["male", "female"];
+}
+
+function candidateKey(species, form, gender) {
+  const explicit = explicitGender(form);
+  const suffix = gender === "female" && speciesGender(species) === "mixed" && !explicit
+    ? "female"
+    : "default";
+  return `${species.id}:${form.id}:${suffix}`;
+}
+
+function spriteUrls(form, species, gender, shiny) {
+  const stem = spriteStem(form);
+  if (!stem) return [];
+  const root = shiny ? `${SPRITE_BASE}/shiny` : SPRITE_BASE;
+  const standard = `${root}/${stem}.png`;
+  const canUseFemaleSprite =
+    gender === "female"
+    && species.hasGenderDifferences
+    && form.is_default === "1"
+    && !explicitGender(form);
+  return canUseFemaleSprite ? [`${root}/female/${stem}.png`, standard] : [standard];
+}
+
+async function buildAtlas(visuals, kind, atlasIndex) {
   const start = atlasIndex * ATLAS_CAPACITY;
-  const slice = entries.slice(start, start + ATLAS_CAPACITY);
-  const composites = await Promise.all(slice.map(async (entry, index) => {
-    const buffer = kind === "normal" ? entry.normalBuffer : entry.shinyBuffer;
+  const slice = visuals.slice(start, start + ATLAS_CAPACITY);
+  const composites = await Promise.all(slice.map(async (visual, index) => {
+    const buffer = kind === "normal" ? visual.normalBuffer : visual.shinyBuffer;
     const prepared = await sharp(buffer)
       .resize(CELL_SIZE, CELL_SIZE, { fit: "contain", kernel: "nearest" })
       .png()
@@ -192,8 +262,8 @@ async function buildAtlas(entries, kind, atlasIndex) {
 await mkdir(ASSET_DIR, { recursive: true });
 await mkdir(dirname(DATA_FILE), { recursive: true });
 
-console.log("Téléchargement des tables Pokédex…");
-const csvContents = await mapLimit(CSV_FILES, 7, async file => {
+console.log("Téléchargement des tables Pokédex multilingues…");
+const csvContents = await mapLimit(CSV_FILES, CSV_FILES.length, async file => {
   const response = await fetchWithRetry(`${CSV_BASE}/${file}`);
   return [file, parseCsv(await response.text())];
 });
@@ -203,29 +273,39 @@ const pokemonById = new Map(tables["pokemon.csv"].map(row => [Number(row.id), ro
 const speciesRows = tables["pokemon_species.csv"].map(row => ({
   ...row,
   id: Number(row.id),
-  generation_id: Number(row.generation_id),
-  has_gender_differences: row.has_gender_differences === "1"
+  generationId: Number(row.generation_id),
+  genderRate: Number(row.gender_rate),
+  hasGenderDifferences: row.has_gender_differences === "1"
 }));
 const speciesById = new Map(speciesRows.map(row => [row.id, row]));
 
+const supportedLanguageIds = new Set(Object.values(LANGUAGES));
 const speciesNames = new Map(
   tables["pokemon_species_names.csv"]
-    .filter(row => Number(row.local_language_id) === LANGUAGE_FR || Number(row.local_language_id) === LANGUAGE_EN)
+    .filter(row => supportedLanguageIds.has(Number(row.local_language_id)))
     .map(row => [`${row.pokemon_species_id}:${row.local_language_id}`, row.name])
 );
 const namesByForm = new Map(
-  tables["pokemon_form_names.csv"].map(row => [`${row.pokemon_form_id}:${row.local_language_id}`, row])
+  tables["pokemon_form_names.csv"]
+    .filter(row => supportedLanguageIds.has(Number(row.local_language_id)))
+    .map(row => [`${row.pokemon_form_id}:${row.local_language_id}`, row])
 );
-const typeNames = new Map(
+const typeIdentifierById = new Map(
+  tables["types.csv"].map(row => [Number(row.id), row.identifier])
+);
+const localizedTypeName = new Map(
   tables["type_names.csv"]
-    .filter(row => Number(row.local_language_id) === LANGUAGE_FR)
-    .map(row => [Number(row.type_id), row.name])
+    .filter(row => supportedLanguageIds.has(Number(row.local_language_id)))
+    .map(row => [`${row.type_id}:${row.local_language_id}`, row.name])
 );
 const typesByPokemon = new Map();
 for (const row of tables["pokemon_types.csv"]) {
   const pokemonId = Number(row.pokemon_id);
   const list = typesByPokemon.get(pokemonId) || [];
-  list.push({ slot: Number(row.slot), name: typeNames.get(Number(row.type_id)) || `Type ${row.type_id}` });
+  list.push({
+    slot: Number(row.slot),
+    identifier: typeIdentifierById.get(Number(row.type_id)) || `type-${row.type_id}`
+  });
   typesByPokemon.set(pokemonId, list);
 }
 
@@ -240,52 +320,58 @@ const eligibleForms = tables["pokemon_forms.csv"]
     return Number(a.order) - Number(b.order) || Number(a.form_order) - Number(b.form_order);
   });
 
+const explicitBySpecies = new Map();
+for (const form of eligibleForms) {
+  const pokemon = pokemonById.get(Number(form.pokemon_id));
+  const gender = explicitGender(form);
+  if (!pokemon || !gender) continue;
+  const speciesId = Number(pokemon.species_id);
+  const set = explicitBySpecies.get(speciesId) || new Set();
+  set.add(gender);
+  explicitBySpecies.set(speciesId, set);
+}
+
 const candidates = [];
 for (const form of eligibleForms) {
   const pokemon = pokemonById.get(Number(form.pokemon_id));
   const species = speciesById.get(Number(pokemon.species_id));
-  const stem = spriteStem(form);
-  if (!stem) continue;
+  if (!spriteStem(form)) continue;
 
-  const common = {
-    key: `${species.id}:${form.id}:default`,
-    speciesId: species.id,
-    slug: species.identifier,
-    name: speciesNames.get(`${species.id}:${LANGUAGE_FR}`)
-      || speciesNames.get(`${species.id}:${LANGUAGE_EN}`)
-      || titleCase(species.identifier),
-    generation: species.generation_id,
-    pokemonId: Number(form.pokemon_id),
-    formId: Number(form.id),
-    formOrder: Number(form.order),
-    label: compactLabel(form, namesByForm),
-    gender: "",
-    types: (typesByPokemon.get(Number(form.pokemon_id)) || [])
-      .sort((a, b) => a.slot - b.slot)
-      .map(type => type.name),
-    normalUrl: `${SPRITE_BASE}/${stem}.png`,
-    shinyUrl: `${SPRITE_BASE}/shiny/${stem}.png`
-  };
-  candidates.push(common);
+  const names = localizedValues(speciesNames, species.id, titleCase(species.identifier));
+  const formNames = explicitGender(form)
+    ? Object.fromEntries(Object.keys(LANGUAGES).map(language => [language, ""]))
+    : localizedFormNames(form, namesByForm);
+  const types = (typesByPokemon.get(Number(form.pokemon_id)) || [])
+    .sort((a, b) => a.slot - b.slot)
+    .map(type => type.identifier);
 
-  if (species.has_gender_differences && form.is_default === "1") {
+  for (const gender of gendersForForm(species, form, explicitBySpecies)) {
     candidates.push({
-      ...common,
-      key: `${species.id}:${form.id}:female`,
-      gender: "female",
-      label: "Femelle",
-      normalUrl: `${SPRITE_BASE}/female/${stem}.png`,
-      shinyUrl: `${SPRITE_BASE}/shiny/female/${stem}.png`
+      key: candidateKey(species, form, gender),
+      speciesId: species.id,
+      slug: species.identifier,
+      names,
+      generation: species.generationId,
+      gender,
+      genderAvailability: speciesGender(species),
+      pokemonId: Number(form.pokemon_id),
+      formId: Number(form.id),
+      formOrder: Number(form.order),
+      isDefault: form.is_default === "1",
+      formNames,
+      types,
+      normalUrls: spriteUrls(form, species, gender, false),
+      shinyUrls: spriteUrls(form, species, gender, true)
     });
   }
 }
 
-console.log(`Téléchargement de ${candidates.length} paires de sprites candidates…`);
+console.log(`Téléchargement de ${candidates.length} combinaisons forme/sexe…`);
 let completed = 0;
 const downloaded = await mapLimit(candidates, 36, async candidate => {
   const [normalBuffer, shinyBuffer] = await Promise.all([
-    downloadSprite(candidate.normalUrl),
-    downloadSprite(candidate.shinyUrl)
+    downloadFirst(candidate.normalUrls),
+    downloadFirst(candidate.shinyUrls)
   ]);
   completed += 1;
   if (completed % 100 === 0 || completed === candidates.length) {
@@ -296,75 +382,113 @@ const downloaded = await mapLimit(candidates, 36, async candidate => {
 });
 process.stdout.write("\n");
 
-const uniqueEntries = [];
-const seenBySpecies = new Map();
+// Deux sexes identiques restent deux entrées de collection, mais deux formes
+// strictement identiques pour un même sexe ne sont pas proposées deux fois.
+const appearances = [];
+const seenBySpeciesAndGender = new Map();
 for (const candidate of downloaded.filter(Boolean)) {
-  const seen = seenBySpecies.get(candidate.speciesId) || new Set();
+  const identity = `${candidate.speciesId}:${candidate.gender}`;
+  const seen = seenBySpeciesAndGender.get(identity) || new Set();
   if (seen.has(candidate.visualHash)) continue;
   seen.add(candidate.visualHash);
-  seenBySpecies.set(candidate.speciesId, seen);
-  uniqueEntries.push(candidate);
+  seenBySpeciesAndGender.set(identity, seen);
+  appearances.push(candidate);
 }
 
-const countsBySpecies = new Map();
-for (const entry of uniqueEntries) {
-  countsBySpecies.set(entry.speciesId, (countsBySpecies.get(entry.speciesId) || 0) + 1);
-}
-
-for (const [speciesId, count] of countsBySpecies) {
-  if (count < 2) continue;
-  const entries = uniqueEntries.filter(entry => entry.speciesId === speciesId);
-  const hasFemale = entries.some(entry => entry.gender === "female");
-  if (hasFemale) {
-    const defaultEntry = entries.find(entry => !entry.gender && !entry.label);
-    if (defaultEntry) defaultEntry.label = "Mâle";
+// Les sprites identiques sont stockés une seule fois dans les planches, même si
+// les deux sexes doivent pouvoir être enregistrés séparément.
+const visuals = [];
+const visualIndexByHash = new Map();
+for (const appearance of appearances) {
+  if (!visualIndexByHash.has(appearance.visualHash)) {
+    visualIndexByHash.set(appearance.visualHash, visuals.length);
+    visuals.push({
+      normalBuffer: appearance.normalBuffer,
+      shinyBuffer: appearance.shinyBuffer
+    });
   }
 }
 
-for (const entry of uniqueEntries) {
-  if (countsBySpecies.get(entry.speciesId) === 1) {
-    entry.label = "";
-  } else if (!entry.label) {
-    entry.label = entry.gender === "female" ? "Femelle" : "Forme standard";
+for (const file of await readdir(ASSET_DIR)) {
+  if (/^sprites-(normal|shiny)-\d+\.webp$/.test(file)) {
+    await rm(resolve(ASSET_DIR, file));
   }
 }
 
-const atlasCount = Math.ceil(uniqueEntries.length / ATLAS_CAPACITY);
+const atlasCount = Math.ceil(visuals.length / ATLAS_CAPACITY);
 console.log(`Création de ${atlasCount * 2} planches de sprites WebP…`);
 for (let atlasIndex = 0; atlasIndex < atlasCount; atlasIndex += 1) {
   await Promise.all([
-    buildAtlas(uniqueEntries, "normal", atlasIndex),
-    buildAtlas(uniqueEntries, "shiny", atlasIndex)
+    buildAtlas(visuals, "normal", atlasIndex),
+    buildAtlas(visuals, "shiny", atlasIndex)
   ]);
 }
 
-const entries = uniqueEntries.map((entry, index) => ({
-  key: entry.key,
-  speciesId: entry.speciesId,
-  slug: entry.slug,
-  name: entry.name,
-  generation: entry.generation,
-  types: entry.types,
-  label: entry.label,
-  variant: countsBySpecies.get(entry.speciesId) > 1,
-  sheet: Math.floor(index / ATLAS_CAPACITY),
-  slot: index % ATLAS_CAPACITY
+const mew = appearances.find(entry => entry.speciesId === 151);
+if (mew) {
+  await sharp(mew.shinyBuffer)
+    .resize(128, 128, { fit: "contain", kernel: "nearest" })
+    .png()
+    .toFile(resolve(ASSET_DIR, "mew-shiny.png"));
+}
+
+const countsBySpecies = new Map();
+for (const entry of appearances) {
+  countsBySpecies.set(entry.speciesId, (countsBySpecies.get(entry.speciesId) || 0) + 1);
+}
+
+const entries = appearances.map(entry => {
+  const visualIndex = visualIndexByHash.get(entry.visualHash);
+  return {
+    key: entry.key,
+    speciesId: entry.speciesId,
+    slug: entry.slug,
+    names: entry.names,
+    name: entry.names.fr,
+    generation: entry.generation,
+    gender: entry.gender,
+    genderAvailability: entry.genderAvailability,
+    formId: entry.formId,
+    isDefault: entry.isDefault,
+    formNames: entry.formNames,
+    label: entry.formNames.fr,
+    types: entry.types,
+    variant: countsBySpecies.get(entry.speciesId) > 1,
+    sheet: Math.floor(visualIndex / ATLAS_CAPACITY),
+    slot: visualIndex % ATLAS_CAPACITY
+  };
+});
+
+const usedTypes = [...new Set(entries.flatMap(entry => entry.types))].sort();
+const typeNames = Object.fromEntries(usedTypes.map(identifier => {
+  const typeId = [...typeIdentifierById].find(([, value]) => value === identifier)?.[0];
+  return [
+    identifier,
+    Object.fromEntries(Object.entries(LANGUAGES).map(([language, languageId]) => [
+      language,
+      localizedTypeName.get(`${typeId}:${languageId}`)
+        || localizedTypeName.get(`${typeId}:${LANGUAGES.en}`)
+        || titleCase(identifier)
+    ]))
+  ];
 }));
 
-const generations = [...new Set(speciesRows.map(species => species.generation_id))].sort((a, b) => a - b);
-const types = [...new Set(entries.flatMap(entry => entry.types))].sort((a, b) => a.localeCompare(b, "fr"));
+const generations = [...new Set(speciesRows.map(species => species.generationId))].sort((a, b) => a - b);
 const payload = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
+  languages: Object.keys(LANGUAGES),
   speciesCount: speciesRows.length,
   appearanceCount: entries.length,
+  visualCount: visuals.length,
   cellSize: CELL_SIZE,
   atlasColumns: ATLAS_COLUMNS,
   atlasSize: ATLAS_SIZE,
   normalSheets: Array.from({ length: atlasCount }, (_, index) => `assets/sprites-normal-${index}.webp`),
   shinySheets: Array.from({ length: atlasCount }, (_, index) => `assets/sprites-shiny-${index}.webp`),
   generations,
-  types,
+  types: usedTypes,
+  typeNames,
   entries
 };
 
@@ -372,6 +496,6 @@ const javascript = `/* Généré par tools/update-data.mjs — ne pas modifier m
 await writeFile(DATA_FILE, javascript);
 
 console.log(
-  `Base générée : ${payload.speciesCount} espèces, ${payload.appearanceCount} apparences, `
-  + `${atlasCount} planches normales + ${atlasCount} shiny.`
+  `Base générée : ${payload.speciesCount} espèces, ${payload.appearanceCount} combinaisons, `
+  + `${payload.visualCount} couples de sprites, ${atlasCount} planches normales + ${atlasCount} shiny.`
 );

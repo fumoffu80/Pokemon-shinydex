@@ -8,6 +8,7 @@ const destination = resolve(root, "_site");
 const files = [
   "index.html",
   "styles.css",
+  "i18n.js",
   "app.js",
   "firebase-sync.js",
   "manifest.webmanifest",
