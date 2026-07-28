@@ -30,7 +30,9 @@
     "emptyResetButton", "densityButton", "settingsButton", "settingsDialog", "animationSetting",
     "confirmSetting", "openResetButton", "resetDialog", "confirmResetButton", "removeDialog",
     "removeDialogText", "confirmRemoveButton", "exportButton", "importButton", "importInput",
-    "toast", "dataVersion"
+    "toast", "dataVersion", "accountButton", "accountLabel", "cloudStatusLabel", "cloudDot",
+    "authDialog", "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail",
+    "cloudStatusText", "cloudStatusDetail", "dialogCloudDot"
   ].map(id => [id, document.getElementById(id)]));
 
   const validKeys = new Set(DATA.entries.map(entry => entry.key));
@@ -88,11 +90,14 @@
     return defaultState();
   }
 
-  function saveState() {
+  function saveState(notifyCloud = true) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       showToast("La sauvegarde locale est saturée ou indisponible.");
+    }
+    if (notifyCloud) {
+      document.dispatchEvent(new CustomEvent("shinydex:local-change"));
     }
   }
 
@@ -399,6 +404,63 @@
     toastTimer = setTimeout(() => elements.toast.classList.remove("is-visible"), 2800);
   }
 
+  function publicState() {
+    return {
+      schemaVersion: 1,
+      collection: { ...state.collection },
+      preferences: { ...state.preferences }
+    };
+  }
+
+  function applySyncedState(nextState, notification = "") {
+    state = normalizeState(nextState);
+    saveState(false);
+    syncPreferences();
+    updateStats();
+    render();
+    if (notification) showToast(notification);
+  }
+
+  function setCloudStatus({ user = null, status = "local", label = "", detail = "" } = {}) {
+    const connected = Boolean(user);
+    const stateClass = {
+      syncing: "is-syncing",
+      synced: "is-synced",
+      error: "is-error",
+      offline: "is-error"
+    }[status] || "";
+    const shortLabel = {
+      local: "Sauvegarde locale",
+      syncing: "Synchronisation…",
+      synced: "Sauvegarde cloud",
+      error: "Erreur Firebase",
+      offline: "Mode hors ligne"
+    }[status] || "Sauvegarde locale";
+    const longLabel = label || {
+      local: "Non connecté",
+      syncing: "Synchronisation en cours",
+      synced: "Collection synchronisée",
+      error: "Synchronisation impossible",
+      offline: "En attente de connexion"
+    }[status] || "Sauvegarde locale";
+
+    for (const dot of [elements.cloudDot, elements.dialogCloudDot]) {
+      dot?.classList.remove("is-syncing", "is-synced", "is-error");
+      if (stateClass) dot?.classList.add(stateClass);
+    }
+    elements.cloudStatusLabel.textContent = shortLabel;
+    elements.accountLabel.textContent = connected ? user.email : "Connexion";
+    elements.signedOutPanel.hidden = connected;
+    elements.signedInPanel.hidden = !connected;
+    elements.accountEmail.textContent = user?.email || "";
+    elements.cloudStatusText.textContent = longLabel;
+    elements.cloudStatusDetail.textContent = detail || (
+      connected
+        ? "Vos modifications sont conservées localement et dans Firebase."
+        : "Connectez-vous pour activer la sauvegarde cloud."
+    );
+  }
+
   function exportCollection() {
     const payload = {
       format: "pokemon-shinydex",
@@ -497,6 +559,8 @@
     syncPreferences();
   });
   elements.settingsButton.addEventListener("click", () => elements.settingsDialog.showModal());
+  elements.accountButton.addEventListener("click", () => elements.authDialog.showModal());
+  elements.closeAuthButton.addEventListener("click", () => elements.authDialog.close());
   elements.animationSetting.addEventListener("change", () => {
     state.preferences.animations = elements.animationSetting.checked;
     saveState();
@@ -512,6 +576,7 @@
   elements.confirmResetButton.addEventListener("click", () => {
     state = defaultState();
     for (const key of [STORAGE_KEY, ...LEGACY_KEYS]) localStorage.removeItem(key);
+    saveState();
     syncPreferences();
     updateStats();
     render();
@@ -552,9 +617,18 @@
 
   initializeFilters();
   syncPreferences();
+  setCloudStatus();
   updateStats();
   render();
   preloadShinySheets();
+
+  window.SHINYDEX_APP = Object.freeze({
+    getState: publicState,
+    applySyncedState,
+    setCloudStatus,
+    showToast,
+    dataGeneratedAt: DATA.generatedAt
+  });
 
   const generatedDate = new Date(DATA.generatedAt);
   elements.dataVersion.textContent = Number.isNaN(generatedDate.getTime())

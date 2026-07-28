@@ -4,6 +4,7 @@ const APP_SHELL = [
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./firebase-sync.js",
   "./data/pokedex-data.js",
   "./manifest.webmanifest"
 ];

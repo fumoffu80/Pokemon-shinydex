@@ -27,6 +27,14 @@
       </div>
 
       <div class="hero__actions">
+        <button class="account-button" id="accountButton" type="button" aria-haspopup="dialog">
+          <span class="account-button__dot" id="cloudDot" aria-hidden="true"></span>
+          <span>
+            <small id="cloudStatusLabel">Sauvegarde locale</small>
+            <strong id="accountLabel">Connexion</strong>
+          </span>
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 18a5 5 0 0 1-.6-9.96A7 7 0 0 1 19.7 10.5 3.75 3.75 0 0 1 19.25 18H7Z"/></svg>
+        </button>
         <button class="button button--ghost" id="exportButton" type="button" title="Exporter une sauvegarde JSON">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 15v4h14v-4"/></svg>
           Exporter
@@ -152,7 +160,7 @@
   </main>
 
   <footer>
-    <p>Données et sprites embarqués · Aucune connexion à PokéAPI · Sauvegarde uniquement sur cet appareil</p>
+    <p>Données et sprites embarqués · Aucune connexion à PokéAPI · Sauvegarde locale et synchronisation Firebase facultative</p>
     <p id="dataVersion"></p>
   </footer>
 
@@ -217,6 +225,74 @@
     </form>
   </dialog>
 
+  <dialog class="modal auth-modal" id="authDialog">
+    <div class="auth-panel">
+      <div class="modal__heading">
+        <div>
+          <p class="eyebrow">Sauvegarde dans le cloud</p>
+          <h2>Compte Shinydex</h2>
+        </div>
+        <button class="icon-button" id="closeAuthButton" type="button" aria-label="Fermer">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+
+      <div id="signedOutPanel">
+        <div class="cloud-intro">
+          <span aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 18a5 5 0 0 1-.6-9.96A7 7 0 0 1 19.7 10.5 3.75 3.75 0 0 1 19.25 18H7Z"/><path d="m9 13 2 2 4-5"/></svg>
+          </span>
+          <div>
+            <strong>Ne perdez plus votre collection</strong>
+            <p>Connectez-vous sur n’importe quel appareil pour retrouver automatiquement vos shiny et leurs quantités. La copie locale reste toujours disponible hors ligne.</p>
+          </div>
+        </div>
+
+        <form id="authForm">
+          <label class="auth-field">
+            <span>Adresse e-mail</span>
+            <input id="authEmail" type="email" autocomplete="username" inputmode="email" required placeholder="votre@email.fr">
+          </label>
+          <label class="auth-field">
+            <span>Mot de passe</span>
+            <span class="password-field">
+              <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="6 caractères minimum">
+              <button id="togglePasswordButton" type="button" aria-label="Afficher le mot de passe">Afficher</button>
+            </span>
+          </label>
+          <p class="auth-error" id="authError" role="alert" hidden></p>
+          <div class="auth-actions">
+            <button class="button button--primary" id="signInButton" type="submit">Se connecter</button>
+            <button class="button button--ghost" id="createAccountButton" type="button">Créer un compte</button>
+          </div>
+          <button class="text-button" id="resetPasswordButton" type="button">Mot de passe oublié ?</button>
+        </form>
+      </div>
+
+      <div id="signedInPanel" hidden>
+        <div class="account-summary">
+          <span class="account-summary__avatar" aria-hidden="true">✦</span>
+          <div>
+            <small>Connecté avec</small>
+            <strong id="accountEmail"></strong>
+          </div>
+        </div>
+        <div class="sync-status-card">
+          <span class="sync-status-card__dot" id="dialogCloudDot" aria-hidden="true"></span>
+          <div>
+            <strong id="cloudStatusText">Synchronisation…</strong>
+            <small id="cloudStatusDetail">Préparation de votre sauvegarde Firebase</small>
+          </div>
+        </div>
+        <p class="account-note">Au premier accès sur un appareil, la sauvegarde locale et la sauvegarde cloud sont fusionnées pour ne perdre aucun shiny.</p>
+        <div class="auth-actions">
+          <button class="button button--primary" id="syncNowButton" type="button">Synchroniser maintenant</button>
+          <button class="button button--danger" id="signOutButton" type="button">Se déconnecter</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
   <dialog class="modal modal--small" id="resetDialog">
     <form method="dialog">
       <div class="modal__symbol" aria-hidden="true">!</div>
@@ -245,5 +321,6 @@
 
   <script src="data/pokedex-data.js"></script>
   <script src="app.js"></script>
+  <script src="firebase-sync.js"></script>
 </body>
 </html>

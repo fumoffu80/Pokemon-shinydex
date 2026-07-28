@@ -225,7 +225,8 @@ h2 {
 
 .button,
 .icon-button,
-.view-toggle {
+.view-toggle,
+.account-button {
   border: 1px solid var(--line);
   color: var(--text);
   background: var(--surface-raised);
@@ -234,14 +235,16 @@ h2 {
 
 .button:hover,
 .icon-button:hover,
-.view-toggle:hover {
+.view-toggle:hover,
+.account-button:hover {
   border-color: #5c7395;
   background: #2a3d5c;
 }
 
 .button:active,
 .icon-button:active,
-.view-toggle:active {
+.view-toggle:active,
+.account-button:active {
   transform: translateY(1px);
 }
 
@@ -303,6 +306,82 @@ h2 {
   padding: 0;
   place-items: center;
   border-radius: 11px;
+}
+
+.account-button {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 6px 10px;
+  gap: 9px;
+  border-radius: 12px;
+  background: rgba(35, 51, 80, 0.82);
+  text-align: left;
+}
+
+.account-button__dot,
+.sync-status-card__dot {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8798b3;
+  box-shadow: 0 0 0 4px rgba(135, 152, 179, 0.1);
+}
+
+.account-button__dot.is-syncing,
+.sync-status-card__dot.is-syncing {
+  background: var(--gold);
+  box-shadow: 0 0 0 4px rgba(245, 201, 93, 0.13);
+  animation: cloud-pulse 1.2s ease-in-out infinite;
+}
+
+.account-button__dot.is-synced,
+.sync-status-card__dot.is-synced {
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(101, 215, 163, 0.12);
+}
+
+.account-button__dot.is-error,
+.sync-status-card__dot.is-error {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(240, 120, 120, 0.12);
+}
+
+.account-button > span:nth-child(2) {
+  display: grid;
+  max-width: 155px;
+  gap: 1px;
+}
+
+.account-button small {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 650;
+}
+
+.account-button strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes cloud-pulse {
+  50% {
+    opacity: 0.48;
+    transform: scale(0.84);
+  }
 }
 
 main {
@@ -883,6 +962,224 @@ footer p {
   padding: 24px;
 }
 
+.auth-modal {
+  width: min(520px, calc(100% - 28px));
+}
+
+.auth-panel {
+  padding: 24px;
+}
+
+.cloud-intro {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  padding: 15px;
+  gap: 12px;
+  border: 1px solid rgba(99, 179, 237, 0.24);
+  border-radius: 14px;
+  background: rgba(99, 179, 237, 0.08);
+}
+
+.cloud-intro > span {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  color: var(--blue);
+  border-radius: 12px;
+  background: rgba(99, 179, 237, 0.12);
+  place-items: center;
+}
+
+.cloud-intro svg {
+  width: 25px;
+  height: 25px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cloud-intro strong {
+  font-size: 0.9rem;
+}
+
+.cloud-intro p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.auth-modal form {
+  display: grid;
+  padding: 0;
+  gap: 13px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.auth-field > input,
+.password-field {
+  width: 100%;
+  height: 45px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--text);
+  background: #121e33;
+}
+
+.auth-field > input {
+  padding: 0 12px;
+}
+
+.password-field {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.password-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+}
+
+.password-field button,
+.text-button {
+  border: 0;
+  color: var(--blue);
+  background: transparent;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.password-field button {
+  align-self: stretch;
+  padding: 0 11px;
+}
+
+.password-field button:hover,
+.text-button:hover {
+  color: #9dd5ff;
+}
+
+.auth-field > input:focus,
+.password-field:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.12);
+  outline: 0;
+}
+
+.auth-error {
+  margin: 0;
+  padding: 9px 11px;
+  color: #ffd1d1;
+  border: 1px solid rgba(240, 120, 120, 0.32);
+  border-radius: 9px;
+  background: rgba(240, 120, 120, 0.1);
+  font-size: 0.75rem;
+}
+
+.auth-actions {
+  display: flex;
+  margin-top: 3px;
+  gap: 9px;
+}
+
+.auth-actions .button {
+  flex: 1;
+}
+
+.text-button {
+  justify-self: center;
+  padding: 3px 6px;
+}
+
+.account-summary {
+  display: flex;
+  align-items: center;
+  padding: 14px;
+  gap: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: #15223a;
+}
+
+.account-summary__avatar {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  color: var(--gold);
+  border-radius: 50%;
+  background: var(--gold-soft);
+  place-items: center;
+  font-size: 1.35rem;
+}
+
+.account-summary small,
+.account-summary strong {
+  display: block;
+}
+
+.account-summary small {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 0.67rem;
+}
+
+.account-summary strong {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.sync-status-card {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 13px 14px;
+  gap: 12px;
+  border: 1px solid rgba(101, 215, 163, 0.2);
+  border-radius: 13px;
+  background: rgba(101, 215, 163, 0.06);
+}
+
+.sync-status-card strong,
+.sync-status-card small {
+  display: block;
+}
+
+.sync-status-card strong {
+  font-size: 0.82rem;
+}
+
+.sync-status-card small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.69rem;
+}
+
+.account-note {
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .modal__heading {
   justify-content: space-between;
   margin-bottom: 18px;
@@ -1075,10 +1372,20 @@ input[role="switch"]:checked::after {
   }
 
   .hero__actions {
+    flex-wrap: wrap;
     width: 100%;
   }
 
   .hero__actions .button {
+    flex: 1;
+  }
+
+  .account-button {
+    width: 100%;
+  }
+
+  .account-button > span:nth-child(2) {
+    max-width: none;
     flex: 1;
   }
 
@@ -1155,6 +1462,10 @@ input[role="switch"]:checked::after {
   }
 
   .danger-zone {
+    flex-direction: column;
+  }
+
+  .auth-actions {
     flex-direction: column;
   }
 }

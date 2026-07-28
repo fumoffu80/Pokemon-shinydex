@@ -9,6 +9,7 @@ const files = [
   "index.html",
   "styles.css",
   "app.js",
+  "firebase-sync.js",
   "manifest.webmanifest",
   "sw.js",
   ".nojekyll",

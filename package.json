@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "update-data": "node tools/update-data.mjs",
-    "validate": "node tools/validate-shinydex.mjs",
+    "bundle-firebase": "esbuild firebase-sync.source.js --bundle --format=iife --minify --target=es2020 --outfile=firebase-sync.js",
+    "validate": "npm run bundle-firebase && node tools/validate-shinydex.mjs",
     "build": "node tools/build-site.mjs",
     "check": "npm run validate && npm run build"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
+    "firebase": "^12.16.0",
     "jsdom": "^27.0.0",
     "sharp": "^0.34.3"
   }

@@ -13,16 +13,18 @@ function check(condition, message) {
   if (!condition) errors.push(message);
 }
 
-const [html, css, app, dataSource, serviceWorker, manifestSource] = await Promise.all([
+const [html, css, app, firebaseBundle, dataSource, serviceWorker, manifestSource, firestoreRules] = await Promise.all([
   readFile(resolve(root, "index.html"), "utf8"),
   readFile(resolve(root, "styles.css"), "utf8"),
   readFile(resolve(root, "app.js"), "utf8"),
+  readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
   readFile(resolve(root, "sw.js"), "utf8"),
-  readFile(resolve(root, "manifest.webmanifest"), "utf8")
+  readFile(resolve(root, "manifest.webmanifest"), "utf8"),
+  readFile(resolve(root, "firestore.rules"), "utf8")
 ]);
 
-for (const [source, name] of [[app, "app.js"], [serviceWorker, "sw.js"]]) {
+for (const [source, name] of [[app, "app.js"], [firebaseBundle, "firebase-sync.js"], [serviceWorker, "sw.js"]]) {
   try {
     new vm.Script(source, { filename: name });
   } catch (error) {
@@ -72,7 +74,9 @@ for (const file of [...(data?.normalSheets || []), ...(data?.shinySheets || [])]
 
 for (const id of [
   "searchInput", "generationFilter", "typeFilter", "statusFilter", "sortSelect",
-  "pokemonGrid", "ownedCount", "speciesCount", "copyCount", "resetDialog", "importInput"
+  "pokemonGrid", "ownedCount", "speciesCount", "copyCount", "resetDialog", "importInput",
+  "accountButton", "authDialog", "authEmail", "authPassword", "signInButton",
+  "createAccountButton", "syncNowButton", "signOutButton"
 ]) {
   check(html.includes(`id="${id}"`), `Élément #${id} absent.`);
 }
@@ -83,12 +87,18 @@ check(css.includes("content-visibility: auto"), "Le rendu différé des cartes n
 check(app.includes("localStorage"), "La sauvegarde locale est absente.");
 check(app.includes("requestIdleCallback"), "Le préchargement différé n’est pas configuré.");
 check(app.includes("navigator.serviceWorker.register"), "Le mode hors ligne n’est pas activé.");
+check(app.includes("window.SHINYDEX_APP"), "Le pont de synchronisation Firebase est absent.");
 check(manifest?.display === "standalone", "Le manifeste ne permet pas l’installation.");
+check(firebaseBundle.includes("pokemon-shinydex"), "La configuration Firebase attendue est absente.");
+check(firebaseBundle.includes("users") && firebaseBundle.includes("shinydex"), "Le document Firebase Shinydex est absent.");
+check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
+check(serviceWorker.includes("firebase-sync.js"), "Le module Firebase local n’est pas mis en cache.");
 
-const runtime = [html, css, app, dataSource, serviceWorker].join("\n").toLowerCase();
-for (const forbidden of ["pokeapi.co", "raw.githubusercontent.com", "fetch(\"http", "fetch('http"]) {
+const runtime = [html, css, app, firebaseBundle, dataSource, serviceWorker].join("\n").toLowerCase();
+for (const forbidden of ["pokeapi.co", "raw.githubusercontent.com"]) {
   check(!runtime.includes(forbidden), `Dépendance réseau interdite dans le site : ${forbidden}`);
 }
+check(!/<script[^>]+src=["']https?:/i.test(html), "Un script externe empêche le chargement autonome de l’interface.");
 
 try {
   const dom = new JSDOM(html, {
@@ -110,6 +120,8 @@ try {
   check(beforeSprite !== afterSprite && afterSprite.includes("sprites-shiny"), "Un clic ne remplace pas le sprite normal par le shiny.");
   check(firstCard.querySelector(".quantity").querySelector("input").value === "1", "Le compteur shiny ne démarre pas à 1.");
   check(dom.window.localStorage.getItem("pokemonShinydex:v1"), "Le clic n’est pas sauvegardé dans localStorage.");
+  check(typeof dom.window.SHINYDEX_APP?.getState === "function", "Le pont Firebase n’est pas exposé.");
+  check(dom.window.SHINYDEX_APP.getState().collection[data.entries[0].key] === 1, "Le pont Firebase ne lit pas la collection.");
 
   const search = dom.window.document.getElementById("searchInput");
   search.value = "Zarbi";
