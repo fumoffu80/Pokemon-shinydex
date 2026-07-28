@@ -1,0 +1,86 @@
+name: Vérifier, actualiser et déployer le Shinydex
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      refresh_data:
+        description: "Actualiser les Pokémon, formes et sprites avant le déploiement"
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v6
+
+      - name: Préparer Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Restaurer le cache des sprites sources
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.refresh_data)
+        uses: actions/cache@v6
+        with:
+          path: .cache/sprites
+          key: shinydex-sprites-${{ runner.os }}-v1
+
+      - name: Installer les outils de construction
+        run: npm ci
+
+      - name: Actualiser la base autonome
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.refresh_data)
+        run: npm run update-data
+
+      - name: Contrôler le Shinydex
+        run: npm run validate
+
+      - name: Préparer le site statique
+        run: npm run build
+
+      - name: Enregistrer une actualisation automatique
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.refresh_data)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/pokedex-data.js assets/sprites-*.webp
+          if ! git diff --cached --quiet; then
+            git commit -m "Actualiser les données du Shinydex"
+            git push
+          fi
+
+      - name: Configurer GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Charger l’artefact GitHub Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publier sur GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

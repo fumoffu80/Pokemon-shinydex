@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17223a">
+  <meta name="description" content="Un gestionnaire de collection shiny complet, autonome et respectueux de vos données.">
+  <title>Pokémon Shinydex</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x2='0' y2='1'%3E%3Cstop stop-color='%23f8d66d'/%3E%3Cstop offset='1' stop-color='%23d99b25'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' stroke='%2317223a' stroke-width='4' d='m32 4 5.7 17.4L56 22l-14.5 11L46.6 51 32 40.8 17.4 51l5.1-18L8 22l18.3-.6z'/%3E%3Ccircle cx='32' cy='31' r='7' fill='%23fff' stroke='%2317223a' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#pokemonGrid">Aller au Pokédex</a>
+
+  <header class="hero">
+    <div class="hero__inner">
+      <div class="brand">
+        <div class="brand__mark" aria-hidden="true">
+          <span class="brand__spark brand__spark--one"></span>
+          <span class="brand__spark brand__spark--two"></span>
+        </div>
+        <div>
+          <p class="eyebrow">Ma collection chromatique</p>
+          <h1>Pokémon <span>Shinydex</span></h1>
+        </div>
+      </div>
+
+      <div class="hero__actions">
+        <button class="button button--ghost" id="exportButton" type="button" title="Exporter une sauvegarde JSON">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 15v4h14v-4"/></svg>
+          Exporter
+        </button>
+        <button class="button button--ghost" id="importButton" type="button" title="Importer une sauvegarde JSON">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v5h14v-5"/></svg>
+          Importer
+        </button>
+        <input id="importInput" type="file" accept="application/json,.json" hidden>
+        <button class="icon-button" id="settingsButton" type="button" aria-label="Ouvrir les réglages" title="Réglages">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.01V3h4v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 7l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="dashboard" aria-label="Progression de la collection">
+      <article class="stat-card stat-card--primary">
+        <div class="stat-card__icon" aria-hidden="true">✦</div>
+        <div>
+          <span class="stat-card__label">Apparences shiny</span>
+          <strong><span id="ownedCount">0</span><small> / <span id="appearanceTotal">0</span></small></strong>
+        </div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-card__icon stat-card__icon--blue" aria-hidden="true">◉</div>
+        <div>
+          <span class="stat-card__label">Espèces représentées</span>
+          <strong><span id="speciesCount">0</span><small> / <span id="speciesTotal">0</span></small></strong>
+        </div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-card__icon stat-card__icon--violet" aria-hidden="true">×</div>
+        <div>
+          <span class="stat-card__label">Shiny au total</span>
+          <strong id="copyCount">0</strong>
+        </div>
+      </article>
+      <article class="progress-card">
+        <div class="progress-card__heading">
+          <span>Complétion</span>
+          <strong id="progressPercent">0 %</strong>
+        </div>
+        <div class="progress-track" role="progressbar" aria-label="Progression" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span id="progressBar"></span>
+        </div>
+        <p id="progressMessage">Votre aventure chromatique commence ici.</p>
+      </article>
+    </section>
+
+    <section class="collection-panel" aria-labelledby="collectionTitle">
+      <div class="collection-heading">
+        <div>
+          <p class="eyebrow">Pokédex national & formes</p>
+          <h2 id="collectionTitle">Ma collection</h2>
+        </div>
+        <div class="collection-heading__meta">
+          <span id="resultCount">0 apparence</span>
+          <button class="view-toggle" id="densityButton" type="button" aria-pressed="false" title="Changer la taille des cartes">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+            <span>Compact</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="filters" role="search">
+        <label class="search-field" for="searchInput">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+          <input id="searchInput" type="search" placeholder="Nom ou numéro du Pokémon…" autocomplete="off">
+          <kbd>/</kbd>
+        </label>
+
+        <label class="select-field">
+          <span class="sr-only">Génération</span>
+          <select id="generationFilter">
+            <option value="all">Toutes les générations</option>
+          </select>
+        </label>
+
+        <label class="select-field">
+          <span class="sr-only">Type</span>
+          <select id="typeFilter">
+            <option value="all">Tous les types</option>
+          </select>
+        </label>
+
+        <label class="select-field">
+          <span class="sr-only">État</span>
+          <select id="statusFilter">
+            <option value="all">Tous les états</option>
+            <option value="owned">Dans ma collection</option>
+            <option value="missing">À trouver</option>
+            <option value="variants">Formes multiples</option>
+          </select>
+        </label>
+
+        <label class="select-field">
+          <span class="sr-only">Tri</span>
+          <select id="sortSelect">
+            <option value="number">Tri : numéro</option>
+            <option value="name">Tri : nom</option>
+            <option value="owned">Tri : possédés d’abord</option>
+            <option value="missing">Tri : manquants d’abord</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="active-filter" id="activeFilter" hidden>
+        <span id="activeFilterText"></span>
+        <button id="clearFiltersButton" type="button">Tout effacer</button>
+      </div>
+
+      <div class="pokemon-grid" id="pokemonGrid" aria-live="polite"></div>
+
+      <div class="empty-state" id="emptyState" hidden>
+        <div aria-hidden="true">◇</div>
+        <h3>Aucun Pokémon ne correspond</h3>
+        <p>Essayez un autre nom ou retirez un filtre.</p>
+        <button class="button button--primary" id="emptyResetButton" type="button">Réinitialiser les filtres</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Données et sprites embarqués · Aucune connexion à PokéAPI · Sauvegarde uniquement sur cet appareil</p>
+    <p id="dataVersion"></p>
+  </footer>
+
+  <template id="pokemonCardTemplate">
+    <article class="pokemon-card">
+      <button class="pokemon-card__toggle" type="button">
+        <span class="pokemon-card__number"></span>
+        <span class="pokemon-card__check" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="m6 12 4 4 8-9"/></svg>
+        </span>
+        <span class="pokemon-sprite" role="img"></span>
+        <span class="pokemon-card__identity">
+          <strong class="pokemon-card__name"></strong>
+          <span class="pokemon-card__form"></span>
+        </span>
+        <span class="pokemon-card__types"></span>
+        <span class="pokemon-card__hint">Cliquer pour marquer</span>
+      </button>
+      <div class="quantity" aria-label="Nombre possédé">
+        <button class="quantity__minus" type="button" aria-label="Retirer un exemplaire">−</button>
+        <label>
+          <span class="sr-only">Quantité</span>
+          <input class="quantity__input" type="number" min="1" max="999" inputmode="numeric">
+        </label>
+        <button class="quantity__plus" type="button" aria-label="Ajouter un exemplaire">+</button>
+      </div>
+    </article>
+  </template>
+
+  <dialog class="modal" id="settingsDialog">
+    <form method="dialog">
+      <div class="modal__heading">
+        <div>
+          <p class="eyebrow">Préférences locales</p>
+          <h2>Réglages</h2>
+        </div>
+        <button class="icon-button" value="close" aria-label="Fermer">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <label class="setting-row">
+        <span>
+          <strong>Animations</strong>
+          <small>Étincelles lors de l’ajout d’un shiny</small>
+        </span>
+        <input id="animationSetting" type="checkbox" role="switch" checked>
+      </label>
+      <label class="setting-row">
+        <span>
+          <strong>Confirmation avant retrait</strong>
+          <small>Évite de décocher une fiche par erreur</small>
+        </span>
+        <input id="confirmSetting" type="checkbox" role="switch">
+      </label>
+      <div class="danger-zone">
+        <div>
+          <strong>Recommencer le Shinydex</strong>
+          <small>Efface toute la collection enregistrée sur cet appareil.</small>
+        </div>
+        <button class="button button--danger" id="openResetButton" type="button">Tout réinitialiser</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal modal--small" id="resetDialog">
+    <form method="dialog">
+      <div class="modal__symbol" aria-hidden="true">!</div>
+      <h2>Effacer toute la collection ?</h2>
+      <p>Les Pokémon marqués, les quantités et les préférences seront supprimés de cet appareil. Cette action est irréversible.</p>
+      <div class="modal__actions">
+        <button class="button button--ghost" value="cancel">Annuler</button>
+        <button class="button button--danger" id="confirmResetButton" value="confirm">Effacer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal modal--small" id="removeDialog">
+    <form method="dialog">
+      <div class="modal__symbol modal__symbol--gold" aria-hidden="true">?</div>
+      <h2>Retirer ce shiny ?</h2>
+      <p id="removeDialogText"></p>
+      <div class="modal__actions">
+        <button class="button button--ghost" value="cancel">Annuler</button>
+        <button class="button button--danger" id="confirmRemoveButton" value="confirm">Retirer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data/pokedex-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "Pokémon Shinydex",
+  "short_name": "Shinydex",
+  "description": "Gestionnaire autonome de collection Pokémon shiny.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e9edf5",
+  "theme_color": "#17223a",
+  "categories": ["utilities", "entertainment"]
+}
