@@ -382,13 +382,13 @@ try {
   );
   check(dom.window.document.querySelectorAll("#distributionGrid .distribution-card").length >= 2,
     "Les distributions mondiales en cours ne sont pas affichées.");
-  const frenchDistributionSource = dom.window.document.querySelector(
-    "#distributionGrid .distribution-card__source"
-  );
-  check(frenchDistributionSource?.href.includes("pokemon.com/fr/actualites/"),
+  const frenchDistributionSources = [
+    ...dom.window.document.querySelectorAll("#distributionGrid .distribution-card__source")
+  ];
+  check(frenchDistributionSources.some(source => source.href.includes("pokemon.com/fr/actualites/")),
     "La source française officielle de Volcanion n’est pas utilisée en français.");
-  check(frenchDistributionSource?.hreflang === "fr",
-    "La langue du lien officiel français n’est pas indiquée.");
+  check(frenchDistributionSources.every(source => source.hreflang === "fr"),
+    "La langue des liens officiels français n’est pas indiquée.");
   check(dom.window.document.querySelectorAll("#distributionTicker .information-ticker__item").length >= 4,
     "Les titres des distributions ne sont pas répétés dans le bandeau défilant.");
   check(dom.window.document.querySelectorAll(
@@ -543,13 +543,13 @@ try {
   check(dom.window.document.getElementById("languageFlag").getAttribute("src") === "assets/flags/en.svg", "Le drapeau ne suit pas la langue sélectionnée.");
   check(dom.window.document.getElementById("distributionTicker")?.textContent.includes("Shiny Volcanion"),
     "Le bandeau des distributions ne suit pas la langue sélectionnée.");
-  const englishDistributionSource = dom.window.document.querySelector(
-    "#distributionGrid .distribution-card__source"
-  );
-  check(englishDistributionSource?.href.includes("pokemon.com/uk/news/"),
+  const englishDistributionSources = [
+    ...dom.window.document.querySelectorAll("#distributionGrid .distribution-card__source")
+  ];
+  check(englishDistributionSources.some(source => source.href.includes("pokemon.com/uk/news/")),
     "La source officielle anglaise n’est pas restaurée avec l’interface anglaise.");
-  check(englishDistributionSource?.hreflang === "en",
-    "La langue du lien officiel anglais n’est pas indiquée.");
+  check(englishDistributionSources.every(source => source.hreflang === "en"),
+    "La langue des liens officiels anglais n’est pas indiquée.");
 
   const coloredType = dom.window.document.querySelector(".type-pill");
   check(coloredType?.style.getPropertyValue("--type-color"), "Une bulle de type n’a pas sa couleur dédiée.");
