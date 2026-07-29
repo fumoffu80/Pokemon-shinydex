@@ -101,6 +101,38 @@
       </article>
     </section>
 
+    <details class="information-panel" id="informationPanel" aria-labelledby="informationTitle">
+      <summary class="information-summary">
+        <span class="information-summary__heading">
+          <span class="eyebrow" data-i18n="informationEyebrow">Actualités mondiales</span>
+          <span class="information-summary__title" id="informationTitle" data-i18n="informationTitle">Informations & distributions</span>
+        </span>
+        <span class="information-summary__meta">
+          <span id="distributionCount">0 distribution</span>
+          <svg class="information-summary__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5"/></svg>
+        </span>
+      </summary>
+      <div class="information-panel__content">
+        <p class="information-intro" data-i18n="informationIntro">Distributions Pokémon actuellement accessibles ou déjà annoncées dans le monde.</p>
+        <div class="information-monitor">
+          <span class="information-monitor__dot" aria-hidden="true"></span>
+          <strong data-i18n="monitoredDaily">Sources surveillées automatiquement chaque jour</strong>
+          <span>·</span>
+          <span data-i18n="verifiedAt">Informations vérifiées le</span>
+          <time id="distributionUpdatedAt"></time>
+        </div>
+        <p class="distribution-scroll-hint">
+          <span aria-hidden="true">↔</span>
+          <span data-i18n="distributionScrollHint">Faites défiler horizontalement pour voir toutes les informations.</span>
+        </p>
+        <div class="distribution-grid" id="distributionGrid" aria-live="polite" aria-labelledby="informationTitle" tabindex="0"></div>
+        <div class="distribution-empty" id="distributionEmpty" hidden>
+          <strong data-i18n="distributionEmptyTitle">Aucune distribution mondiale annoncée</strong>
+          <p data-i18n="distributionEmptyText">La surveillance quotidienne reste active et signalera la prochaine annonce.</p>
+        </div>
+      </div>
+    </details>
+
     <section class="collection-panel" aria-labelledby="collectionTitle">
       <div class="collection-heading">
         <div>
@@ -168,28 +200,7 @@
       </div>
     </section>
 
-    <section class="information-panel" aria-labelledby="informationTitle">
-      <div class="collection-heading">
-        <div>
-          <p class="eyebrow" data-i18n="informationEyebrow">Actualités mondiales</p>
-          <h2 id="informationTitle" data-i18n="informationTitle">Informations & distributions</h2>
-        </div>
-        <span id="distributionCount">0 distribution</span>
-      </div>
-      <p class="information-intro" data-i18n="informationIntro">Distributions Pokémon actuellement accessibles ou déjà annoncées dans le monde.</p>
-      <div class="information-monitor">
-        <span class="information-monitor__dot" aria-hidden="true"></span>
-        <strong data-i18n="monitoredDaily">Sources surveillées automatiquement chaque jour</strong>
-        <span>·</span>
-        <span data-i18n="verifiedAt">Informations vérifiées le</span>
-        <time id="distributionUpdatedAt"></time>
-      </div>
-      <div class="distribution-grid" id="distributionGrid" aria-live="polite"></div>
-      <div class="distribution-empty" id="distributionEmpty" hidden>
-        <strong data-i18n="distributionEmptyTitle">Aucune distribution mondiale annoncée</strong>
-        <p data-i18n="distributionEmptyText">La surveillance quotidienne reste active et signalera la prochaine annonce.</p>
-      </div>
-    </section>
+
   </main>
 
   <footer>
