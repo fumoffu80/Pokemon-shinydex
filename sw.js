@@ -1,4 +1,4 @@
-const CACHE_NAME = "pokemon-shinydex-v5";
+const CACHE_NAME = "pokemon-shinydex-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,7 +7,7 @@ const APP_SHELL = [
   "./gender-differences.js",
   "./app.js",
   "./firebase-sync.js",
-  "./data/pokedex-data.js",
+  "./data/pokedex-data.js",\n  "./data/shiny-availability.js",\n  "./data/distributions.js",
   "./manifest.webmanifest",
   "./assets/shiny-pokeball.svg",
   "./assets/shiny-pokeball-192.png",
