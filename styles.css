@@ -2191,7 +2191,7 @@ input[role="switch"]:checked::after {
 }
 
 .information-ticker__separator--sequence-end {
-  margin-right: clamp(52px, 5vw, 96px);
+  margin-right: clamp(68px, 6vw, 120px);
 }
 
 .information-panel:not([open]) .information-summary:hover .information-ticker__track,
