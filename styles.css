@@ -1128,12 +1128,20 @@ footer p {
 }
 
 .variant-grid {
+  --variant-card-height: 255px;
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr));
+  grid-auto-rows: var(--variant-card-height);
+  align-content: start;
+  min-height: 0;
   max-height: calc(88dvh - 150px);
   padding: 2px 4px 6px 2px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   gap: 11px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .gender-difference {
@@ -1177,6 +1185,9 @@ footer p {
 
 .variant-option {
   position: relative;
+  width: 100%;
+  height: var(--variant-card-height);
+  min-height: var(--variant-card-height);
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: 14px;
@@ -1223,6 +1234,7 @@ footer p {
   align-items: center;
   flex-direction: column;
   width: 100%;
+  height: 215px;
   min-height: 215px;
   padding: 11px 8px 10px;
   border: 0;

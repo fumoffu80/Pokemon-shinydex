@@ -197,6 +197,10 @@ check(css.includes("--type-color"), "Les couleurs propres aux types sont absente
 check(/\.language-control select option\s*\{[^}]*background:\s*var\(--surface-raised\)/s.test(css), "Le menu des langues n’utilise pas les couleurs sombres du site.");
 check(css.includes("minmax(min(100%, 174px), 1fr)"), "La grille Pokémon n’est pas fluide sur toutes les largeurs.");
 check(css.includes("100vw - clamp(64px, 6vw, 220px)"), "La mise en page n’exploite pas les écrans ultralarges.");
+check(css.includes("grid-auto-rows: var(--variant-card-height)"), "Les lignes du sélecteur peuvent encore comprimer les variantes.");
+check(css.includes("min-height: var(--variant-card-height)"), "La hauteur minimale des cartes de variante n’est pas verrouillée.");
+check(css.includes("align-content: start"), "La grille de variantes étire encore ses lignes pour remplir la fenêtre.");
+check(css.includes("scrollbar-gutter: stable"), "Le défilement des nombreuses variantes n’est pas stabilisé.");
 check(html.includes('class="stat-spark"'), "L’icône du total de shiny n’a pas été remplacée.");
 check(app.includes("HOVER_DELAY = 2000"), "L’ouverture après deux secondes de survol n’est pas configurée.");
 check(app.includes("DIALOG_EXIT_DELAY = 2000"), "La fermeture après deux secondes hors du sélecteur n’est pas configurée.");
@@ -349,6 +353,19 @@ try {
   check(dom.window.document.querySelectorAll(".pokemon-card").length === 1, "Les formes de Zarbi ne sont pas regroupées.");
   dom.window.document.querySelector(".pokemon-card__toggle").click();
   check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length >= 28, "Les 28 formes de Zarbi ne sont pas proposées.");
+  dom.window.document.getElementById("variantDialog").close();
+
+  for (const [name, minimum] of [["Pikachu", 30], ["Charmilly", 60]]) {
+    search.value = name;
+    search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
+    check(dom.window.document.querySelectorAll(".pokemon-card").length === 1,
+      `Les nombreuses formes de ${name} ne sont pas regroupées.`);
+    dom.window.document.querySelector(".pokemon-card__toggle").click();
+    check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length >= minimum,
+      `Le sélecteur de ${name} n’affiche pas toutes ses formes sans compression.`);
+    dom.window.document.getElementById("variantDialog").close();
+  }
 
   const languageSelect = dom.window.document.getElementById("languageSelect");
   languageSelect.value = "en";
