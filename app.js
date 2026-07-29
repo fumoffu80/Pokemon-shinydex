@@ -22,6 +22,11 @@
   const HOVER_DELAY = 2000;
   const DIALOG_EXIT_DELAY = 2000;
   const SPINDA_ID = 327;
+  const CARD_SIZE_LEVELS = Object.freeze([
+    { id: "normal", percent: 100, spriteSize: 96, labelKey: "cardSizeNormal" },
+    { id: "large", percent: 125, spriteSize: 120, labelKey: "cardSizeLarge" },
+    { id: "xlarge", percent: 150, spriteSize: 144, labelKey: "cardSizeExtraLarge" }
+  ]);
   const TYPE_COLORS = {
     normal: "#A8A77A",
     fire: "#EE8130",
@@ -49,6 +54,7 @@
     "ownedCount", "appearanceTotal", "speciesCount", "speciesTotal", "copyCount",
     "progressPercent", "progressBar", "progressMessage", "resultCount", "activeFilter",
     "activeFilterText", "clearFiltersButton", "emptyState", "emptyResetButton",
+    "cardSizeButton", "cardSizeValue",
     "settingsButton", "settingsDialog", "animationSetting", "confirmSetting", "openResetButton",
     "resetDialog", "confirmResetButton", "removeDialog", "removeDialogText",
     "confirmRemoveButton", "variantDialog", "variantDialogTitle", "variantGrid",
@@ -117,7 +123,8 @@
       preferences: {
         language: preferredLanguage(),
         animations: true,
-        confirmRemove: false
+        confirmRemove: false,
+        cardSize: "normal"
       }
     };
   }
@@ -144,6 +151,9 @@
     clean.preferences.language = DATA.languages?.includes(language) ? language : clean.preferences.language;
     clean.preferences.animations = raw.preferences?.animations !== false;
     clean.preferences.confirmRemove = Boolean(raw.preferences?.confirmRemove);
+    clean.preferences.cardSize = CARD_SIZE_LEVELS.some(level => level.id === raw.preferences?.cardSize)
+      ? raw.preferences.cardSize
+      : clean.preferences.cardSize;
     return clean;
   }
 
@@ -196,6 +206,31 @@
     return DATA.typeNames?.[identifier]?.[language()]
       || DATA.typeNames?.[identifier]?.fr
       || identifier;
+  }
+
+  function currentCardSize() {
+    return CARD_SIZE_LEVELS.find(level => level.id === state.preferences.cardSize)
+      || CARD_SIZE_LEVELS[0];
+  }
+
+  function applyCardSize() {
+    const level = currentCardSize();
+    elements.pokemonGrid.dataset.cardSize = level.id;
+    elements.cardSizeValue.textContent = `${level.percent} %`;
+    const accessibleLabel = t("cardSizeButton", {
+      size: t(level.labelKey),
+      percent: level.percent
+    });
+    elements.cardSizeButton.setAttribute("aria-label", accessibleLabel);
+    elements.cardSizeButton.setAttribute("title", accessibleLabel);
+  }
+
+  function cycleCardSize() {
+    const currentIndex = CARD_SIZE_LEVELS.findIndex(level => level.id === currentCardSize().id);
+    state.preferences.cardSize = CARD_SIZE_LEVELS[(currentIndex + 1) % CARD_SIZE_LEVELS.length].id;
+    saveState();
+    applyCardSize();
+    render();
   }
 
   function normalizeAvailabilityName(value) {
@@ -438,9 +473,13 @@
     const column = entry.slot % DATA.atlasColumns;
     const row = Math.floor(entry.slot / DATA.atlasColumns);
     const sheets = shiny ? DATA.shinySheets : DATA.normalSheets;
+    const displaySize = sprite.closest(".pokemon-card")
+      ? currentCardSize().spriteSize
+      : DATA.cellSize;
+    const scale = displaySize / DATA.cellSize;
     sprite.style.backgroundImage = `url("${sheets[entry.sheet]}")`;
-    sprite.style.backgroundPosition = `${-column * DATA.cellSize}px ${-row * DATA.cellSize}px`;
-    sprite.style.backgroundSize = `${DATA.atlasSize}px ${DATA.atlasSize}px`;
+    sprite.style.backgroundPosition = `${-column * DATA.cellSize * scale}px ${-row * DATA.cellSize * scale}px`;
+    sprite.style.backgroundSize = `${DATA.atlasSize * scale}px ${DATA.atlasSize * scale}px`;
     sprite.setAttribute(
       "aria-label",
       `${localizedName(entry)}, ${variantLabel(entry, { alwaysGender: true }) || t("defaultForm")}${shiny ? " ✦" : ""}`
@@ -910,6 +949,7 @@
     elements.animationSetting.checked = state.preferences.animations;
     elements.confirmSetting.checked = state.preferences.confirmRemove;
     elements.languageSelect.value = language();
+    applyCardSize();
   }
 
   function showToast(message) {
@@ -1371,6 +1411,7 @@
   });
   elements.clearFiltersButton.addEventListener("click", resetFilters);
   elements.emptyResetButton.addEventListener("click", resetFilters);
+  elements.cardSizeButton.addEventListener("click", cycleCardSize);
   elements.settingsButton.addEventListener("click", () => showDialog(elements.settingsDialog));
   elements.accountButton.addEventListener("click", () => showDialog(elements.authDialog));
   elements.closeAuthButton.addEventListener("click", () => closeDialog(elements.authDialog));
