@@ -16,6 +16,10 @@ différences mâle/femelle disponibles, etc.
 - sexes mâle et femelle enregistrables séparément lorsque l’espèce accepte les
   deux, sans inventer de second sexe pour les espèces exclusivement mâles,
   femelles ou asexuées ;
+- sexe indiqué sur chaque fiche principale et explication française du
+  dimorphisme dans le sélecteur lorsque les sprites mâle et femelle diffèrent ;
+- transformations non-Méga et non-Gigamax disposant de sprites propres, y
+  compris les formes de combat, météo, couronnées et téracristallisées ;
 - interface et noms Pokémon disponibles en français, anglais, espagnol,
   allemand, italien et japonais ;
 - couleurs distinctes correspondant à chaque type dans les bulles ;
@@ -28,6 +32,8 @@ différences mâle/femelle disponibles, etc.
 - recherche tolérante aux accents, filtres par génération, type et état ;
 - statistiques par apparence, espèce et nombre total d’exemplaires ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
+- utilisation fluide de la largeur disponible, y compris sur les écrans
+  ultralarges ;
 - favicon Poké Ball accompagné d’étincelles shiny ;
 - données, sprites normaux et shiny entièrement locaux : aucune requête PokeAPI
   ou GitHub depuis le site.

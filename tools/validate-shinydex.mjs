@@ -18,6 +18,7 @@ const [
   html,
   css,
   i18nSource,
+  genderDifferencesSource,
   app,
   firebaseBundle,
   dataSource,
@@ -28,6 +29,7 @@ const [
   readFile(resolve(root, "index.html"), "utf8"),
   readFile(resolve(root, "styles.css"), "utf8"),
   readFile(resolve(root, "i18n.js"), "utf8"),
+  readFile(resolve(root, "gender-differences.js"), "utf8"),
   readFile(resolve(root, "app.js"), "utf8"),
   readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
@@ -38,6 +40,7 @@ const [
 
 for (const [source, name] of [
   [i18nSource, "i18n.js"],
+  [genderDifferencesSource, "gender-differences.js"],
   [app, "app.js"],
   [firebaseBundle, "firebase-sync.js"],
   [serviceWorker, "sw.js"]
@@ -95,6 +98,9 @@ check(visualCount(2) === 1, "Herbizarre ne doit avoir qu’une apparence malgré
 check(visualCount(3) === 2, "Florizarre doit avoir deux apparences mâle/femelle.");
 check(visualCount(19) === 3, "Rattata doit avoir trois apparences : deux de Kanto et une d’Alola.");
 check(visualCount(58) === 2, "Caninos doit avoir deux apparences régionales, pas quatre variantes de sexe.");
+check(visualCount(648) === 2, "Les formes Chant et Danse de Meloetta doivent être présentes.");
+check(visualCount(888) === 2, "Les formes Héros Aguerri et Épée Suprême de Zacian doivent être présentes.");
+check(visualCount(889) === 2, "Les formes Héros Aguerri et Bouclier Suprême de Zamazenta doivent être présentes.");
 check(data?.entries?.filter(entry => entry.speciesId === 29).every(entry => entry.gender === "female"), "Nidoran♀ ne doit pas proposer de mâle.");
 check(data?.entries?.filter(entry => entry.speciesId === 32).every(entry => entry.gender === "male"), "Nidoran♂ ne doit pas proposer de femelle.");
 check(data?.entries?.filter(entry => entry.speciesId === 81).every(entry => entry.gender === "genderless"), "Magnéti doit rester asexué.");
@@ -106,6 +112,7 @@ check(data?.entries?.every(entry =>
   && languages.every(language => entry.names?.[language])
   && languages.every(language => typeof entry.formNames?.[language] === "string")
   && ["male", "female", "genderless"].includes(entry.gender)
+  && Number.isInteger(entry.visualVariantCount)
   && Number.isInteger(entry.sheet)
 ), "Une variante Pokémon est invalide ou mal traduite.");
 check(data?.types?.every(type =>
@@ -147,7 +154,8 @@ try {
 for (const id of [
   "languageFlag", "languageSelect", "searchInput", "generationFilter", "typeFilter", "statusFilter",
   "sortSelect", "pokemonGrid", "ownedCount", "speciesCount", "copyCount", "variantDialog",
-  "variantGrid", "variantCardTemplate", "resetDialog", "importInput", "accountButton",
+  "variantGrid", "genderDifferenceNote", "genderDifferenceText", "variantCardTemplate",
+  "resetDialog", "importInput", "accountButton",
   "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
   "syncNowButton", "signOutButton"
 ]) {
@@ -155,6 +163,7 @@ for (const id of [
 }
 
 check(html.includes("i18n.js"), "Le module multilingue n’est pas chargé.");
+check(html.includes("gender-differences.js"), "Les descriptions des différences sexuelles ne sont pas chargées.");
 check(html.includes("data/pokedex-data.js"), "La base locale n’est pas chargée.");
 check(html.includes("assets/shiny-pokeball.svg"), "Le favicon Poké Ball shiny n’est pas relié.");
 check(languages.every(language => i18nSource.includes(`assets/flags/${language}.svg`)), "Les six drapeaux de langue ne sont pas configurés.");
@@ -166,9 +175,12 @@ check(css.includes("content-visibility: auto"), "Le rendu différé des cartes n
 check(css.includes("--type-color"), "Les couleurs propres aux types sont absentes.");
 check(/\.language-control select option\s*\{[^}]*background:\s*var\(--surface-raised\)/s.test(css), "Le menu des langues n’utilise pas les couleurs sombres du site.");
 check(css.includes("minmax(min(100%, 174px), 1fr)"), "La grille Pokémon n’est pas fluide sur toutes les largeurs.");
+check(css.includes("100vw - clamp(64px, 6vw, 220px)"), "La mise en page n’exploite pas les écrans ultralarges.");
+check(html.includes('class="stat-spark"'), "L’icône du total de shiny n’a pas été remplacée.");
 check(app.includes("HOVER_DELAY = 2000"), "L’ouverture après deux secondes de survol n’est pas configurée.");
 check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
 check(app.includes("% group.visuals.length"), "Le carrousel n’est pas limité aux apparences visuellement différentes.");
+check(app.includes("minimumFractionDigits: 2"), "Les faibles pourcentages de complétion sont encore arrondis à zéro.");
 check(app.includes("localStorage"), "La sauvegarde locale est absente.");
 check(app.includes("requestIdleCallback"), "Le préchargement différé n’est pas configuré.");
 check(app.includes("navigator.serviceWorker.register"), "Le mode hors ligne n’est pas activé.");
@@ -180,10 +192,10 @@ check(firebaseBundle.includes("pokemon-shinydex"), "La configuration Firebase at
 check(firebaseBundle.includes("users") && firebaseBundle.includes("shinydex"), "Le document Firebase Shinydex est absent.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("i18n.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
+check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
 
-const runtime = [html, css, i18nSource, app, firebaseBundle, dataSource, serviceWorker].join("\n").toLowerCase();
+const runtime = [html, css, i18nSource, genderDifferencesSource, app, firebaseBundle, dataSource, serviceWorker].join("\n").toLowerCase();
 for (const forbidden of ["pokeapi.co", "raw.githubusercontent.com"]) {
   check(!runtime.includes(forbidden), `Dépendance réseau interdite dans le site : ${forbidden}`);
 }
@@ -209,6 +221,7 @@ try {
     return 1;
   };
   dom.window.eval(i18nSource);
+  dom.window.eval(genderDifferencesSource);
   dom.window.eval(dataSource);
   dom.window.eval(app);
   await new Promise(resolveDelay => setTimeout(resolveDelay, 80));
@@ -227,7 +240,10 @@ try {
   check(badgeCount(3) === 2, "Le badge de Florizarre doit indiquer 2.");
   check(badgeCount(19) === 3, "Le badge de Rattata doit indiquer 3.");
   check(badgeCount(58) === 2, "Le badge de Caninos doit indiquer 2.");
-  check(cardFor(1)?.querySelector(".pokemon-card__form")?.textContent === "Mâle / Femelle", "Bulbizarre doit afficher Mâle / Femelle sans alterner.");
+  check(cardFor(1)?.querySelector(".pokemon-card__form")?.textContent === "♂ Mâle / ♀ Femelle", "Bulbizarre doit afficher les deux symboles sexuels sans alterner.");
+  check(cardFor(29)?.querySelector(".pokemon-card__form")?.textContent.includes("♀ Femelle"), "Une espèce exclusivement femelle doit être indiquée.");
+  check(cardFor(32)?.querySelector(".pokemon-card__form")?.textContent.includes("♂ Mâle"), "Une espèce exclusivement mâle doit être indiquée.");
+  check(cardFor(81)?.querySelector(".pokemon-card__form")?.textContent.includes("∅ Asexué"), "Une espèce asexuée doit être indiquée.");
 
   const bulbizarrePosition = cardFor(1)?.querySelector(".pokemon-sprite")?.style.backgroundPosition;
   const rattataPosition = cardFor(19)?.querySelector(".pokemon-sprite")?.style.backgroundPosition;
@@ -235,10 +251,16 @@ try {
   check(cardFor(1)?.querySelector(".pokemon-sprite")?.style.backgroundPosition === bulbizarrePosition, "Bulbizarre ne doit pas défiler entre deux sexes visuellement identiques.");
   check(cardFor(19)?.querySelector(".pokemon-sprite")?.style.backgroundPosition !== rattataPosition, "Le carrousel de Rattata ne parcourt pas ses trois apparences.");
 
+  cardFor(1).querySelector(".pokemon-card__toggle").click();
+  check(dom.window.document.getElementById("genderDifferenceNote").hidden, "Bulbizarre ne doit pas afficher d’explication de dimorphisme.");
+  dom.window.document.getElementById("variantDialog").close();
+
   const florizarreCard = dom.window.document.querySelector('.pokemon-card[data-species-id="3"]');
   florizarreCard.querySelector(".pokemon-card__toggle").click();
   check(dom.window.document.getElementById("variantDialog").hasAttribute("open"), "Un clic sur une espèce à variantes n’ouvre pas le sélecteur.");
   check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length === 2, "Le sélecteur de Florizarre ne propose pas les deux sexes.");
+  check(!dom.window.document.getElementById("genderDifferenceNote").hidden, "L’explication du dimorphisme de Florizarre est absente.");
+  check(dom.window.document.getElementById("genderDifferenceText").textContent.includes("fleur"), "La différence mâle/femelle de Florizarre n’est pas expliquée.");
 
   const firstVariant = dom.window.document.querySelector("#variantGrid .variant-option");
   const beforeSprite = firstVariant.querySelector(".variant-option__sprite").style.backgroundImage;
@@ -248,6 +270,7 @@ try {
   check(refreshedVariant.classList.contains("is-owned"), "Le clic ne marque pas la variante comme possédée.");
   check(beforeSprite !== afterSprite && afterSprite.includes("sprites-shiny"), "Le sprite normal n’est pas remplacé par le shiny.");
   check(refreshedVariant.querySelector(".quantity__input").value === "1", "Le compteur shiny ne démarre pas à 1.");
+  check(dom.window.document.getElementById("progressPercent").textContent !== "0 %", "Un premier shiny affiche encore 0 %.");
   check(dom.window.localStorage.getItem("pokemonShinydex:v1"), "Le clic n’est pas sauvegardé dans localStorage.");
   check(typeof dom.window.SHINYDEX_APP?.getState === "function", "Le pont Firebase n’est pas exposé.");
   check(dom.window.SHINYDEX_APP.getState().collection[florizarre[0].key] === 1, "Le pont Firebase ne lit pas la nouvelle collection.");

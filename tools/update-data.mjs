@@ -153,10 +153,13 @@ async function downloadFirst(urls) {
   return null;
 }
 
-function spriteStem(form) {
-  if (form.is_default === "1") return form.pokemon_id;
-  if (!form.form_identifier) return null;
-  return `${form.pokemon_id}-${form.form_identifier}`;
+function spriteStems(form) {
+  const stems = [];
+  if (form.is_default !== "1" && form.form_identifier) {
+    stems.push(`${form.pokemon_id}-${form.form_identifier}`);
+  }
+  stems.push(form.pokemon_id);
+  return [...new Set(stems.filter(Boolean))];
 }
 
 function explicitGender(form) {
@@ -217,16 +220,17 @@ function candidateKey(species, form, gender) {
 }
 
 function spriteUrls(form, species, gender, shiny) {
-  const stem = spriteStem(form);
-  if (!stem) return [];
+  const stems = spriteStems(form);
   const root = shiny ? `${SPRITE_BASE}/shiny` : SPRITE_BASE;
-  const standard = `${root}/${stem}.png`;
   const canUseFemaleSprite =
     gender === "female"
     && species.hasGenderDifferences
     && form.is_default === "1"
     && !explicitGender(form);
-  return canUseFemaleSprite ? [`${root}/female/${stem}.png`, standard] : [standard];
+  return stems.flatMap(stem => canUseFemaleSprite
+    ? [`${root}/female/${stem}.png`, `${root}/${stem}.png`]
+    : [`${root}/${stem}.png`]
+  );
 }
 
 async function buildAtlas(visuals, kind, atlasIndex) {
@@ -310,7 +314,9 @@ for (const row of tables["pokemon_types.csv"]) {
 }
 
 const eligibleForms = tables["pokemon_forms.csv"]
-  .filter(form => form.is_battle_only === "0" && form.is_mega === "0")
+  // Les transformations temporaires non-Méga et non-Gigamax ont une apparence
+  // shiny propre : Meloetta Danse, formes couronnées, météo, téracristal, etc.
+  .filter(form => form.is_mega === "0" && !String(form.form_identifier).split("-").includes("gmax"))
   .filter(form => speciesById.has(Number(pokemonById.get(Number(form.pokemon_id))?.species_id)))
   .sort((a, b) => {
     const pokemonA = pokemonById.get(Number(a.pokemon_id));
@@ -335,7 +341,7 @@ const candidates = [];
 for (const form of eligibleForms) {
   const pokemon = pokemonById.get(Number(form.pokemon_id));
   const species = speciesById.get(Number(pokemon.species_id));
-  if (!spriteStem(form)) continue;
+  if (!spriteStems(form).length) continue;
 
   const names = localizedValues(speciesNames, species.id, titleCase(species.identifier));
   const formNames = explicitGender(form)

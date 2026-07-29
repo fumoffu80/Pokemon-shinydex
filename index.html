@@ -75,7 +75,15 @@
         </div>
       </article>
       <article class="stat-card">
-        <div class="stat-card__icon stat-card__icon--violet" aria-hidden="true">×</div>
+        <div class="stat-card__icon stat-card__icon--violet" aria-hidden="true">
+          <svg viewBox="0 0 32 32">
+            <circle cx="12" cy="19" r="7"/>
+            <path d="M5 19h14M12 16v6"/>
+            <circle cx="21" cy="13" r="6"/>
+            <path d="M15 13h12M21 10v6"/>
+            <path class="stat-spark" d="m26 2 1.2 3.3L30.5 6l-3.3 1.2L26 10.5l-1.2-3.3L21.5 6l3.3-.7L26 2Z"/>
+          </svg>
+        </div>
         <div>
           <span class="stat-card__label" data-i18n="shinyTotal">Shiny au total</span>
           <strong id="copyCount">0</strong>
@@ -218,6 +226,13 @@
       </div>
       <p class="variant-panel__intro" data-i18n="variantsIntro">Chaque variante est enregistrée séparément. Cliquez sur son sprite pour alterner entre normal et shiny.</p>
       <div class="variant-grid" id="variantGrid"></div>
+      <aside class="gender-difference" id="genderDifferenceNote" hidden>
+        <span class="gender-difference__symbol" aria-hidden="true">♂♀</span>
+        <div>
+          <strong id="genderDifferenceTitle" data-i18n="genderDifferenceTitle">Différence entre le mâle et la femelle</strong>
+          <p id="genderDifferenceText"></p>
+        </div>
+      </aside>
     </div>
   </dialog>
 
@@ -351,6 +366,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="i18n.js"></script>
+  <script src="gender-differences.js"></script>
   <script src="data/pokedex-data.js"></script>
   <script src="app.js"></script>
   <script src="firebase-sync.js"></script>

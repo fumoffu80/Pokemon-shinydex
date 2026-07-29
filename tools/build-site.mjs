@@ -9,6 +9,7 @@ const files = [
   "index.html",
   "styles.css",
   "i18n.js",
+  "gender-differences.js",
   "app.js",
   "firebase-sync.js",
   "manifest.webmanifest",

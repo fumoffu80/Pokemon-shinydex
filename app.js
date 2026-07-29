@@ -3,6 +3,7 @@
 
   const DATA = window.SHINYDEX_DATA;
   const I18N = window.SHINYDEX_I18N;
+  const GENDER_DIFFERENCES = window.SHINYDEX_GENDER_DIFFERENCES || {};
   if (!DATA?.entries?.length || !I18N?.strings?.fr) {
     document.body.innerHTML = "<p style='padding:2rem'>La base locale du Shinydex est introuvable.</p>";
     return;
@@ -44,6 +45,7 @@
     "settingsButton", "settingsDialog", "animationSetting", "confirmSetting", "openResetButton",
     "resetDialog", "confirmResetButton", "removeDialog", "removeDialogText",
     "confirmRemoveButton", "variantDialog", "variantDialogTitle", "variantGrid",
+    "genderDifferenceNote", "genderDifferenceTitle", "genderDifferenceText",
     "closeVariantButton", "exportButton", "importButton", "importInput", "toast", "dataVersion",
     "accountButton", "accountLabel", "cloudStatusLabel", "cloudDot", "authDialog",
     "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail", "cloudStatusText",
@@ -365,12 +367,23 @@
     const form = localizedForm(entry);
     const genders = new Set(visual.entries.map(option => option.gender));
     const gender = genders.has("male") && genders.has("female")
-      ? t("maleFemale")
-      : entry.genderAvailability === "mixed"
-        ? genderText(entry)
-        : "";
+      ? `♂ ${t("male")} / ♀ ${t("female")}`
+      : genderText(entry);
     if (form && gender) return `${form} · ${gender}`;
     return form || gender;
+  }
+
+  function groupHasGenderDifferences(group) {
+    let hasMale = false;
+    let hasFemale = false;
+    let separatedVisual = false;
+    for (const visual of group.visuals) {
+      const genders = new Set(visual.entries.map(entry => entry.gender));
+      hasMale ||= genders.has("male");
+      hasFemale ||= genders.has("female");
+      separatedVisual ||= genders.has("male") !== genders.has("female");
+    }
+    return hasMale && hasFemale && separatedVisual;
   }
 
   function updateCardView(group, card = cardNodes.get(group.speciesId)) {
@@ -573,9 +586,13 @@
     const ownedSpecies = new Set(ownedEntries.map(entry => entry.speciesId)).size;
     const totalCopies = Object.values(state.collection).reduce((sum, value) => sum + (Number(value) || 0), 0);
     const percentage = DATA.appearanceCount ? (ownedEntries.length / DATA.appearanceCount) * 100 : 0;
-    const rounded = percentage < 1 && percentage > 0
-      ? percentage.toLocaleString(locale(), { maximumFractionDigits: 1 })
-      : Math.round(percentage).toLocaleString(locale());
+    const rounded = percentage === 0
+      ? "0"
+      : percentage < 0.1
+        ? percentage.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : percentage < 100
+          ? percentage.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+          : "100";
 
     elements.ownedCount.textContent = formatNumber(ownedEntries.length);
     elements.appearanceTotal.textContent = formatNumber(DATA.appearanceCount);
@@ -583,8 +600,10 @@
     elements.speciesTotal.textContent = formatNumber(DATA.speciesCount);
     elements.copyCount.textContent = formatNumber(totalCopies);
     elements.progressPercent.textContent = `${rounded} %`;
-    elements.progressBar.style.width = `${Math.min(100, percentage)}%`;
-    elements.progressBar.parentElement.setAttribute("aria-valuenow", String(Math.round(percentage)));
+    const visiblePercentage = percentage > 0 ? Math.max(0.35, percentage) : 0;
+    elements.progressBar.style.width = `${Math.min(100, visiblePercentage)}%`;
+    elements.progressBar.parentElement.setAttribute("aria-valuenow", percentage.toFixed(2));
+    elements.progressBar.parentElement.setAttribute("aria-valuetext", `${rounded} %`);
 
     const messageKey = percentage === 0
       ? "progressStart"
@@ -845,6 +864,15 @@
     }
     elements.variantGrid.replaceChildren(fragment);
     elements.variantGrid.scrollTop = previousScroll;
+
+    const hasGenderDifferences = groupHasGenderDifferences(group);
+    elements.genderDifferenceNote.hidden = !hasGenderDifferences;
+    if (hasGenderDifferences) {
+      elements.genderDifferenceTitle.textContent = t("genderDifferenceTitle");
+      elements.genderDifferenceText.textContent = language() === "fr" && GENDER_DIFFERENCES[group.speciesId]
+        ? GENDER_DIFFERENCES[group.speciesId]
+        : t("genderDifferenceFallback");
+    }
   }
 
   function openVariantDialog(speciesId, preferredKey = "") {
