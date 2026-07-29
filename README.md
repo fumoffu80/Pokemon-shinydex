@@ -40,8 +40,10 @@ différences mâle/femelle disponibles, etc.
 - les 24 espèces et les formes sans aucun shiny légal restent visibles avec
   leur contrôle shiny, un badge explicatif et un filtre dédié, mais sont
   exclues de la complétion ;
-- section d’informations recensant les distributions Pokémon mondiales en
-  cours ou annoncées, avec dates, méthode, conditions et source ;
+- panneau repliable d’informations placé entre les statistiques et la
+  collection, recensant les distributions Pokémon mondiales en cours ou
+  annoncées dans un carrousel horizontal, avec dates, méthode, conditions et
+  source ;
 - fermeture explicite du sélecteur avec son bouton dédié ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
 - utilisation fluide de la largeur disponible, y compris sur les écrans
