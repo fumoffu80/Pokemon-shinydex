@@ -2072,7 +2072,7 @@ input[role="switch"]:checked::after {
 }
 
 .information-panel {
-  margin: 26px 0;
+  margin: 20px 0 26px;
   overflow: clip;
   border: 1px solid var(--line-soft);
   border-radius: 22px;
@@ -2082,10 +2082,88 @@ input[role="switch"]:checked::after {
   box-shadow: var(--shadow);
 }
 
-.information-panel .collection-heading > #distributionCount {
+.information-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 88px;
+  padding: 20px 26px;
+  gap: 18px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.information-summary::-webkit-details-marker {
+  display: none;
+}
+
+.information-summary::marker {
+  content: "";
+}
+
+.information-summary:hover {
+  background: rgba(99, 179, 237, 0.055);
+}
+
+.information-summary:focus-visible {
+  outline: 3px solid rgba(99, 179, 237, 0.62);
+  outline-offset: -3px;
+}
+
+.information-panel[open] .information-summary {
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(99, 179, 237, 0.035);
+}
+
+.information-summary__heading {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.information-summary__heading .eyebrow {
+  margin: 0;
+}
+
+.information-summary__title {
+  color: var(--text);
+  font-size: clamp(1.15rem, 2vw, 1.52rem);
+  font-weight: 850;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.information-summary__meta {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 11px;
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.information-summary__chevron {
+  width: 21px;
+  height: 21px;
+  color: #8ec8ff;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 180ms ease;
+}
+
+.information-panel[open] .information-summary__chevron {
+  transform: rotate(180deg);
+}
+
+.information-panel__content {
+  padding-top: 20px;
 }
 
 .information-intro {
@@ -2100,7 +2178,7 @@ input[role="switch"]:checked::after {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  margin: 0 26px 22px;
+  margin: 0 26px 18px;
   padding: 10px 13px;
   gap: 7px;
   color: #b9c7da;
@@ -2122,11 +2200,52 @@ input[role="switch"]:checked::after {
   color: #d7f5e6;
 }
 
+.distribution-scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0 26px 10px;
+  gap: 7px;
+  color: #8fa4bf;
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.distribution-scroll-hint > span:first-child {
+  color: #8ec8ff;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .distribution-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  padding: 0 26px 26px;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(280px, 38vw, 430px);
+  grid-template-columns: none;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 26px;
+  scroll-snap-type: inline mandatory;
+  scrollbar-color: #56779f rgba(10, 20, 37, 0.42);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  padding: 0 26px 22px;
   gap: 14px;
+}
+
+.distribution-grid::-webkit-scrollbar {
+  height: 9px;
+}
+
+.distribution-grid::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(10, 20, 37, 0.42);
+}
+
+.distribution-grid::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(10, 20, 37, 0.42);
+  border-radius: 999px;
+  background: #56779f;
 }
 
 .distribution-card {
@@ -2139,6 +2258,7 @@ input[role="switch"]:checked::after {
   border-radius: 15px;
   background: linear-gradient(150deg, rgba(31, 49, 77, 0.96), rgba(20, 32, 53, 0.98));
   box-shadow: 0 9px 24px rgba(2, 8, 20, 0.16);
+  scroll-snap-align: start;
 }
 
 .distribution-card--shiny {
@@ -2248,6 +2368,31 @@ input[role="switch"]:checked::after {
 }
 
 @media (max-width: 760px) {
+  .information-panel {
+    margin-top: 14px;
+    border-radius: 17px;
+  }
+
+  .information-summary {
+    align-items: flex-start;
+    min-height: 78px;
+    padding: 17px 18px;
+    gap: 12px;
+  }
+
+  .information-summary__title {
+    font-size: 1.08rem;
+  }
+
+  .information-summary__meta {
+    gap: 7px;
+    font-size: 0.7rem;
+  }
+
+  .information-panel__content {
+    padding-top: 17px;
+  }
+
   .legality-guide,
   .information-monitor,
   .distribution-empty {
@@ -2260,7 +2405,14 @@ input[role="switch"]:checked::after {
     padding-left: 18px;
   }
 
+  .distribution-scroll-hint {
+    margin-right: 18px;
+    margin-left: 18px;
+  }
+
   .distribution-grid {
+    grid-auto-columns: min(84vw, 330px);
+    scroll-padding-inline: 18px;
     padding-right: 18px;
     padding-left: 18px;
   }
