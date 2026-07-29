@@ -5,6 +5,10 @@ import { resolve } from "node:path";
 import vm from "node:vm";
 import { JSDOM } from "jsdom";
 import sharp from "sharp";
+import {
+  extractFrenchAlternate,
+  localizedPathCandidate
+} from "./localize-distribution-sources.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const errors = [];
@@ -24,6 +28,7 @@ const [
   firebaseBundle,
   dataSource,
   availabilitySource,
+  sourceLocalesSource,
   distributionsSource,
   serviceWorker,
   manifestSource,
@@ -38,6 +43,7 @@ const [
   readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
   readFile(resolve(root, "data/shiny-availability.js"), "utf8"),
+  readFile(resolve(root, "data/distribution-source-locales.js"), "utf8"),
   readFile(resolve(root, "data/distributions.js"), "utf8"),
   readFile(resolve(root, "sw.js"), "utf8"),
   readFile(resolve(root, "manifest.webmanifest"), "utf8"),
@@ -49,6 +55,7 @@ for (const [source, name] of [
   [genderDifferencesSource, "gender-differences.js"],
   [app, "app.js"],
   [availabilitySource, "data/shiny-availability.js"],
+  [sourceLocalesSource, "data/distribution-source-locales.js"],
   [distributionsSource, "data/distributions.js"],
   [firebaseBundle, "firebase-sync.js"],
   [serviceWorker, "sw.js"]
@@ -70,15 +77,18 @@ try {
 }
 
 let availability;
+let sourceLocales;
 let distributions;
 try {
   const context = { window: {} };
   vm.runInNewContext(availabilitySource, context, { filename: "shiny-availability.js" });
+  vm.runInNewContext(sourceLocalesSource, context, { filename: "distribution-source-locales.js" });
   vm.runInNewContext(distributionsSource, context, { filename: "distributions.js" });
   availability = context.window.SHINYDEX_AVAILABILITY;
+  sourceLocales = context.window.SHINYDEX_DISTRIBUTION_SOURCE_LOCALES;
   distributions = context.window.SHINYDEX_DISTRIBUTIONS;
 } catch (error) {
-  errors.push(`Référentiels de légalité ou de distribution illisibles : ${error.message}`);
+  errors.push(`Référentiels de légalité, de sources localisées ou de distribution illisibles : ${error.message}`);
 }
 
 let translations;
@@ -105,6 +115,29 @@ check(availability?.legalExceptions?.some(entry => entry.speciesId === 721), "Vo
 check(availability?.legalExceptions?.some(entry => entry.speciesId === 25 && entry.formIds?.includes(10267)), "Le Pikachu Casquette Partenaire doit rester une exception légale.");
 check(distributions?.schemaVersion === 1, "Version du référentiel de distributions inattendue.");
 check(distributions?.items?.length >= 2, "Les distributions mondiales vérifiées sont absentes.");
+check(sourceLocales?.schemaVersion === 1, "Version du référentiel de sources localisées inattendue.");
+check(distributions?.items?.every(item => {
+  const canonical = item.sourceUrls?.en || item.sourceUrl;
+  const localized = sourceLocales?.sources?.[canonical];
+  return canonical?.startsWith("https://")
+    && localized?.en === canonical
+    && localized?.fr?.startsWith("https://");
+}), "Chaque distribution doit être reliée à sa source officielle française et anglaise.");
+check(
+  extractFrenchAlternate(
+    '<link rel="alternate" hreflang="fr-FR" href="/fr/actualites/exemple">',
+    "https://www.pokemon.com/uk/news/example"
+  ) === "https://www.pokemon.com/fr/actualites/exemple",
+  "Le détecteur hreflang ne retrouve pas une page française officielle."
+);
+check(
+  localizedPathCandidate("https://legends.pokemon.com/en-us/news/example")
+    === "https://legends.pokemon.com/fr-fr/news/example",
+  "Le chemin régional français stable n’est pas généré correctement."
+);
+check(distributions?.items?.find(item => item.id === "home-alpha-starters-za-2026")
+  ?.title?.fr?.includes("Barons"),
+  "La terminologie française officielle « Pokémon Barons » n’est pas utilisée.");
 check(data?.speciesCount >= 1025, "Les 1 025 espèces Pokémon ne sont pas toutes présentes.");
 check(data?.entries?.length === data?.appearanceCount, "Le nombre de variantes est incohérent.");
 check(new Set(data?.entries?.map(entry => entry.speciesId)).size === data?.speciesCount, "Une espèce n’a aucune variante.");
@@ -269,6 +302,10 @@ check(app.includes('EXCEPTION_VALUE = "exception"'), "Le palier Exception n’es
 check(app.includes("(ownedSpecies / eligibleSpeciesIds.size) * 100"), "La complétion n’exclut pas les espèces sans shiny légal.");
 check(app.includes('filters.status === "unobtainable"'), "Le filtre des shiny légalement impossibles est absent.");
 check(app.includes("function renderDistributions"), "La section des distributions n’est pas rendue.");
+check(app.includes("function distributionSourceUrls"),
+  "Le lien officiel n’utilise pas le référentiel localisé généré.");
+check(app.includes('card.classList.toggle("is-shiny-preview", !owned)'),
+  "L’aperçu shiny au survol des fiches n’est pas activé.");
 check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
 check(app.includes("% group.visuals.length"), "Le carrousel n’est pas limité aux apparences visuellement différentes.");
 check(app.includes("minimumFractionDigits: 2"), "Les faibles pourcentages de complétion sont encore arrondis à zéro.");
@@ -285,14 +322,19 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v10"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v12"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
-check(serviceWorker.includes("shiny-availability.js") && serviceWorker.includes("distributions.js"), "Les référentiels live ne sont pas disponibles hors ligne.");
+check(
+  serviceWorker.includes("shiny-availability.js")
+    && serviceWorker.includes("distribution-source-locales.js")
+    && serviceWorker.includes("distributions.js"),
+  "Les référentiels live ne sont pas disponibles hors ligne."
+);
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
 
 const runtime = [
   html, css, i18nSource, genderDifferencesSource, app, firebaseBundle,
-  dataSource, availabilitySource, distributionsSource, serviceWorker
+  dataSource, availabilitySource, sourceLocalesSource, distributionsSource, serviceWorker
 ].join("\n").toLowerCase();
 for (const forbidden of ["pokeapi.co", "raw.githubusercontent.com"]) {
   check(!runtime.includes(forbidden), `Dépendance réseau interdite dans le site : ${forbidden}`);
@@ -322,6 +364,7 @@ try {
   dom.window.eval(genderDifferencesSource);
   dom.window.eval(dataSource);
   dom.window.eval(availabilitySource);
+  dom.window.eval(sourceLocalesSource);
   dom.window.eval(distributionsSource);
   dom.window.eval(app);
   await new Promise(resolveDelay => setTimeout(resolveDelay, 80));
@@ -339,6 +382,13 @@ try {
   );
   check(dom.window.document.querySelectorAll("#distributionGrid .distribution-card").length >= 2,
     "Les distributions mondiales en cours ne sont pas affichées.");
+  const frenchDistributionSources = [
+    ...dom.window.document.querySelectorAll("#distributionGrid .distribution-card__source")
+  ];
+  check(frenchDistributionSources.some(source => source.href.includes("pokemon.com/fr/actualites/")),
+    "La source française officielle de Volcanion n’est pas utilisée en français.");
+  check(frenchDistributionSources.every(source => source.hreflang === "fr"),
+    "La langue des liens officiels français n’est pas indiquée.");
   check(dom.window.document.querySelectorAll("#distributionTicker .information-ticker__item").length >= 4,
     "Les titres des distributions ne sont pas répétés dans le bandeau défilant.");
   check(dom.window.document.querySelectorAll(
@@ -362,7 +412,21 @@ try {
   check(cardFor(32)?.querySelector(".pokemon-card__form")?.textContent.includes("♂ Mâle"), "Une espèce exclusivement mâle doit être indiquée.");
   check(cardFor(81)?.querySelector(".pokemon-card__form")?.textContent.includes("∅ Asexué"), "Une espèce asexuée doit être indiquée.");
 
-  const bulbizarrePosition = cardFor(1)?.querySelector(".pokemon-sprite")?.style.backgroundPosition;
+  const bulbizarreSprite = cardFor(1)?.querySelector(".pokemon-sprite");
+  const bulbizarreNormalImage = bulbizarreSprite?.style.backgroundImage;
+  cardFor(1)?.dispatchEvent(new dom.window.Event("pointerenter"));
+  check(
+    bulbizarreSprite?.style.backgroundImage.includes("sprites-shiny")
+      && bulbizarreSprite?.style.backgroundImage !== bulbizarreNormalImage,
+    "Le survol d’une fiche de l’accueil n’affiche pas son modèle shiny."
+  );
+  cardFor(1)?.dispatchEvent(new dom.window.Event("pointerleave"));
+  check(
+    bulbizarreSprite?.style.backgroundImage === bulbizarreNormalImage,
+    "Quitter une fiche de l’accueil ne restaure pas son état réel."
+  );
+
+  const bulbizarrePosition = bulbizarreSprite?.style.backgroundPosition;
   const rattataPosition = cardFor(19)?.querySelector(".pokemon-sprite")?.style.backgroundPosition;
   rotateCards?.();
   check(cardFor(1)?.querySelector(".pokemon-sprite")?.style.backgroundPosition === bulbizarrePosition, "Bulbizarre ne doit pas défiler entre deux sexes visuellement identiques.");
@@ -385,7 +449,19 @@ try {
   check(dom.window.document.getElementById("genderDifferenceText").textContent.includes("fleur"), "La différence mâle/femelle de Florizarre n’est pas expliquée.");
 
   const firstVariant = dom.window.document.querySelector("#variantGrid .variant-option");
-  const beforeSprite = firstVariant.querySelector(".variant-option__sprite").style.backgroundImage;
+  const firstVariantSprite = firstVariant.querySelector(".variant-option__sprite");
+  const beforeSprite = firstVariantSprite.style.backgroundImage;
+  firstVariant.dispatchEvent(new dom.window.Event("pointerenter"));
+  check(
+    firstVariantSprite.style.backgroundImage.includes("sprites-shiny")
+      && firstVariantSprite.style.backgroundImage !== beforeSprite,
+    "Le survol d’une fiche de la fenêtre n’affiche pas son modèle shiny."
+  );
+  firstVariant.dispatchEvent(new dom.window.Event("pointerleave"));
+  check(
+    firstVariantSprite.style.backgroundImage === beforeSprite,
+    "Quitter une fiche de la fenêtre ne restaure pas son état réel."
+  );
   firstVariant.querySelector(".variant-option__toggle").click();
   const refreshedVariant = dom.window.document.querySelector("#variantGrid .variant-option");
   const afterSprite = refreshedVariant.querySelector(".variant-option__sprite").style.backgroundImage;
@@ -467,6 +543,13 @@ try {
   check(dom.window.document.getElementById("languageFlag").getAttribute("src") === "assets/flags/en.svg", "Le drapeau ne suit pas la langue sélectionnée.");
   check(dom.window.document.getElementById("distributionTicker")?.textContent.includes("Shiny Volcanion"),
     "Le bandeau des distributions ne suit pas la langue sélectionnée.");
+  const englishDistributionSources = [
+    ...dom.window.document.querySelectorAll("#distributionGrid .distribution-card__source")
+  ];
+  check(englishDistributionSources.some(source => source.href.includes("pokemon.com/uk/news/")),
+    "La source officielle anglaise n’est pas restaurée avec l’interface anglaise.");
+  check(englishDistributionSources.every(source => source.hreflang === "en"),
+    "La langue des liens officiels anglais n’est pas indiquée.");
 
   const coloredType = dom.window.document.querySelector(".type-pill");
   check(coloredType?.style.getPropertyValue("--type-color"), "Une bulle de type n’a pas sa couleur dédiée.");

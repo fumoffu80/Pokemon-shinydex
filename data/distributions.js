@@ -35,7 +35,7 @@ window.SHINYDEX_DISTRIBUTIONS = Object.freeze({
     Object.freeze({
       id: "home-alpha-starters-za-2026",
       title: Object.freeze({
-        fr: "Germignon, Gruikui et Kaiminus alpha",
+        fr: "Germignon, Gruikui et Kaiminus Barons",
         en: "Alpha Chikorita, Tepig, and Totodile",
         es: "Chikorita, Tepig y Totodile alfa",
         de: "Alpha-Endivie, Floink und Karnimani",

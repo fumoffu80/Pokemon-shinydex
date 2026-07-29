@@ -6,6 +6,7 @@
   "scripts": {
     "update-data": "node tools/update-data.mjs",
     "monitor-live-data": "node tools/monitor-live-data.mjs",
+    "localize-distribution-sources": "node tools/localize-distribution-sources.mjs",
     "bundle-firebase": "esbuild firebase-sync.source.js --bundle --format=iife --minify --target=es2020 --outfile=firebase-sync.js",
     "validate": "npm run bundle-firebase && node tools/validate-shinydex.mjs",
     "build": "node tools/build-site.mjs",

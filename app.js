@@ -5,6 +5,7 @@
   const I18N = window.SHINYDEX_I18N;
   const AVAILABILITY = window.SHINYDEX_AVAILABILITY || {};
   const DISTRIBUTIONS = window.SHINYDEX_DISTRIBUTIONS || { items: [] };
+  const DISTRIBUTION_SOURCE_LOCALES = window.SHINYDEX_DISTRIBUTION_SOURCE_LOCALES?.sources || {};
   const GENDER_DIFFERENCES = window.SHINYDEX_GENDER_DIFFERENCES || {};
   if (!DATA?.entries?.length || !I18N?.strings?.fr) {
     document.body.innerHTML = "<p style='padding:2rem'>La base locale du Shinydex est introuvable.</p>";
@@ -235,6 +236,15 @@
     return value[language()] || value.en || value.fr || "";
   }
   return String(value || "");
+}
+
+  function distributionSourceUrls(item) {
+  const canonical = item?.sourceUrls?.en || item?.sourceUrl || "";
+  return {
+    ...(DISTRIBUTION_SOURCE_LOCALES[canonical] || {}),
+    ...(item?.sourceUrls || {}),
+    ...(canonical ? { en: canonical } : {})
+  };
 }
 
   function genderText(entry) {
@@ -578,6 +588,20 @@
     const card = fragment.querySelector(".pokemon-card");
     card.dataset.speciesId = String(group.speciesId);
     updateCardView(group, card);
+
+    card.addEventListener("pointerenter", event => {
+      if (event.pointerType === "touch") return;
+      card.dataset.hovering = "true";
+      const visual = currentVisual(group);
+      const owned = ownedInVisual(visual);
+      spriteStyle(card.querySelector(".pokemon-sprite"), visual.entry, true);
+      card.classList.toggle("is-shiny-preview", !owned);
+    });
+    card.addEventListener("pointerleave", () => {
+      card.dataset.hovering = "";
+      card.classList.remove("is-shiny-preview");
+      updateCardView(group, card);
+    });
 
     if (ENABLE_VARIANT_HOVER_OPEN && group.entries.length > 1) {
       let hoverTimer;
@@ -1048,7 +1072,17 @@
         ? t("unobtainableDescription")
         : t(owned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
     );
-    spriteStyle(item.querySelector(".variant-option__sprite"), entry, owned);
+    const sprite = item.querySelector(".variant-option__sprite");
+    spriteStyle(sprite, entry, owned);
+    card.addEventListener("pointerenter", event => {
+      if (event.pointerType === "touch") return;
+      spriteStyle(sprite, entry, true);
+      card.classList.toggle("is-shiny-preview", !owned);
+    });
+    card.addEventListener("pointerleave", () => {
+      spriteStyle(sprite, entry, owned);
+      card.classList.remove("is-shiny-preview");
+    });
     item.querySelector(".variant-option__form").textContent =
       localizedForm(entry) || t("defaultForm");
     item.querySelector(".variant-option__gender").textContent = genderText(entry);
@@ -1189,9 +1223,11 @@
         ? t("distributionStarts", { date: startText })
         : t("distributionSince", { date: startText });
 
+    const sourceUrls = distributionSourceUrls(item);
     const sourceLink = document.createElement("a");
     sourceLink.className = "distribution-card__source";
-    sourceLink.href = item.sourceUrl;
+    sourceLink.href = localizedText(sourceUrls);
+    sourceLink.hreflang = sourceUrls[language()] ? language() : "en";
     sourceLink.target = "_blank";
     sourceLink.rel = "noreferrer";
     sourceLink.textContent = t("officialSource");
