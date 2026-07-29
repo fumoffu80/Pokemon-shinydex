@@ -109,6 +109,9 @@ check(distributions?.items?.every(item =>
   item.sourceUrls?.fr?.startsWith("https://")
   && item.sourceUrls?.en?.startsWith("https://")
 ), "Chaque distribution doit proposer une source officielle française et anglaise lorsqu’elles existent.");
+check(distributions?.items?.find(item => item.id === "home-alpha-starters-za-2026")
+  ?.title?.fr?.includes("Barons"),
+  "La terminologie française officielle « Pokémon Barons » n’est pas utilisée.");
 check(data?.speciesCount >= 1025, "Les 1 025 espèces Pokémon ne sont pas toutes présentes.");
 check(data?.entries?.length === data?.appearanceCount, "Le nombre de variantes est incohérent.");
 check(new Set(data?.entries?.map(entry => entry.speciesId)).size === data?.speciesCount, "Une espèce n’a aucune variante.");
