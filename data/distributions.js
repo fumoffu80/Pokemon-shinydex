@@ -30,7 +30,10 @@ window.SHINYDEX_DISTRIBUTIONS = Object.freeze({
         fr: "Complétez dans Pokémon HOME les Pokédex d’Illumis, de l’Hyperespace et des Méga-Évolutions de Pokémon Légendes : Z-A, puis confirmez leur complétion.",
         en: "Complete the Lumiose, Hyperspace, and Mega Evolution Pokédexes from Pokémon Legends: Z-A in Pokémon HOME, then confirm their completion."
       }),
-      sourceUrl: "https://www.pokemon.com/uk/news/receive-shiny-volcanion-when-you-complete-your-pokemon-legends-z-a-pokedexes"
+      sourceUrls: Object.freeze({
+        fr: "https://www.pokemon.com/fr/actualites/completez-les-pokedex-de-legendes-pokemon-z-a-pour-recevoir-un-volcanion-chromatique",
+        en: "https://www.pokemon.com/uk/news/receive-shiny-volcanion-when-you-complete-your-pokemon-legends-z-a-pokedexes"
+      })
     }),
     Object.freeze({
       id: "home-alpha-starters-za-2026",
@@ -55,7 +58,10 @@ window.SHINYDEX_DISTRIBUTIONS = Object.freeze({
         fr: "Déposez pour la première fois dans Pokémon HOME un Pokémon provenant de Pokémon Légendes : Z-A. Les versions Switch et mobile de HOME doivent utiliser le même compte Nintendo.",
         en: "Deposit a Pokémon from Pokémon Legends: Z-A into Pokémon HOME for the first time. The Switch and mobile versions of HOME must use the same Nintendo Account."
       }),
-      sourceUrl: "https://legends.pokemon.com/en-us/news/pokemon-home-connectivity"
+      sourceUrls: Object.freeze({
+        fr: "https://legends.pokemon.com/fr-fr/news/pokemon-home-connectivity",
+        en: "https://legends.pokemon.com/en-us/news/pokemon-home-connectivity"
+      })
     })
   ])
 });
