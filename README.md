@@ -45,6 +45,8 @@ différences mâle/femelle disponibles, etc.
   carrousel horizontal des distributions lorsqu’il est ouvert, accompagné des
   dates, méthodes, conditions et sources officielles localisées ; la page
   française est utilisée lorsqu’un équivalent officiel existe ;
+- aperçu temporaire du modèle shiny au survol des fiches de l’accueil et des
+  fiches du sélecteur, sans modifier la collection ;
 - fermeture explicite du sélecteur avec son bouton dédié ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
 - utilisation fluide de la largeur disponible, y compris sur les écrans
@@ -87,8 +89,12 @@ optimisées, valide le résultat, enregistre les nouveautés et publie la nouvel
 version.
 
 Le workflow `.github/workflows/monitor-live-data.yml` contrôle chaque jour les
-sources de légalité shiny et de distributions mondiales. Il mémorise leurs
-empreintes et ouvre ou complète automatiquement une issue GitHub dès qu’une
+sources de légalité shiny et de distributions mondiales. Sans IA, il détecte et
+vérifie aussi automatiquement l’équivalent français officiel de chaque source
+grâce aux liens de langue `hreflang` et aux chemins régionaux stables des sites
+Pokémon. Il enregistre ces correspondances dans
+`data/distribution-source-locales.js`. Il mémorise par ailleurs les empreintes
+des sources et ouvre ou complète automatiquement une issue GitHub dès qu’une
 source change ou devient inaccessible afin que les données éditoriales puissent
 être revérifiées avant publication.
 
@@ -101,6 +107,7 @@ La source PokeAPI n’est utilisée que par le script de construction
 npm ci
 npm run update-data
 npm run monitor-live-data
+npm run localize-distribution-sources
 npm run check
 ```
 
