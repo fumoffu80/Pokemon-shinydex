@@ -36,7 +36,7 @@
   };
 
   const elements = Object.fromEntries([
-    "metaDescription", "languageSelect", "searchInput", "generationFilter", "typeFilter",
+    "metaDescription", "languageFlag", "languageSelect", "searchInput", "generationFilter", "typeFilter",
     "statusFilter", "sortSelect", "pokemonGrid", "pokemonCardTemplate", "variantCardTemplate",
     "ownedCount", "appearanceTotal", "speciesCount", "speciesTotal", "copyCount",
     "progressPercent", "progressBar", "progressMessage", "resultCount", "activeFilter",
@@ -65,6 +65,16 @@
     groupsBySpecies.set(entry.speciesId, group);
   }
   const speciesGroups = [...groupsBySpecies.values()].sort((a, b) => a.speciesId - b.speciesId);
+  for (const group of speciesGroups) {
+    const visualsBySprite = new Map();
+    for (const entry of group.entries) {
+      const visualKey = `${entry.sheet}:${entry.slot}`;
+      const visual = visualsBySprite.get(visualKey) || { key: visualKey, entry, entries: [] };
+      visual.entries.push(entry);
+      visualsBySprite.set(visualKey, visual);
+    }
+    group.visuals = [...visualsBySprite.values()];
+  }
   const groupByEntryKey = new Map(
     speciesGroups.flatMap(group => group.entries.map(entry => [entry.key, group]))
   );
@@ -228,10 +238,15 @@
     for (const item of I18N.languages) {
       const option = document.createElement("option");
       option.value = item.code;
-      option.textContent = `${item.flag} ${item.label}`;
+      option.textContent = item.label;
       elements.languageSelect.append(option);
     }
     elements.languageSelect.value = language();
+    const selected = I18N.languages.find(item => item.code === language()) || I18N.languages[0];
+    if (elements.languageFlag && selected) {
+      elements.languageFlag.src = selected.flagSrc;
+      elements.languageFlag.alt = selected.label;
+    }
   }
 
   function initializeFilters() {
@@ -332,18 +347,41 @@
     pill.classList.toggle("type-pill--dark", darkTextTypes.has(type));
   }
 
+  function currentVisual(group) {
+    const index = (activeVariantIndex.get(group.speciesId) || 0) % group.visuals.length;
+    return group.visuals[index];
+  }
+
   function currentEntry(group) {
-    const index = (activeVariantIndex.get(group.speciesId) || 0) % group.entries.length;
-    return group.entries[index];
+    return currentVisual(group).entry;
+  }
+
+  function ownedInVisual(visual) {
+    return visual.entries.some(entry => isOwned(entry.key));
+  }
+
+  function visualVariantLabel(visual) {
+    const entry = visual.entry;
+    const form = localizedForm(entry);
+    const genders = new Set(visual.entries.map(option => option.gender));
+    const gender = genders.has("male") && genders.has("female")
+      ? t("maleFemale")
+      : entry.genderAvailability === "mixed"
+        ? genderText(entry)
+        : "";
+    if (form && gender) return `${form} · ${gender}`;
+    return form || gender;
   }
 
   function updateCardView(group, card = cardNodes.get(group.speciesId)) {
     if (!card) return;
-    const entry = currentEntry(group);
+    const visual = currentVisual(group);
+    const entry = visual.entry;
     const ownedCount = ownedInGroup(group);
-    const currentOwned = isOwned(entry.key);
+    const currentOwned = ownedInVisual(visual);
     const complete = ownedCount === group.entries.length;
     const multiple = group.entries.length > 1;
+    const multipleVisuals = group.visuals.length > 1;
     const toggle = card.querySelector(".pokemon-card__toggle");
     const form = card.querySelector(".pokemon-card__form");
     const progress = card.querySelector(".pokemon-card__progress");
@@ -351,6 +389,7 @@
 
     card.dataset.key = entry.key;
     card.classList.toggle("has-variants", multiple);
+    card.classList.toggle("has-visual-variants", multipleVisuals);
     card.classList.toggle("has-owned", ownedCount > 0);
     card.classList.toggle("is-complete", complete);
     card.classList.toggle("is-current-owned", currentOwned);
@@ -364,7 +403,7 @@
 
     card.querySelector(".pokemon-card__number").textContent = `#${String(entry.speciesId).padStart(4, "0")}`;
     card.querySelector(".pokemon-card__name").textContent = localizedName(entry);
-    const label = variantLabel(entry);
+    const label = visualVariantLabel(visual);
     form.textContent = label;
     form.hidden = !label;
     progress.textContent = multiple
@@ -373,15 +412,19 @@
     progress.hidden = !multiple;
 
     const badge = card.querySelector(".variant-badge");
-    const showBadge = multiple && group.speciesId !== SPINDA_ID;
+    const showBadge = multipleVisuals && group.speciesId !== SPINDA_ID;
     badge.hidden = !showBadge;
-    badge.querySelector("strong").textContent = String(group.entries.length);
-    badge.setAttribute("title", t("variantBadge", { count: group.entries.length }));
-    badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.entries.length })}`);
+    badge.querySelector("strong").textContent = String(group.visuals.length);
+    badge.setAttribute("title", t("variantBadge", { count: group.visuals.length }));
+    badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.visuals.length })}`);
 
     quantityInput.value = String(quantityFor(entry.key) || 1);
     quantityInput.setAttribute("aria-label", `${t("quantity")} · ${fullVariantName(entry)}`);
     spriteStyle(card.querySelector(".pokemon-sprite"), entry, currentOwned);
+    card.querySelector(".pokemon-sprite").setAttribute(
+      "aria-label",
+      `${localizedName(entry)}, ${label || t("defaultForm")}${currentOwned ? " ✦" : ""}`
+    );
     renderTypes(card.querySelector(".pokemon-card__types"), entry.types);
   }
 
@@ -443,7 +486,7 @@
       const ownedCount = ownedInGroup(group);
       if (filters.status === "owned" && ownedCount === 0) return false;
       if (filters.status === "missing" && ownedCount > 0) return false;
-      if (filters.status === "variants" && (group.entries.length < 2 || group.speciesId === SPINDA_ID)) return false;
+      if (filters.status === "variants" && (group.visuals.length < 2 || group.speciesId === SPINDA_ID)) return false;
       return true;
     });
 
@@ -864,8 +907,8 @@
     for (const speciesId of visibleSpecies) {
       const group = groupsBySpecies.get(speciesId);
       const card = cardNodes.get(speciesId);
-      if (!group || !card || group.entries.length < 2 || card.dataset.hovering === "true") continue;
-      const nextIndex = ((activeVariantIndex.get(speciesId) || 0) + 1) % group.entries.length;
+      if (!group || !card || group.visuals.length < 2 || card.dataset.hovering === "true") continue;
+      const nextIndex = ((activeVariantIndex.get(speciesId) || 0) + 1) % group.visuals.length;
       activeVariantIndex.set(speciesId, nextIndex);
       updateCardView(group, card);
     }

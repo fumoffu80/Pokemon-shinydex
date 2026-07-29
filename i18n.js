@@ -62,6 +62,7 @@
     openVariants: "Choisir une forme ou un sexe",
     male: "Mâle",
     female: "Femelle",
+    maleFemale: "Mâle / Femelle",
     genderless: "Asexué",
     defaultForm: "Forme standard",
     owned: "Possédé",
@@ -188,7 +189,7 @@
     emptyTitle: "No Pokémon matches", emptyText: "Try another name or remove a filter.", resetFilters: "Reset filters",
     footer: "Embedded data and sprites · No PokéAPI connection · Optional local save and Firebase sync",
     variantBadge: "{count} variants available", variantProgress: "{owned}/{count} variants owned", openVariants: "Choose a form or gender",
-    male: "Male", female: "Female", genderless: "Genderless", defaultForm: "Standard form", owned: "Owned", missing: "Missing",
+    male: "Male", female: "Female", maleFemale: "Male / Female", genderless: "Genderless", defaultForm: "Standard form", owned: "Owned", missing: "Missing",
     markOwned: "Add {name} to the collection", removeOwned: "Remove {name} from the collection", quantity: "Quantity",
     removeCopy: "Remove one", addCopy: "Add one", variantsEyebrow: "Forms and genders", variantsTitle: "{name} variants",
     variantsIntro: "Each variant is saved separately. Click its sprite to switch between normal and shiny.", close: "Close",
@@ -251,7 +252,7 @@
     emptyTitle: "Ningún Pokémon coincide", emptyText: "Prueba otro nombre o elimina un filtro.", resetFilters: "Restablecer filtros",
     footer: "Datos y sprites integrados · Sin conexión a PokéAPI · Guardado local y sincronización Firebase opcional",
     variantBadge: "{count} variantes disponibles", variantProgress: "{owned}/{count} variantes obtenidas", openVariants: "Elegir forma o sexo",
-    male: "Macho", female: "Hembra", genderless: "Sin sexo", defaultForm: "Forma estándar", owned: "Obtenido", missing: "Pendiente",
+    male: "Macho", female: "Hembra", maleFemale: "Macho / Hembra", genderless: "Sin sexo", defaultForm: "Forma estándar", owned: "Obtenido", missing: "Pendiente",
     markOwned: "Añadir {name} a la colección", removeOwned: "Quitar {name} de la colección", quantity: "Cantidad",
     removeCopy: "Quitar uno", addCopy: "Añadir uno", variantsEyebrow: "Formas y sexos", variantsTitle: "Variantes de {name}",
     variantsIntro: "Cada variante se guarda por separado. Haz clic en su sprite para alternar entre normal y shiny.", close: "Cerrar",
@@ -292,7 +293,7 @@
     emptyTitle: "Kein Pokémon gefunden", emptyText: "Versuche einen anderen Namen oder entferne einen Filter.", resetFilters: "Filter zurücksetzen",
     footer: "Eingebettete Daten und Sprites · Keine PokéAPI-Verbindung · Optionaler lokaler Speicher und Firebase-Sync",
     variantBadge: "{count} Varianten verfügbar", variantProgress: "{owned}/{count} Varianten im Besitz", openVariants: "Form oder Geschlecht wählen",
-    male: "Männlich", female: "Weiblich", genderless: "Geschlechtslos", defaultForm: "Standardform", owned: "Im Besitz", missing: "Fehlt",
+    male: "Männlich", female: "Weiblich", maleFemale: "Männlich / Weiblich", genderless: "Geschlechtslos", defaultForm: "Standardform", owned: "Im Besitz", missing: "Fehlt",
     markOwned: "{name} zur Sammlung hinzufügen", removeOwned: "{name} aus der Sammlung entfernen", quantity: "Anzahl",
     removeCopy: "Eines entfernen", addCopy: "Eines hinzufügen", variantsEyebrow: "Formen und Geschlechter", variantsTitle: "Varianten von {name}",
     variantsIntro: "Jede Variante wird separat gespeichert. Klicke auf das Sprite, um zwischen normal und Shiny zu wechseln.", close: "Schließen",
@@ -333,7 +334,7 @@
     emptyTitle: "Nessun Pokémon corrisponde", emptyText: "Prova un altro nome o rimuovi un filtro.", resetFilters: "Reimposta filtri",
     footer: "Dati e sprite integrati · Nessuna connessione a PokéAPI · Salvataggio locale e sincronizzazione Firebase opzionali",
     variantBadge: "{count} varianti disponibili", variantProgress: "{owned}/{count} varianti possedute", openVariants: "Scegli forma o sesso",
-    male: "Maschio", female: "Femmina", genderless: "Senza sesso", defaultForm: "Forma standard", owned: "Posseduto", missing: "Mancante",
+    male: "Maschio", female: "Femmina", maleFemale: "Maschio / Femmina", genderless: "Senza sesso", defaultForm: "Forma standard", owned: "Posseduto", missing: "Mancante",
     markOwned: "Aggiungi {name} alla collezione", removeOwned: "Rimuovi {name} dalla collezione", quantity: "Quantità",
     removeCopy: "Rimuovi uno", addCopy: "Aggiungi uno", variantsEyebrow: "Forme e sessi", variantsTitle: "Varianti di {name}",
     variantsIntro: "Ogni variante viene salvata separatamente. Fai clic sullo sprite per alternare tra normale e shiny.", close: "Chiudi",
@@ -374,7 +375,7 @@
     emptyTitle: "一致するポケモンがいません", emptyText: "別の名前を試すか、フィルターを解除してください。", resetFilters: "フィルターをリセット",
     footer: "データと画像を内蔵 · PokéAPIへの接続なし · ローカル保存とFirebase同期は任意",
     variantBadge: "{count}バリエーション", variantProgress: "{owned}/{count}登録済み", openVariants: "フォルム・性別を選択",
-    male: "オス", female: "メス", genderless: "性別不明", defaultForm: "通常の姿", owned: "登録済み", missing: "未登録",
+    male: "オス", female: "メス", maleFemale: "オス / メス", genderless: "性別不明", defaultForm: "通常の姿", owned: "登録済み", missing: "未登録",
     markOwned: "{name}をコレクションに追加", removeOwned: "{name}をコレクションから削除", quantity: "数",
     removeCopy: "1匹減らす", addCopy: "1匹増やす", variantsEyebrow: "フォルム・性別", variantsTitle: "{name}のバリエーション",
     variantsIntro: "各バリエーションは個別に保存されます。画像をクリックすると通常色と色違いが切り替わります。", close: "閉じる",
@@ -396,12 +397,12 @@
 
   window.SHINYDEX_I18N = Object.freeze({
     languages: [
-      { code: "fr", label: "Français", flag: "🇫🇷" },
-      { code: "en", label: "English", flag: "🇬🇧" },
-      { code: "es", label: "Español", flag: "🇪🇸" },
-      { code: "de", label: "Deutsch", flag: "🇩🇪" },
-      { code: "it", label: "Italiano", flag: "🇮🇹" },
-      { code: "ja", label: "日本語", flag: "🇯🇵" }
+      { code: "fr", label: "Français", flagSrc: "assets/flags/fr.svg" },
+      { code: "en", label: "English", flagSrc: "assets/flags/en.svg" },
+      { code: "es", label: "Español", flagSrc: "assets/flags/es.svg" },
+      { code: "de", label: "Deutsch", flagSrc: "assets/flags/de.svg" },
+      { code: "it", label: "Italiano", flagSrc: "assets/flags/it.svg" },
+      { code: "ja", label: "日本語", flagSrc: "assets/flags/ja.svg" }
     ],
     locales: {
       fr: "fr-FR", en: "en-GB", es: "es-ES", de: "de-DE", it: "it-IT", ja: "ja-JP"

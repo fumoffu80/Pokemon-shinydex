@@ -1,4 +1,4 @@
-const CACHE_NAME = "pokemon-shinydex-v2";
+const CACHE_NAME = "pokemon-shinydex-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,7 +8,15 @@ const APP_SHELL = [
   "./firebase-sync.js",
   "./data/pokedex-data.js",
   "./manifest.webmanifest",
-  "./assets/mew-shiny.png"
+  "./assets/shiny-pokeball.svg",
+  "./assets/shiny-pokeball-192.png",
+  "./assets/shiny-pokeball-512.png",
+  "./assets/flags/fr.svg",
+  "./assets/flags/en.svg",
+  "./assets/flags/es.svg",
+  "./assets/flags/de.svg",
+  "./assets/flags/it.svg",
+  "./assets/flags/ja.svg"
 ];
 
 self.addEventListener("install", event => {

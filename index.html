@@ -7,8 +7,9 @@
   <meta id="metaDescription" name="description" content="Gestionnaire autonome et multilingue de collection Pokémon shiny.">
   <title>Pokémon Shinydex</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="128x128" href="assets/mew-shiny.png">
-  <link rel="apple-touch-icon" href="assets/mew-shiny.png">
+  <link rel="icon" type="image/svg+xml" href="assets/shiny-pokeball.svg">
+  <link rel="alternate icon" type="image/png" sizes="192x192" href="assets/shiny-pokeball-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/shiny-pokeball-192.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -29,7 +30,7 @@
 
       <div class="hero__actions">
         <label class="language-control">
-          <span aria-hidden="true">🌍</span>
+          <img id="languageFlag" src="assets/flags/fr.svg" alt="">
           <span class="sr-only" data-i18n="languageLabel">Langue</span>
           <select id="languageSelect" data-i18n-aria="languageLabel" aria-label="Langue"></select>
         </label>

@@ -32,7 +32,7 @@ html {
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   margin: 0;
   color: var(--text);
@@ -281,6 +281,16 @@ h2 {
   border-radius: 11px;
 }
 
+.language-control img {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 20px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.24);
+}
+
 .language-control select {
   max-width: 132px;
   height: 40px;
@@ -288,9 +298,20 @@ h2 {
   border: 0;
   outline: 0;
   color: var(--text);
-  background: transparent;
+  background-color: var(--surface-raised);
+  color-scheme: dark;
   font-size: 0.78rem;
   font-weight: 750;
+}
+
+.language-control select option {
+  color: var(--text);
+  background: var(--surface-raised);
+}
+
+.language-control select option:checked {
+  color: #fff;
+  background: var(--surface-soft);
 }
 
 .button--ghost {
@@ -666,9 +687,9 @@ kbd {
 
 .pokemon-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(174px, 1fr));
-  padding: 24px 26px 30px;
-  gap: 13px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 174px), 1fr));
+  padding: clamp(12px, 1.7vw, 24px) clamp(10px, 1.8vw, 26px) clamp(18px, 2vw, 30px);
+  gap: clamp(8px, 0.85vw, 13px);
 }
 
 .pokemon-card {
@@ -798,7 +819,7 @@ kbd {
   transition: opacity 160ms ease, transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.has-variants .pokemon-card__check {
+.has-visual-variants .pokemon-card__check {
   right: 55px;
 }
 
@@ -1012,11 +1033,11 @@ footer p {
 
 .variant-modal {
   width: min(1040px, calc(100% - 28px));
-  max-height: min(88vh, 920px);
+  max-height: min(88dvh, 920px);
 }
 
 .variant-panel {
-  padding: 24px;
+  padding: clamp(12px, 2vw, 24px);
 }
 
 .variant-panel__intro {
@@ -1028,8 +1049,8 @@ footer p {
 
 .variant-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-  max-height: calc(88vh - 150px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr));
+  max-height: calc(88dvh - 150px);
   padding: 2px 4px 6px 2px;
   overflow: auto;
   gap: 11px;
@@ -1574,7 +1595,7 @@ input[role="switch"]:checked::after {
   }
 
   .language-control {
-    flex: 1 1 150px;
+    flex: 1 1 165px;
   }
 
   .language-control select {
@@ -1622,6 +1643,7 @@ input[role="switch"]:checked::after {
 
   .collection-heading {
     align-items: flex-start;
+    flex-wrap: wrap;
     padding: 19px 16px 15px;
   }
 
@@ -1651,7 +1673,6 @@ input[role="switch"]:checked::after {
   }
 
   .pokemon-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 12px 10px 18px;
     gap: 8px;
   }
@@ -1684,7 +1705,6 @@ input[role="switch"]:checked::after {
   }
 
   .variant-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 }
@@ -1713,7 +1733,6 @@ input[role="switch"]:checked::after {
   }
 
   .pokemon-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
 
@@ -1729,6 +1748,36 @@ input[role="switch"]:checked::after {
     min-height: 205px;
     padding-right: 5px;
     padding-left: 5px;
+  }
+}
+
+@media (max-width: 340px) {
+  .hero__inner,
+  main,
+  footer {
+    width: calc(100% - 14px);
+  }
+
+  .hero__actions .button,
+  .language-control {
+    flex-basis: 100%;
+  }
+
+  .pokemon-card__toggle {
+    min-height: 218px;
+  }
+
+  .modal,
+  .variant-modal,
+  .auth-modal,
+  .modal--small {
+    width: calc(100% - 12px);
+  }
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --content: 1700px;
   }
 }
 

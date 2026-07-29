@@ -10,8 +10,9 @@ différences mâle/femelle disponibles, etc.
 - une seule fiche par espèce, même lorsque plusieurs formes ou différences
   mâle/femelle existent ;
 - sélection détaillée des variantes par clic ou après deux secondes de survol ;
-- défilement automatique des formes dans la fiche principale et compteur de
-  variantes dans son coin supérieur droit ;
+- défilement automatique des apparences réellement différentes dans la fiche
+  principale et compteur visuel dans son coin supérieur droit : deux sexes
+  identiques restent sélectionnables séparément sans être comptés deux fois ;
 - sexes mâle et femelle enregistrables séparément lorsque l’espèce accepte les
   deux, sans inventer de second sexe pour les espèces exclusivement mâles,
   femelles ou asexuées ;
@@ -27,7 +28,7 @@ différences mâle/femelle disponibles, etc.
 - recherche tolérante aux accents, filtres par génération, type et état ;
 - statistiques par apparence, espèce et nombre total d’exemplaires ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
-- favicon généré à partir du sprite exact de Mew shiny ;
+- favicon Poké Ball accompagné d’étincelles shiny ;
 - données, sprites normaux et shiny entièrement locaux : aucune requête PokeAPI
   ou GitHub depuis le site.
 

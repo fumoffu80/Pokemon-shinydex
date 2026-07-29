@@ -424,17 +424,11 @@ for (let atlasIndex = 0; atlasIndex < atlasCount; atlasIndex += 1) {
   ]);
 }
 
-const mew = appearances.find(entry => entry.speciesId === 151);
-if (mew) {
-  await sharp(mew.shinyBuffer)
-    .resize(128, 128, { fit: "contain", kernel: "nearest" })
-    .png()
-    .toFile(resolve(ASSET_DIR, "mew-shiny.png"));
-}
-
-const countsBySpecies = new Map();
+const visualHashesBySpecies = new Map();
 for (const entry of appearances) {
-  countsBySpecies.set(entry.speciesId, (countsBySpecies.get(entry.speciesId) || 0) + 1);
+  const hashes = visualHashesBySpecies.get(entry.speciesId) || new Set();
+  hashes.add(entry.visualHash);
+  visualHashesBySpecies.set(entry.speciesId, hashes);
 }
 
 const entries = appearances.map(entry => {
@@ -453,7 +447,8 @@ const entries = appearances.map(entry => {
     formNames: entry.formNames,
     label: entry.formNames.fr,
     types: entry.types,
-    variant: countsBySpecies.get(entry.speciesId) > 1,
+    variant: visualHashesBySpecies.get(entry.speciesId).size > 1,
+    visualVariantCount: visualHashesBySpecies.get(entry.speciesId).size,
     sheet: Math.floor(visualIndex / ATLAS_CAPACITY),
     slot: visualIndex % ATLAS_CAPACITY
   };

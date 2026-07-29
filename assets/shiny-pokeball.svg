@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Poké Ball shiny">
+  <defs>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ff6b74"/>
+      <stop offset="1" stop-color="#c92f49"/>
+    </linearGradient>
+    <linearGradient id="white" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#dce7f5"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="1.15" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="ball">
+      <circle cx="29" cy="35" r="23"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#ball)">
+    <circle cx="29" cy="35" r="23" fill="url(#white)"/>
+    <path d="M6 35a23 23 0 0 1 46 0H6Z" fill="url(#red)"/>
+    <path d="M4 31h50v8H4z" fill="#17223a"/>
+  </g>
+  <circle cx="29" cy="35" r="23" fill="none" stroke="#0e182b" stroke-width="3"/>
+  <circle cx="29" cy="35" r="8" fill="#17223a"/>
+  <circle cx="29" cy="35" r="4.5" fill="#f8fbff" stroke="#9fb1c8" stroke-width="1"/>
+  <path d="m53 5 2.2 6.1L61 13l-5.8 1.9L53 21l-2.2-6.1L45 13l5.8-1.9L53 5Z" fill="#ffe477" filter="url(#glow)"/>
+  <path d="m10 7 1.35 3.65L15 12l-3.65 1.35L10 17l-1.35-3.65L5 12l3.65-1.35L10 7Z" fill="#77e7ff" filter="url(#glow)"/>
+  <path d="m55 25 .9 2.1L58 28l-2.1.9L55 31l-.9-2.1L52 28l2.1-.9L55 25Z" fill="#fff3aa"/>
+</svg>
