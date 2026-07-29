@@ -43,7 +43,8 @@ différences mâle/femelle disponibles, etc.
 - panneau repliable d’informations placé entre les statistiques et la
   collection, avec un bandeau automatique des titres lorsqu’il est fermé et un
   carrousel horizontal des distributions lorsqu’il est ouvert, accompagné des
-  dates, méthodes, conditions et sources ;
+  dates, méthodes, conditions et sources officielles localisées ; la page
+  française est utilisée lorsqu’un équivalent officiel existe ;
 - fermeture explicite du sélecteur avec son bouton dédié ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
 - utilisation fluide de la largeur disponible, y compris sur les écrans
