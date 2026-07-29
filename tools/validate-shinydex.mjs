@@ -23,6 +23,8 @@ const [
   firebaseSource,
   firebaseBundle,
   dataSource,
+  availabilitySource,
+  distributionsSource,
   serviceWorker,
   manifestSource,
   firestoreRules
@@ -35,6 +37,8 @@ const [
   readFile(resolve(root, "firebase-sync.source.js"), "utf8"),
   readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
+  readFile(resolve(root, "data/shiny-availability.js"), "utf8"),
+  readFile(resolve(root, "data/distributions.js"), "utf8"),
   readFile(resolve(root, "sw.js"), "utf8"),
   readFile(resolve(root, "manifest.webmanifest"), "utf8"),
   readFile(resolve(root, "firestore.rules"), "utf8")
@@ -44,6 +48,8 @@ for (const [source, name] of [
   [i18nSource, "i18n.js"],
   [genderDifferencesSource, "gender-differences.js"],
   [app, "app.js"],
+  [availabilitySource, "data/shiny-availability.js"],
+  [distributionsSource, "data/distributions.js"],
   [firebaseBundle, "firebase-sync.js"],
   [serviceWorker, "sw.js"]
 ]) {
@@ -63,6 +69,18 @@ try {
   errors.push(`Base Pokédex illisible : ${error.message}`);
 }
 
+let availability;
+let distributions;
+try {
+  const context = { window: {} };
+  vm.runInNewContext(availabilitySource, context, { filename: "shiny-availability.js" });
+  vm.runInNewContext(distributionsSource, context, { filename: "distributions.js" });
+  availability = context.window.SHINYDEX_AVAILABILITY;
+  distributions = context.window.SHINYDEX_DISTRIBUTIONS;
+} catch (error) {
+  errors.push(`Référentiels de légalité ou de distribution illisibles : ${error.message}`);
+}
+
 let translations;
 try {
   const context = { window: {} };
@@ -80,6 +98,13 @@ try {
 }
 
 check(data?.schemaVersion === 2, "Version de schéma inattendue.");
+check(availability?.schemaVersion === 1, "Version du référentiel de légalité inattendue.");
+check(availability?.unavailableSpeciesIds?.length === 24, "Les 24 espèces sans shiny légal ne sont pas toutes référencées.");
+check(new Set(availability?.unavailableSpeciesIds || []).size === 24, "Le référentiel contient des espèces indisponibles dupliquées.");
+check(availability?.legalExceptions?.some(entry => entry.speciesId === 721), "Volcanion doit rester classé comme shiny légal.");
+check(availability?.legalExceptions?.some(entry => entry.speciesId === 25 && entry.formIds?.includes(10267)), "Le Pikachu Casquette Partenaire doit rester une exception légale.");
+check(distributions?.schemaVersion === 1, "Version du référentiel de distributions inattendue.");
+check(distributions?.items?.length >= 2, "Les distributions mondiales vérifiées sont absentes.");
 check(data?.speciesCount >= 1025, "Les 1 025 espèces Pokémon ne sont pas toutes présentes.");
 check(data?.entries?.length === data?.appearanceCount, "Le nombre de variantes est incohérent.");
 check(new Set(data?.entries?.map(entry => entry.speciesId)).size === data?.speciesCount, "Une espèce n’a aucune variante.");
@@ -176,6 +201,7 @@ for (const id of [
   "sortSelect", "pokemonGrid", "ownedCount", "speciesCount", "copyCount", "variantDialog",
   "variantGrid", "genderDifferenceNote", "genderDifferenceText", "variantCardTemplate",
   "resetDialog", "importInput", "accountButton",
+  "informationTitle", "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount",
   "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
   "syncNowButton", "signOutButton"
 ]) {
@@ -185,6 +211,8 @@ for (const id of [
 check(html.includes("i18n.js"), "Le module multilingue n’est pas chargé.");
 check(html.includes("gender-differences.js"), "Les descriptions des différences sexuelles ne sont pas chargées.");
 check(html.includes("data/pokedex-data.js"), "La base locale n’est pas chargée.");
+check(html.includes("data/shiny-availability.js"), "Le référentiel de légalité shiny n’est pas chargé.");
+check(html.includes("data/distributions.js"), "Le référentiel de distributions n’est pas chargé.");
 check(html.includes("assets/shiny-pokeball.svg"), "Le favicon Poké Ball shiny n’est pas relié.");
 check(languages.every(language => i18nSource.includes(`assets/flags/${language}.svg`)), "Les six drapeaux de langue ne sont pas configurés.");
 check(html.includes("manifest.webmanifest"), "Le manifeste PWA n’est pas relié.");
@@ -214,7 +242,9 @@ check(app.includes("if (!ENABLE_VARIANT_EXIT_CLOSE) return;"),
 check(!i18nSource.includes("2 secondes") && !i18nSource.includes("2 seconds"),
   "Une consigne indique encore les anciens comportements temporisés.");
 check(app.includes('EXCEPTION_VALUE = "exception"'), "Le palier Exception n’est pas enregistré.");
-check(app.includes("(ownedSpecies / DATA.speciesCount) * 100"), "La complétion n’est pas calculée sur les espèces.");
+check(app.includes("(ownedSpecies / eligibleSpeciesIds.size) * 100"), "La complétion n’exclut pas les espèces sans shiny légal.");
+check(app.includes('filters.status === "unobtainable"'), "Le filtre des shiny légalement impossibles est absent.");
+check(app.includes("function renderDistributions"), "La section des distributions n’est pas rendue.");
 check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
 check(app.includes("% group.visuals.length"), "Le carrousel n’est pas limité aux apparences visuellement différentes.");
 check(app.includes("minimumFractionDigits: 2"), "Les faibles pourcentages de complétion sont encore arrondis à zéro.");
@@ -231,11 +261,15 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v5"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v6"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
+check(serviceWorker.includes("shiny-availability.js") && serviceWorker.includes("distributions.js"), "Les référentiels live ne sont pas disponibles hors ligne.");
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
 
-const runtime = [html, css, i18nSource, genderDifferencesSource, app, firebaseBundle, dataSource, serviceWorker].join("\n").toLowerCase();
+const runtime = [
+  html, css, i18nSource, genderDifferencesSource, app, firebaseBundle,
+  dataSource, availabilitySource, distributionsSource, serviceWorker
+].join("\n").toLowerCase();
 for (const forbidden of ["pokeapi.co", "raw.githubusercontent.com"]) {
   check(!runtime.includes(forbidden), `Dépendance réseau interdite dans le site : ${forbidden}`);
 }
@@ -263,12 +297,22 @@ try {
   dom.window.eval(i18nSource);
   dom.window.eval(genderDifferencesSource);
   dom.window.eval(dataSource);
+  dom.window.eval(availabilitySource);
+  dom.window.eval(distributionsSource);
   dom.window.eval(app);
   await new Promise(resolveDelay => setTimeout(resolveDelay, 80));
 
   const cards = dom.window.document.querySelectorAll(".pokemon-card");
   check(cards.length === data.speciesCount, `Le rendu affiche ${cards.length} fiches au lieu d’une par espèce.`);
   check(dom.window.document.querySelectorAll('.pokemon-card[data-species-id="3"]').length === 1, "Florizarre apparaît sur plusieurs fiches.");
+  const victiniCard = dom.window.document.querySelector('.pokemon-card[data-species-id="494"]');
+  check(victiniCard?.classList.contains("is-unobtainable"), "Victini n’est pas signalé comme shiny légalement impossible.");
+  check(!victiniCard?.querySelector(".unobtainable-badge")?.hidden, "Le badge de légalité de Victini est absent.");
+  check(victiniCard?.querySelector(".pokemon-card__toggle")?.disabled, "Le contrôle shiny de Victini doit rester visible mais inactif.");
+  check(dom.window.document.getElementById("speciesTotal").textContent === String(data.speciesCount - 24),
+    "Les 24 espèces impossibles ne sont pas exclues de la complétion.");
+  check(dom.window.document.querySelectorAll("#distributionGrid .distribution-card").length >= 2,
+    "Les distributions mondiales en cours ne sont pas affichées.");
 
   const cardFor = speciesId => dom.window.document.querySelector(`.pokemon-card[data-species-id="${speciesId}"]`);
   const badgeCount = speciesId => {
