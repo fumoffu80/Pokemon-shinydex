@@ -2178,7 +2178,6 @@ input[role="switch"]:checked::after {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  padding-right: 30px;
   gap: 18px;
 }
 
@@ -2189,6 +2188,10 @@ input[role="switch"]:checked::after {
 .information-ticker__separator {
   color: var(--gold);
   font-size: 0.66rem;
+}
+
+.information-ticker__separator--sequence-end {
+  margin-right: clamp(52px, 5vw, 96px);
 }
 
 .information-panel:not([open]) .information-summary:hover .information-ticker__track,
