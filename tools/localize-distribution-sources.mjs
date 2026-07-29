@@ -8,6 +8,7 @@ import vm from "node:vm";
 const root = resolve(import.meta.dirname, "..");
 const distributionsPath = resolve(root, "data/distributions.js");
 const localesPath = resolve(root, "data/distribution-source-locales.js");
+const reportPath = resolve(root, ".source-localization-report.md");
 const officialHosts = new Set([
   "www.pokemon.com",
   "pokemon.com",
@@ -209,6 +210,7 @@ export async function main() {
 
   let resolved = 0;
   let failures = 0;
+  const failureDetails = [];
   for (const sourceUrl of Object.keys(sources)) {
     try {
       const frenchUrl = await resolveFrenchSource(sourceUrl);
@@ -218,7 +220,9 @@ export async function main() {
       }
     } catch (error) {
       failures += 1;
-      console.warn("[source française] " + sourceUrl + " : " + (error?.message || error));
+      const message = error?.message || String(error);
+      failureDetails.push({ sourceUrl, message });
+      console.warn("[source française] " + sourceUrl + " : " + message);
     }
   }
 
@@ -232,7 +236,26 @@ export async function main() {
   const changed = current !== serialized;
   if (changed) await writeFile(localesPath, serialized, "utf8");
 
-  const unresolved = Object.values(sources).filter(source => !source.fr).length;
+  const unresolvedUrls = Object.entries(sources)
+    .filter(([, source]) => !source.fr)
+    .map(([sourceUrl]) => sourceUrl);
+  const unresolved = unresolvedUrls.length;
+  const report = [
+    "# Localisation automatique des sources officielles",
+    "",
+    "## Sources sans équivalent français détectable",
+    "",
+    ...(unresolvedUrls.length
+      ? unresolvedUrls.map(sourceUrl => "- " + sourceUrl)
+      : ["Aucune."]),
+    "",
+    "## Échecs techniques",
+    "",
+    ...(failureDetails.length
+      ? failureDetails.map(({ sourceUrl, message }) => "- " + sourceUrl + " : " + message)
+      : ["Aucun."])
+  ].join("\n");
+  await writeFile(reportPath, report + "\n", "utf8");
   await writeOutputs({ changed, resolved, unresolved, failures });
   console.log(
     "Sources localisées : " + resolved
