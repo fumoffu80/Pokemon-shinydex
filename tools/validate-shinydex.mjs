@@ -30,6 +30,7 @@ const [
   availabilitySource,
   sourceLocalesSource,
   distributionsSource,
+  updateDataSource,
   serviceWorker,
   manifestSource,
   firestoreRules
@@ -45,6 +46,7 @@ const [
   readFile(resolve(root, "data/shiny-availability.js"), "utf8"),
   readFile(resolve(root, "data/distribution-source-locales.js"), "utf8"),
   readFile(resolve(root, "data/distributions.js"), "utf8"),
+  readFile(resolve(root, "tools/update-data.mjs"), "utf8"),
   readFile(resolve(root, "sw.js"), "utf8"),
   readFile(resolve(root, "manifest.webmanifest"), "utf8"),
   readFile(resolve(root, "firestore.rules"), "utf8")
@@ -145,6 +147,11 @@ check(data?.visualCount < data?.appearanceCount, "Les sprites identiques des deu
 check(new Set(data?.entries?.map(entry => entry.key)).size === data?.entries?.length, "Des identifiants de variante sont dupliqués.");
 check(data?.normalSheets?.length === data?.shinySheets?.length, "Les planches normales et shiny ne correspondent pas.");
 check(data?.normalSheets?.length > 0, "Aucune planche de sprites.");
+check(
+  updateDataSource.includes("pichu-spiky-eared-normal.png")
+    && updateDataSource.includes("pichu-spiky-eared-shiny.png"),
+  "Les sprites locaux de Pichu Troizépi ne sont pas protégés contre les reconstructions automatiques."
+);
 check(languages.every(language => data?.languages?.includes(language)), "Les six langues de données ne sont pas disponibles.");
 
 const florizarre = data?.entries?.filter(entry => entry.speciesId === 3 && !entry.exceptional) || [];
@@ -217,6 +224,46 @@ for (const file of [...(data?.normalSheets || []), ...(data?.shinySheets || [])]
 }
 
 try {
+  const pichuTroizepi = data?.entries?.find(entry =>
+    entry.speciesId === 172 && entry.formId === 10065
+  );
+  if (!pichuTroizepi) {
+    errors.push("La forme Pichu Troizépi est absente de la base.");
+  } else {
+    const left = (pichuTroizepi.slot % data.atlasColumns) * data.cellSize;
+    const top = Math.floor(pichuTroizepi.slot / data.atlasColumns) * data.cellSize;
+    const kinds = [
+      ["normal", "pichu-spiky-eared-normal.png", data.normalSheets],
+      ["shiny", "pichu-spiky-eared-shiny.png", data.shinySheets]
+    ];
+    for (const [kind, overrideName, sheets] of kinds) {
+      const overridePath = resolve(root, "tools/source-overrides", overrideName);
+      const metadata = await sharp(overridePath).metadata();
+      check(
+        metadata.format === "png"
+          && metadata.width === 80
+          && metadata.height === 80
+          && metadata.hasAlpha,
+        `Le sprite ${kind} de Pichu Troizépi doit être un PNG 80 × 80 transparent.`
+      );
+      const expected = await sharp(overridePath)
+        .resize(data.cellSize, data.cellSize, { fit: "contain", kernel: "nearest" })
+        .flatten({ background: "#ffffff" })
+        .raw()
+        .toBuffer();
+      const actual = await sharp(resolve(root, sheets[pichuTroizepi.sheet]))
+        .extract({ left, top, width: data.cellSize, height: data.cellSize })
+        .flatten({ background: "#ffffff" })
+        .raw()
+        .toBuffer();
+      check(actual.equals(expected), `La planche ${kind} n’utilise pas le bon sprite de Pichu Troizépi.`);
+    }
+  }
+} catch (error) {
+  errors.push(`Validation des sprites de Pichu Troizépi impossible : ${error.message}`);
+}
+
+try {
   const [iconSvg, icon192, icon512] = await Promise.all([
     readFile(resolve(root, "assets/shiny-pokeball.svg"), "utf8"),
     sharp(resolve(root, "assets/shiny-pokeball-192.png")).metadata(),
@@ -247,6 +294,17 @@ check(html.includes("gender-differences.js"), "Les descriptions des différences
 check(html.includes("data/pokedex-data.js"), "La base locale n’est pas chargée.");
 check(html.includes("data/shiny-availability.js"), "Le référentiel de légalité shiny n’est pas chargé.");
 check(html.includes("data/distributions.js"), "Le référentiel de distributions n’est pas chargé.");
+const pokemonTemplatePosition = html.indexOf('id="pokemonCardTemplate"');
+const pokemonSpritePosition = html.indexOf('class="pokemon-sprite"', pokemonTemplatePosition);
+const unobtainableBadgePosition = html.indexOf('class="unobtainable-badge"', pokemonTemplatePosition);
+check(
+  pokemonSpritePosition < unobtainableBadgePosition,
+  "Le badge de shiny impossible doit être placé après le sprite afin de ne pas le masquer."
+);
+check(
+  /\.unobtainable-badge\s*\{[^}]*position:\s*static/s.test(css),
+  "Le badge de shiny impossible empiète encore sur le sprite."
+);
 const dashboardPosition = html.indexOf('class="dashboard"');
 const informationPosition = html.indexOf('id="informationPanel"');
 const collectionPosition = html.indexOf('class="collection-panel"');
