@@ -2083,12 +2083,13 @@ input[role="switch"]:checked::after {
 }
 
 .information-summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   min-height: 88px;
   padding: 20px 26px;
-  gap: 18px;
+  column-gap: 18px;
+  row-gap: 13px;
   list-style: none;
   cursor: pointer;
   user-select: none;
@@ -2144,6 +2145,61 @@ input[role="switch"]:checked::after {
   font-size: 0.82rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.information-ticker {
+  display: block;
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  padding-top: 11px;
+  border-top: 1px solid rgba(99, 179, 237, 0.12);
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+}
+
+.information-panel[open] .information-ticker {
+  display: none;
+}
+
+.information-ticker__track {
+  display: flex;
+  width: max-content;
+  color: #bfd4eb;
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  animation: distributionTickerScroll var(--ticker-duration, 32s) linear infinite;
+  will-change: transform;
+}
+
+.information-ticker__group {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding-right: 30px;
+  gap: 18px;
+}
+
+.information-ticker__item {
+  color: #dce9f7;
+}
+
+.information-ticker__separator {
+  color: var(--gold);
+  font-size: 0.66rem;
+}
+
+.information-panel:not([open]) .information-summary:hover .information-ticker__track,
+.information-panel:not([open]) .information-summary:focus-visible .information-ticker__track {
+  animation-play-state: paused;
+}
+
+@keyframes distributionTickerScroll {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .information-summary__chevron {
@@ -2377,7 +2433,8 @@ input[role="switch"]:checked::after {
     align-items: flex-start;
     min-height: 78px;
     padding: 17px 18px;
-    gap: 12px;
+    column-gap: 12px;
+    row-gap: 11px;
   }
 
   .information-summary__title {
@@ -2415,5 +2472,27 @@ input[role="switch"]:checked::after {
     scroll-padding-inline: 18px;
     padding-right: 18px;
     padding-left: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .information-ticker {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+    scrollbar-width: none;
+  }
+
+  .information-ticker::-webkit-scrollbar {
+    display: none;
+  }
+
+  .information-ticker__track {
+    animation: none;
+    will-change: auto;
+  }
+
+  .information-ticker__group:nth-child(2) {
+    display: none;
   }
 }

@@ -202,6 +202,7 @@ for (const id of [
   "variantGrid", "genderDifferenceNote", "genderDifferenceText", "variantCardTemplate",
   "resetDialog", "importInput", "accountButton",
   "informationPanel", "informationTitle", "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount",
+  "distributionTicker",
   "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
   "syncNowButton", "signOutButton"
 ]) {
@@ -226,6 +227,13 @@ check(css.includes("grid-auto-flow: column") && css.includes("overflow-x: auto")
   "Les distributions ne défilent pas horizontalement.");
 check(css.includes("scroll-snap-type: inline mandatory") && css.includes("scroll-snap-align: start"),
   "Le défilement horizontal des distributions n’est pas aimanté carte par carte.");
+check(html.includes('class="information-ticker"') && html.includes('id="distributionTicker"'),
+  "Le bandeau des titres est absent de l’état fermé.");
+check(app.includes("function renderDistributionTicker") && app.includes("renderDistributionTicker(active)"),
+  "Les titres des distributions ne sont pas injectés dans le bandeau.");
+check(css.includes("@keyframes distributionTickerScroll")
+  && css.includes(".information-panel[open] .information-ticker"),
+  "Le bandeau ne défile pas uniquement lorsque le panneau est fermé.");
 check(html.includes("assets/shiny-pokeball.svg"), "Le favicon Poké Ball shiny n’est pas relié.");
 check(languages.every(language => i18nSource.includes(`assets/flags/${language}.svg`)), "Les six drapeaux de langue ne sont pas configurés.");
 check(html.includes("manifest.webmanifest"), "Le manifeste PWA n’est pas relié.");
@@ -274,7 +282,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v7"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v8"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(serviceWorker.includes("shiny-availability.js") && serviceWorker.includes("distributions.js"), "Les référentiels live ne sont pas disponibles hors ligne.");
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
@@ -328,6 +336,10 @@ try {
   );
   check(dom.window.document.querySelectorAll("#distributionGrid .distribution-card").length >= 2,
     "Les distributions mondiales en cours ne sont pas affichées.");
+  check(dom.window.document.querySelectorAll("#distributionTicker .information-ticker__item").length >= 4,
+    "Les titres des distributions ne sont pas répétés dans le bandeau défilant.");
+  check(dom.window.document.getElementById("distributionTicker")?.textContent.includes("Volcanion shiny"),
+    "Le bandeau fermé ne reprend pas le titre français de la distribution.");
 
   const cardFor = speciesId => dom.window.document.querySelector(`.pokemon-card[data-species-id="${speciesId}"]`);
   const badgeCount = speciesId => {
@@ -447,6 +459,8 @@ try {
   check(dom.window.document.getElementById("exportButton").textContent.includes("Export"), "L’interface anglaise n’est pas appliquée.");
   check(dom.window.SHINYDEX_APP.getState().preferences.language === "en", "La langue n’est pas sauvegardée.");
   check(dom.window.document.getElementById("languageFlag").getAttribute("src") === "assets/flags/en.svg", "Le drapeau ne suit pas la langue sélectionnée.");
+  check(dom.window.document.getElementById("distributionTicker")?.textContent.includes("Shiny Volcanion"),
+    "Le bandeau des distributions ne suit pas la langue sélectionnée.");
 
   const coloredType = dom.window.document.querySelector(".type-pill");
   check(coloredType?.style.getPropertyValue("--type-color"), "Une bulle de type n’a pas sa couleur dédiée.");
