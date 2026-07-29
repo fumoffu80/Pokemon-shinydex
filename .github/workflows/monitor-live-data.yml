@@ -26,18 +26,26 @@ jobs:
         with:
           node-version: 22
 
+      - name: Rechercher les équivalents français officiels
+        id: localize
+        run: node tools/localize-distribution-sources.mjs
+
       - name: Comparer les sources
         id: monitor
         run: node tools/monitor-live-data.mjs
 
       - name: Créer ou compléter l’alerte
-        if: steps.monitor.outputs.alert == 'true'
+        if: steps.monitor.outputs.alert == 'true' || steps.localize.outputs.failures != '0'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require("fs");
             const title = "Surveillance Shinydex : sources à vérifier";
-            const body = fs.readFileSync(".monitor-report.md", "utf8");
+            const reports = [fs.readFileSync(".monitor-report.md", "utf8")];
+            if (steps.localize.outputs.failures !== "0" && fs.existsSync(".source-localization-report.md")) {
+              reports.push(fs.readFileSync(".source-localization-report.md", "utf8"));
+            }
+            const body = reports.join("\n\n");
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -61,13 +69,13 @@ jobs:
               });
             }
 
-      - name: Mémoriser les nouvelles empreintes
+      - name: Mémoriser les sources contrôlées
         run: |
-          if git diff --quiet -- data/source-monitor-state.json; then
+          if git diff --quiet -- data/source-monitor-state.json data/distribution-source-locales.js; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/source-monitor-state.json
-          git commit -m "Actualiser l’état de surveillance des sources"
+          git add data/source-monitor-state.json data/distribution-source-locales.js
+          git commit -m "Actualiser les sources surveillées"
           git push
