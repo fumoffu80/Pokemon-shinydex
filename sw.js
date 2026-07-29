@@ -1,4 +1,4 @@
-const CACHE_NAME = "pokemon-shinydex-v6";
+const CACHE_NAME = "pokemon-shinydex-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
