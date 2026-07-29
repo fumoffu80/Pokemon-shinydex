@@ -304,8 +304,10 @@ check(app.includes('filters.status === "unobtainable"'), "Le filtre des shiny l�
 check(app.includes("function renderDistributions"), "La section des distributions n’est pas rendue.");
 check(app.includes("function distributionSourceUrls"),
   "Le lien officiel n’utilise pas le référentiel localisé généré.");
-check(app.includes('card.classList.toggle("is-shiny-preview", !owned)'),
+check(app.includes('card.classList.add("is-shiny-preview")'),
   "L’aperçu shiny au survol des fiches n’est pas activé.");
+check(app.includes('currentOwned || card.classList.contains("is-shiny-preview")'),
+  "Le carrousel ne conserve pas l’aperçu shiny pendant le survol.");
 check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
 check(app.includes("% group.visuals.length"), "Le carrousel n’est pas limité aux apparences visuellement différentes.");
 check(app.includes("minimumFractionDigits: 2"), "Les faibles pourcentages de complétion sont encore arrondis à zéro.");
@@ -427,10 +429,16 @@ try {
   );
 
   const bulbizarrePosition = bulbizarreSprite?.style.backgroundPosition;
-  const rattataPosition = cardFor(19)?.querySelector(".pokemon-sprite")?.style.backgroundPosition;
+  const rattataCard = cardFor(19);
+  const rattataSprite = rattataCard?.querySelector(".pokemon-sprite");
+  const rattataPosition = rattataSprite?.style.backgroundPosition;
+  rattataCard?.dispatchEvent(new dom.window.Event("pointerenter"));
   rotateCards?.();
   check(cardFor(1)?.querySelector(".pokemon-sprite")?.style.backgroundPosition === bulbizarrePosition, "Bulbizarre ne doit pas défiler entre deux sexes visuellement identiques.");
-  check(cardFor(19)?.querySelector(".pokemon-sprite")?.style.backgroundPosition !== rattataPosition, "Le carrousel de Rattata ne parcourt pas ses trois apparences.");
+  check(rattataSprite?.style.backgroundPosition !== rattataPosition, "Le carrousel de Rattata s’arrête encore pendant le survol.");
+  check(rattataSprite?.style.backgroundImage.includes("sprites-shiny"),
+    "Le carrousel ne conserve pas le modèle shiny pendant le survol.");
+  rattataCard?.dispatchEvent(new dom.window.Event("pointerleave"));
 
   cardFor(1).querySelector(".pokemon-card__toggle").click();
   check(dom.window.document.getElementById("genderDifferenceNote").hidden, "Bulbizarre ne doit pas afficher d’explication de dimorphisme.");
