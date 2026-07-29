@@ -235,7 +235,7 @@ check(css.includes("@keyframes distributionTickerScroll")
   && css.includes(".information-panel[open] .information-ticker"),
   "Le bandeau ne défile pas uniquement lorsque le panneau est fermé.");
 check(app.includes("information-ticker__separator--sequence-end")
-  && css.includes("margin-right: clamp(52px, 5vw, 96px)"),
+  && css.includes("margin-right: clamp(68px, 6vw, 120px)"),
   "Les répétitions complètes du bandeau ne sont pas suffisamment espacées.");
 check(html.includes("assets/shiny-pokeball.svg"), "Le favicon Poké Ball shiny n’est pas relié.");
 check(languages.every(language => i18nSource.includes(`assets/flags/${language}.svg`)), "Les six drapeaux de langue ne sont pas configurés.");
@@ -285,7 +285,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v9"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v10"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(serviceWorker.includes("shiny-availability.js") && serviceWorker.includes("distributions.js"), "Les référentiels live ne sont pas disponibles hors ligne.");
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
