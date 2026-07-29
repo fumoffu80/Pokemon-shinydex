@@ -42,7 +42,7 @@ jobs:
             const fs = require("fs");
             const title = "Surveillance Shinydex : sources à vérifier";
             const reports = [fs.readFileSync(".monitor-report.md", "utf8")];
-            if (steps.localize.outputs.failures !== "0" && fs.existsSync(".source-localization-report.md")) {
+            if (fs.existsSync(".source-localization-report.md")) {
               reports.push(fs.readFileSync(".source-localization-report.md", "utf8"));
             }
             const body = reports.join("\n\n");
