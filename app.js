@@ -56,7 +56,7 @@
     "accountButton", "accountLabel", "cloudStatusLabel", "cloudDot", "authDialog",
     "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail", "cloudStatusText",
     "cloudStatusDetail", "dialogCloudDot", "authPassword", "togglePasswordButton",
-    "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount"
+    "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount", "distributionTicker"
   ].map(id => [id, document.getElementById(id)]));
 
   const validKeys = new Set(DATA.entries.map(entry => entry.key));
@@ -1094,6 +1094,38 @@
     if (autoCloseOutside) scheduleVariantExitClose();
   }
 
+  function renderDistributionTicker(entries) {
+    if (!elements.distributionTicker) return;
+    const titles = entries.length
+      ? entries.map(({ item }) => localizedText(item.title))
+      : [t("distributionEmptyTitle")];
+    const fragment = document.createDocumentFragment();
+
+    for (let groupIndex = 0; groupIndex < 2; groupIndex += 1) {
+      const group = document.createElement("span");
+      group.className = "information-ticker__group";
+      for (let cycle = 0; cycle < 3; cycle += 1) {
+        for (const titleText of titles) {
+          const title = document.createElement("span");
+          title.className = "information-ticker__item";
+          title.textContent = titleText;
+          const separator = document.createElement("span");
+          separator.className = "information-ticker__separator";
+          separator.textContent = "✦";
+          group.append(title, separator);
+        }
+      }
+      fragment.append(group);
+    }
+
+    const characterCount = titles.join(" · ").length * 3;
+    elements.distributionTicker.style.setProperty(
+      "--ticker-duration",
+      `${Math.min(70, Math.max(24, characterCount * 0.18))}s`
+    );
+    elements.distributionTicker.replaceChildren(fragment);
+  }
+
   function renderDistributions() {
   if (!elements.distributionGrid) return;
   const now = Date.now();
@@ -1109,6 +1141,8 @@
       const statusOrder = { ongoing: 0, upcoming: 1 };
       return statusOrder[a.status] - statusOrder[b.status] || a.start - b.start;
     });
+
+  renderDistributionTicker(active);
 
   const fragment = document.createDocumentFragment();
   for (const { item, start, end, status } of active) {
