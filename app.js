@@ -1191,7 +1191,8 @@
 
     const sourceLink = document.createElement("a");
     sourceLink.className = "distribution-card__source";
-    sourceLink.href = item.sourceUrl;
+    sourceLink.href = localizedText(item.sourceUrls || item.sourceUrl);
+    sourceLink.hreflang = item.sourceUrls?.[language()] ? language() : "en";
     sourceLink.target = "_blank";
     sourceLink.rel = "noreferrer";
     sourceLink.textContent = t("officialSource");
