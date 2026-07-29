@@ -9,6 +9,7 @@ const ROOT = resolve(import.meta.dirname, "..");
 const DATA_FILE = resolve(ROOT, "data/pokedex-data.js");
 const ASSET_DIR = resolve(ROOT, "assets");
 const CACHE_DIR = resolve(ROOT, ".cache/sprites");
+const SOURCE_OVERRIDE_DIR = resolve(ROOT, "tools/source-overrides");
 const CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv";
 const SPRITE_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const LANGUAGES = { fr: 5, en: 9, es: 7, de: 6, it: 8, ja: 1 };
@@ -17,6 +18,12 @@ const ATLAS_COLUMNS = 20;
 const ATLAS_ROWS = 20;
 const ATLAS_CAPACITY = ATLAS_COLUMNS * ATLAS_ROWS;
 const ATLAS_SIZE = CELL_SIZE * ATLAS_COLUMNS;
+const SPRITE_SOURCE_OVERRIDES = new Map([
+  [10065, {
+    normal: "pichu-spiky-eared-normal.png",
+    shiny: "pichu-spiky-eared-shiny.png"
+  }]
+]);
 const EXCEPTIONAL_FUSION_FORMS = new Map([
   [646, new Set(["black", "white"])],
   [800, new Set(["dusk", "dawn"])],
@@ -183,6 +190,14 @@ async function downloadFirst(urls) {
     if (sprite) return sprite;
   }
   return null;
+}
+
+async function spriteBuffer(candidate, kind) {
+  const override = SPRITE_SOURCE_OVERRIDES.get(candidate.formId)?.[kind];
+  if (override) {
+    return readFile(resolve(SOURCE_OVERRIDE_DIR, override));
+  }
+  return downloadFirst(kind === "normal" ? candidate.normalUrls : candidate.shinyUrls);
 }
 
 function spriteStems(form) {
@@ -422,8 +437,8 @@ console.log(`Téléchargement de ${candidates.length} combinaisons forme/sexe…
 let completed = 0;
 const downloaded = await mapLimit(candidates, 36, async candidate => {
   const [normalBuffer, shinyBuffer] = await Promise.all([
-    downloadFirst(candidate.normalUrls),
-    downloadFirst(candidate.shinyUrls)
+    spriteBuffer(candidate, "normal"),
+    spriteBuffer(candidate, "shiny")
   ]);
   completed += 1;
   if (completed % 100 === 0 || completed === candidates.length) {

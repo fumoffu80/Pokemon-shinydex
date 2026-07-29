@@ -550,12 +550,10 @@
   const label = visualVariantLabel(visual);
   form.textContent = label;
   form.hidden = !label;
-  progress.textContent = groupUnavailable
-    ? t("unobtainableShort")
-    : multiple
-      ? t("variantProgress", { owned: ownedCount, count: legalEntries.length })
-      : "";
-  progress.hidden = !multiple && !groupUnavailable;
+  progress.textContent = multiple
+    ? t("variantProgress", { owned: ownedCount, count: legalEntries.length })
+    : "";
+  progress.hidden = currentUnavailable || !multiple;
 
   unavailableBadge.hidden = !currentUnavailable;
   unavailableBadge.querySelector(".unobtainable-badge__text").textContent = t("unobtainableBadge");

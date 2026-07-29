@@ -1999,13 +1999,13 @@ input[role="switch"]:checked::after {
 }
 
 .unobtainable-badge {
-  position: absolute;
+  position: static;
   z-index: 4;
-  top: 29px;
-  left: 9px;
   display: inline-flex;
   align-items: center;
-  max-width: calc(100% - 18px);
+  align-self: center;
+  max-width: 100%;
+  margin-top: auto;
   padding: 4px 7px;
   gap: 4px;
   color: #ffe2a0;
