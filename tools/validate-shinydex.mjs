@@ -309,8 +309,10 @@ try {
   check(victiniCard?.classList.contains("is-unobtainable"), "Victini n’est pas signalé comme shiny légalement impossible.");
   check(!victiniCard?.querySelector(".unobtainable-badge")?.hidden, "Le badge de légalité de Victini est absent.");
   check(victiniCard?.querySelector(".pokemon-card__toggle")?.disabled, "Le contrôle shiny de Victini doit rester visible mais inactif.");
-  check(dom.window.document.getElementById("speciesTotal").textContent === String(data.speciesCount - 24),
-    "Les 24 espèces impossibles ne sont pas exclues de la complétion.");
+  check(
+    Number(dom.window.document.getElementById("speciesTotal").textContent.replace(/\D/g, "")) === data.speciesCount - 24,
+    "Les 24 espèces impossibles ne sont pas exclues de la complétion."
+  );
   check(dom.window.document.querySelectorAll("#distributionGrid .distribution-card").length >= 2,
     "Les distributions mondiales en cours ne sont pas affichées.");
 
