@@ -41,9 +41,9 @@ différences mâle/femelle disponibles, etc.
   leur contrôle shiny, un badge explicatif et un filtre dédié, mais sont
   exclues de la complétion ;
 - panneau repliable d’informations placé entre les statistiques et la
-  collection, recensant les distributions Pokémon mondiales en cours ou
-  annoncées dans un carrousel horizontal, avec dates, méthode, conditions et
-  source ;
+  collection, avec un bandeau automatique des titres lorsqu’il est fermé et un
+  carrousel horizontal des distributions lorsqu’il est ouvert, accompagné des
+  dates, méthodes, conditions et sources ;
 - fermeture explicite du sélecteur avec son bouton dédié ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
 - utilisation fluide de la largeur disponible, y compris sur les écrans
