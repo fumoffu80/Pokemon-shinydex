@@ -5,6 +5,7 @@
   const I18N = window.SHINYDEX_I18N;
   const AVAILABILITY = window.SHINYDEX_AVAILABILITY || {};
   const DISTRIBUTIONS = window.SHINYDEX_DISTRIBUTIONS || { items: [] };
+  const DISTRIBUTION_SOURCE_LOCALES = window.SHINYDEX_DISTRIBUTION_SOURCE_LOCALES?.sources || {};
   const GENDER_DIFFERENCES = window.SHINYDEX_GENDER_DIFFERENCES || {};
   if (!DATA?.entries?.length || !I18N?.strings?.fr) {
     document.body.innerHTML = "<p style='padding:2rem'>La base locale du Shinydex est introuvable.</p>";
@@ -235,6 +236,15 @@
     return value[language()] || value.en || value.fr || "";
   }
   return String(value || "");
+}
+
+  function distributionSourceUrls(item) {
+  const canonical = item?.sourceUrls?.en || item?.sourceUrl || "";
+  return {
+    ...(DISTRIBUTION_SOURCE_LOCALES[canonical] || {}),
+    ...(item?.sourceUrls || {}),
+    ...(canonical ? { en: canonical } : {})
+  };
 }
 
   function genderText(entry) {
@@ -1189,10 +1199,11 @@
         ? t("distributionStarts", { date: startText })
         : t("distributionSince", { date: startText });
 
+    const sourceUrls = distributionSourceUrls(item);
     const sourceLink = document.createElement("a");
     sourceLink.className = "distribution-card__source";
-    sourceLink.href = localizedText(item.sourceUrls || item.sourceUrl);
-    sourceLink.hreflang = item.sourceUrls?.[language()] ? language() : "en";
+    sourceLink.href = localizedText(sourceUrls);
+    sourceLink.hreflang = sourceUrls[language()] ? language() : "en";
     sourceLink.target = "_blank";
     sourceLink.rel = "noreferrer";
     sourceLink.textContent = t("officialSource");
