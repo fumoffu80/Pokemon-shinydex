@@ -201,7 +201,7 @@ for (const id of [
   "sortSelect", "pokemonGrid", "ownedCount", "speciesCount", "copyCount", "variantDialog",
   "variantGrid", "genderDifferenceNote", "genderDifferenceText", "variantCardTemplate",
   "resetDialog", "importInput", "accountButton",
-  "informationTitle", "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount",
+  "informationPanel", "informationTitle", "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount",
   "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
   "syncNowButton", "signOutButton"
 ]) {
@@ -213,6 +213,19 @@ check(html.includes("gender-differences.js"), "Les descriptions des différences
 check(html.includes("data/pokedex-data.js"), "La base locale n’est pas chargée.");
 check(html.includes("data/shiny-availability.js"), "Le référentiel de légalité shiny n’est pas chargé.");
 check(html.includes("data/distributions.js"), "Le référentiel de distributions n’est pas chargé.");
+const dashboardPosition = html.indexOf('class="dashboard"');
+const informationPosition = html.indexOf('id="informationPanel"');
+const collectionPosition = html.indexOf('class="collection-panel"');
+check(html.includes('<details class="information-panel" id="informationPanel"'),
+  "Le panneau d’informations n’est pas repliable.");
+check(dashboardPosition < informationPosition && informationPosition < collectionPosition,
+  "Le panneau d’informations doit être placé entre les statistiques et la collection.");
+check(/id="distributionGrid"[^>]*tabindex="0"/.test(html),
+  "Le carrousel des distributions n’est pas accessible au clavier.");
+check(css.includes("grid-auto-flow: column") && css.includes("overflow-x: auto"),
+  "Les distributions ne défilent pas horizontalement.");
+check(css.includes("scroll-snap-type: inline mandatory") && css.includes("scroll-snap-align: start"),
+  "Le défilement horizontal des distributions n’est pas aimanté carte par carte.");
 check(html.includes("assets/shiny-pokeball.svg"), "Le favicon Poké Ball shiny n’est pas relié.");
 check(languages.every(language => i18nSource.includes(`assets/flags/${language}.svg`)), "Les six drapeaux de langue ne sont pas configurés.");
 check(html.includes("manifest.webmanifest"), "Le manifeste PWA n’est pas relié.");
@@ -261,7 +274,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v6"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v7"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(serviceWorker.includes("shiny-availability.js") && serviceWorker.includes("distributions.js"), "Les référentiels live ne sont pas disponibles hors ligne.");
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
