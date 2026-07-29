@@ -14,6 +14,8 @@
   const EXCEPTION_VALUE = "exception";
   const MAX_QUANTITY = 999;
   const ROTATION_DELAY = 2600;
+  const ENABLE_VARIANT_HOVER_OPEN = false;
+  const ENABLE_VARIANT_EXIT_CLOSE = false;
   const HOVER_DELAY = 2000;
   const DIALOG_EXIT_DELAY = 2000;
   const SPINDA_ID = 327;
@@ -279,6 +281,7 @@
   }
 
   function scheduleVariantExitClose() {
+    if (!ENABLE_VARIANT_EXIT_CLOSE) return;
     if (variantExitTimer) return;
     if (!elements.variantDialog?.hasAttribute("open")) return;
     variantExitTimer = setTimeout(() => {
@@ -506,7 +509,7 @@
     card.dataset.speciesId = String(group.speciesId);
     updateCardView(group, card);
 
-    if (group.entries.length > 1) {
+    if (ENABLE_VARIANT_HOVER_OPEN && group.entries.length > 1) {
       let hoverTimer;
       card.addEventListener("pointerenter", event => {
         if (event.pointerType === "touch") return;

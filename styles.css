@@ -689,16 +689,6 @@ main {
   color: #8090a9;
 }
 
-kbd {
-  padding: 2px 7px;
-  color: #8fa0ba;
-  border: 1px solid #3e5271;
-  border-radius: 6px;
-  background: #1d2b45;
-  box-shadow: 0 1px 0 #07101f;
-  font: 700 0.7rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
 .select-field {
   min-width: 0;
 }

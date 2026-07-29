@@ -191,6 +191,7 @@ check(html.includes("manifest.webmanifest"), "Le manifeste PWA n’est pas reli�
 check(!/compact|densityButton|is-compact/i.test(`${html}\n${app}\n${css}`), "Le mode compact n’a pas été entièrement supprimé.");
 check(!html.toLowerCase().includes("cliquer pour marquer"), "La consigne répétée est encore présente dans les fiches.");
 check(html.includes('data-i18n="instruction"'), "La consigne générale au-dessus du Pokédex est absente.");
+check(!html.includes("<kbd"), "L’indicateur « / » est encore affiché dans le champ de recherche.");
 check(html.includes('data-i18n="exceptionGuideText"'), "L’explication du palier Exception est absente.");
 check(css.includes("content-visibility: auto"), "Le rendu différé des cartes n’est pas activé.");
 check(css.includes("--type-color"), "Les couleurs propres aux types sont absentes.");
@@ -202,8 +203,16 @@ check(css.includes("min-height: var(--variant-card-height)"), "La hauteur minima
 check(css.includes("align-content: start"), "La grille de variantes étire encore ses lignes pour remplir la fenêtre.");
 check(css.includes("scrollbar-gutter: stable"), "Le défilement des nombreuses variantes n’est pas stabilisé.");
 check(html.includes('class="stat-spark"'), "L’icône du total de shiny n’a pas été remplacée.");
-check(app.includes("HOVER_DELAY = 2000"), "L’ouverture après deux secondes de survol n’est pas configurée.");
-check(app.includes("DIALOG_EXIT_DELAY = 2000"), "La fermeture après deux secondes hors du sélecteur n’est pas configurée.");
+check(app.includes("ENABLE_VARIANT_HOVER_OPEN = false"), "L’ouverture au survol des fiches n’est pas désactivée.");
+check(app.includes("ENABLE_VARIANT_EXIT_CLOSE = false"), "La fermeture automatique hors du sélecteur n’est pas désactivée.");
+check(app.includes("HOVER_DELAY = 2000"), "Le délai de survol n’est plus conservé dans le code.");
+check(app.includes("DIALOG_EXIT_DELAY = 2000"), "Le délai de fermeture hors du sélecteur n’est plus conservé dans le code.");
+check(app.includes("if (ENABLE_VARIANT_HOVER_OPEN && group.entries.length > 1)"),
+  "La logique d’ouverture au survol n’est pas protégée par son réglage.");
+check(app.includes("if (!ENABLE_VARIANT_EXIT_CLOSE) return;"),
+  "La logique de fermeture hors fenêtre n’est pas protégée par son réglage.");
+check(!i18nSource.includes("2 secondes") && !i18nSource.includes("2 seconds"),
+  "Une consigne indique encore les anciens comportements temporisés.");
 check(app.includes('EXCEPTION_VALUE = "exception"'), "Le palier Exception n’est pas enregistré.");
 check(app.includes("(ownedSpecies / DATA.speciesCount) * 100"), "La complétion n’est pas calculée sur les espèces.");
 check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
@@ -287,6 +296,10 @@ try {
   dom.window.document.getElementById("variantDialog").close();
 
   const florizarreCard = dom.window.document.querySelector('.pokemon-card[data-species-id="3"]');
+  florizarreCard.dispatchEvent(new dom.window.Event("pointerenter"));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 30));
+  check(!dom.window.document.getElementById("variantDialog").hasAttribute("open"),
+    "Le survol d’une fiche ouvre encore le sélecteur.");
   florizarreCard.querySelector(".pokemon-card__toggle").click();
   check(dom.window.document.getElementById("variantDialog").hasAttribute("open"), "Un clic sur une espèce à variantes n’ouvre pas le sélecteur.");
   check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length >= 6,
@@ -343,8 +356,9 @@ try {
   const variantPanel = dom.window.document.querySelector(".variant-panel");
   variantPanel.dispatchEvent(new dom.window.Event("pointerleave"));
   await new Promise(resolveDelay => setTimeout(resolveDelay, 2050));
-  check(!dom.window.document.getElementById("variantDialog").hasAttribute("open"),
-    "Le sélecteur ne se ferme pas après deux secondes passées à l’extérieur.");
+  check(dom.window.document.getElementById("variantDialog").hasAttribute("open"),
+    "Le sélecteur se ferme encore après deux secondes passées à l’extérieur.");
+  dom.window.document.getElementById("variantDialog").close();
 
   const search = dom.window.document.getElementById("searchInput");
   search.value = "Zarbi";
