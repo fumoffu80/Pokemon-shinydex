@@ -576,7 +576,11 @@
   card.querySelectorAll(".quantity button, .quantity input").forEach(control => {
     control.disabled = currentUnavailable;
   });
-  spriteStyle(card.querySelector(".pokemon-sprite"), entry, currentOwned);
+  spriteStyle(
+    card.querySelector(".pokemon-sprite"),
+    entry,
+    currentOwned || card.classList.contains("is-shiny-preview")
+  );
   card.querySelector(".pokemon-sprite").setAttribute(
     "aria-label",
     `${localizedName(entry)}, ${label || t("defaultForm")}${currentUnavailable ? ` · ${t("unobtainableShort")}` : currentOwned ? " ✦" : ""}`
@@ -591,14 +595,11 @@
 
     card.addEventListener("pointerenter", event => {
       if (event.pointerType === "touch") return;
-      card.dataset.hovering = "true";
       const visual = currentVisual(group);
-      const owned = ownedInVisual(visual);
+      card.classList.add("is-shiny-preview");
       spriteStyle(card.querySelector(".pokemon-sprite"), visual.entry, true);
-      card.classList.toggle("is-shiny-preview", !owned);
     });
     card.addEventListener("pointerleave", () => {
-      card.dataset.hovering = "";
       card.classList.remove("is-shiny-preview");
       updateCardView(group, card);
     });
