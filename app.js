@@ -3,6 +3,8 @@
 
   const DATA = window.SHINYDEX_DATA;
   const I18N = window.SHINYDEX_I18N;
+  const AVAILABILITY = window.SHINYDEX_AVAILABILITY || {};
+  const DISTRIBUTIONS = window.SHINYDEX_DISTRIBUTIONS || { items: [] };
   const GENDER_DIFFERENCES = window.SHINYDEX_GENDER_DIFFERENCES || {};
   if (!DATA?.entries?.length || !I18N?.strings?.fr) {
     document.body.innerHTML = "<p style='padding:2rem'>La base locale du Shinydex est introuvable.</p>";
@@ -53,11 +55,18 @@
     "closeVariantButton", "exportButton", "importButton", "importInput", "toast", "dataVersion",
     "accountButton", "accountLabel", "cloudStatusLabel", "cloudDot", "authDialog",
     "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail", "cloudStatusText",
-    "cloudStatusDetail", "dialogCloudDot", "authPassword", "togglePasswordButton"
+    "cloudStatusDetail", "dialogCloudDot", "authPassword", "togglePasswordButton",
+    "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount"
   ].map(id => [id, document.getElementById(id)]));
 
   const validKeys = new Set(DATA.entries.map(entry => entry.key));
   const entryByKey = new Map(DATA.entries.map(entry => [entry.key, entry]));
+  const unavailableSpeciesIds = new Set(
+    (AVAILABILITY.unavailableSpeciesIds || []).map(Number)
+  );
+  const unavailableFormRules = AVAILABILITY.unavailableForms || [];
+  const eligibleEntries = DATA.entries.filter(isLegallyObtainable);
+  const eligibleSpeciesIds = new Set(eligibleEntries.map(entry => entry.speciesId));
   const groupsBySpecies = new Map();
   for (const entry of DATA.entries) {
     const group = groupsBySpecies.get(entry.speciesId) || {
@@ -188,6 +197,46 @@
       || identifier;
   }
 
+  function normalizeAvailabilityName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+  function availabilityFor(entry) {
+  if (!entry) return null;
+  if (unavailableSpeciesIds.has(entry.speciesId)) {
+    return { scope: "species", speciesId: entry.speciesId };
+  }
+  const formName = normalizeAvailabilityName(
+    entry.formNames?.en || entry.formNames?.fr || entry.label || ""
+  );
+  return unavailableFormRules.find(rule =>
+    Number(rule.speciesId) === entry.speciesId
+    && (
+      (rule.formIds || []).map(Number).includes(entry.formId)
+      || (rule.names || []).some(name =>
+        formName.includes(normalizeAvailabilityName(name))
+      )
+    )
+  ) || null;
+}
+
+  function isLegallyObtainable(entry) {
+  return availabilityFor(entry) === null;
+}
+
+  function localizedText(value) {
+  if (value && typeof value === "object") {
+    return value[language()] || value.en || value.fr || "";
+  }
+  return String(value || "");
+}
+
   function genderText(entry) {
     const symbol = { male: "♂", female: "♀", genderless: "∅" }[entry.gender] || "";
     return `${symbol} ${t(entry.gender || "genderless")}`.trim();
@@ -256,9 +305,11 @@
   }
 
   function ownedInGroup(group) {
-    return group.entries.reduce((count, entry) => count + Number(isOwned(entry.key)), 0);
-  }
-
+  return group.entries.reduce(
+    (count, entry) => count + Number(isLegallyObtainable(entry) && isOwned(entry.key)),
+    0
+  );
+}
   function formatNumber(value) {
     return Number(value).toLocaleString(locale());
   }
@@ -333,6 +384,7 @@
       new Option(t("allStatuses"), "all"),
       new Option(t("ownedOnly"), "owned"),
       new Option(t("missingOnly"), "missing"),
+      new Option(t("unobtainableOnly"), "unobtainable"),
       new Option(t("variantsOnly"), "variants")
     );
     elements.sortSelect.replaceChildren(
@@ -413,13 +465,11 @@
   }
 
   function ownedInVisual(visual) {
-    return visual.entries.some(entry => isOwned(entry.key));
-  }
-
+  return visual.entries.some(entry => isLegallyObtainable(entry) && isOwned(entry.key));
+}
   function exceptionInVisual(visual) {
-    return visual.entries.some(entry => isException(entry.key));
-  }
-
+  return visual.entries.some(entry => isLegallyObtainable(entry) && isException(entry.key));
+}
   function visualVariantLabel(visual) {
     const entry = visual.entry;
     const form = localizedForm(entry);
@@ -445,64 +495,84 @@
   }
 
   function updateCardView(group, card = cardNodes.get(group.speciesId)) {
-    if (!card) return;
-    const visual = currentVisual(group);
-    const entry = visual.entry;
-    const ownedCount = ownedInGroup(group);
-    const currentOwned = ownedInVisual(visual);
-    const currentException = exceptionInVisual(visual);
-    const complete = ownedCount === group.entries.length;
-    const multiple = group.entries.length > 1;
-    const multipleVisuals = group.visuals.length > 1;
-    const toggle = card.querySelector(".pokemon-card__toggle");
-    const form = card.querySelector(".pokemon-card__form");
-    const progress = card.querySelector(".pokemon-card__progress");
-    const quantityInput = card.querySelector(".quantity__input");
+  if (!card) return;
+  const visual = currentVisual(group);
+  const entry = visual.entry;
+  const legalEntries = group.entries.filter(isLegallyObtainable);
+  const ownedCount = ownedInGroup(group);
+  const currentUnavailable = !visual.entries.some(isLegallyObtainable);
+  const groupUnavailable = legalEntries.length === 0;
+  const currentOwned = ownedInVisual(visual);
+  const currentException = exceptionInVisual(visual);
+  const complete = legalEntries.length > 0 && ownedCount === legalEntries.length;
+  const multiple = group.entries.length > 1;
+  const multipleVisuals = group.visuals.length > 1;
+  const toggle = card.querySelector(".pokemon-card__toggle");
+  const form = card.querySelector(".pokemon-card__form");
+  const progress = card.querySelector(".pokemon-card__progress");
+  const quantityInput = card.querySelector(".quantity__input");
+  const unavailableBadge = card.querySelector(".unobtainable-badge");
 
-    card.dataset.key = entry.key;
-    card.classList.toggle("has-variants", multiple);
-    card.classList.toggle("has-visual-variants", multipleVisuals);
-    card.classList.toggle("has-owned", ownedCount > 0);
-    card.classList.toggle("is-complete", complete);
-    card.classList.toggle("is-current-owned", currentOwned);
-    card.classList.toggle("is-current-exception", currentException);
-    card.classList.toggle("has-exceptional-form", Boolean(entry.exceptional));
-    toggle.setAttribute("aria-pressed", String(multiple ? complete : currentOwned));
-    toggle.setAttribute(
-      "aria-label",
-      multiple
+  card.dataset.key = entry.key;
+  card.classList.toggle("has-variants", multiple);
+  card.classList.toggle("has-visual-variants", multipleVisuals);
+  card.classList.toggle("has-owned", ownedCount > 0);
+  card.classList.toggle("is-complete", complete);
+  card.classList.toggle("is-current-owned", currentOwned);
+  card.classList.toggle("is-current-exception", currentException);
+  card.classList.toggle("is-unobtainable", currentUnavailable);
+  card.classList.toggle("is-fully-unobtainable", groupUnavailable);
+  card.classList.toggle("has-exceptional-form", Boolean(entry.exceptional));
+  card.title = currentUnavailable ? t("unobtainableDescription") : "";
+  toggle.disabled = !multiple && currentUnavailable;
+  toggle.setAttribute("aria-pressed", String(multiple ? complete : currentOwned));
+  toggle.setAttribute(
+    "aria-label",
+    currentUnavailable && !multiple
+      ? t("unobtainableDescription")
+      : multiple
         ? `${localizedName(entry)} · ${t("openVariants")}`
         : t(currentOwned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
-    );
+  );
 
-    card.querySelector(".pokemon-card__number").textContent = `#${String(entry.speciesId).padStart(4, "0")}`;
-    card.querySelector(".pokemon-card__name").textContent = localizedName(entry);
-    const label = visualVariantLabel(visual);
-    form.textContent = label;
-    form.hidden = !label;
-    progress.textContent = multiple
-      ? t("variantProgress", { owned: ownedCount, count: group.entries.length })
+  card.querySelector(".pokemon-card__number").textContent = `#${String(entry.speciesId).padStart(4, "0")}`;
+  card.querySelector(".pokemon-card__name").textContent = localizedName(entry);
+  const label = visualVariantLabel(visual);
+  form.textContent = label;
+  form.hidden = !label;
+  progress.textContent = groupUnavailable
+    ? t("unobtainableShort")
+    : multiple
+      ? t("variantProgress", { owned: ownedCount, count: legalEntries.length })
       : "";
-    progress.hidden = !multiple;
+  progress.hidden = !multiple && !groupUnavailable;
 
-    const badge = card.querySelector(".variant-badge");
-    const showBadge = multipleVisuals && group.speciesId !== SPINDA_ID;
-    badge.hidden = !showBadge;
-    badge.querySelector("strong").textContent = String(group.visuals.length);
-    badge.setAttribute("title", t("variantBadge", { count: group.visuals.length }));
-    badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.visuals.length })}`);
+  unavailableBadge.hidden = !currentUnavailable;
+  unavailableBadge.querySelector(".unobtainable-badge__text").textContent = t("unobtainableBadge");
+  unavailableBadge.setAttribute("title", t("unobtainableDescription"));
 
-    quantityInput.value = displayedQuantity(entry.key);
-    quantityInput.classList.toggle("is-exception", isException(entry.key));
-    quantityInput.setAttribute("aria-label", `${t("quantity")} · ${fullVariantName(entry)}`);
-    spriteStyle(card.querySelector(".pokemon-sprite"), entry, currentOwned);
-    card.querySelector(".pokemon-sprite").setAttribute(
-      "aria-label",
-      `${localizedName(entry)}, ${label || t("defaultForm")}${currentOwned ? " ✦" : ""}`
-    );
-    renderTypes(card.querySelector(".pokemon-card__types"), entry.types);
-  }
+  const badge = card.querySelector(".variant-badge");
+  const showBadge = multipleVisuals && group.speciesId !== SPINDA_ID;
+  badge.hidden = !showBadge;
+  badge.querySelector("strong").textContent = String(group.visuals.length);
+  badge.setAttribute("title", t("variantBadge", { count: group.visuals.length }));
+  badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.visuals.length })}`);
 
+  quantityInput.value = currentUnavailable ? "—" : displayedQuantity(entry.key);
+  quantityInput.classList.toggle("is-exception", !currentUnavailable && isException(entry.key));
+  quantityInput.setAttribute("aria-label", currentUnavailable
+    ? t("unobtainableDescription")
+    : `${t("quantity")} · ${fullVariantName(entry)}`);
+  card.querySelectorAll(".quantity button, .quantity input").forEach(control => {
+    control.disabled = currentUnavailable;
+  });
+  spriteStyle(card.querySelector(".pokemon-sprite"), entry, currentOwned);
+  card.querySelector(".pokemon-sprite").setAttribute(
+    "aria-label",
+    `${localizedName(entry)}, ${label || t("defaultForm")}${currentUnavailable ? ` · ${t("unobtainableShort")}` : currentOwned ? " ✦" : ""}`
+  );
+  renderTypes(card.querySelector(".pokemon-card__types"), entry.types);
+}
   function createCard(group) {
     const fragment = elements.pokemonCardTemplate.content.cloneNode(true);
     const card = fragment.querySelector(".pokemon-card");
@@ -540,46 +610,48 @@
   }
 
   function filteredGroups() {
-    const filters = currentFilters();
-    const numericSearch = filters.search.replace(/\D/g, "");
-    const isNumberSearch = Boolean(filters.search) && /^#?\s*\d+$/.test(elements.searchInput.value.trim());
-    const list = speciesGroups.filter(group => {
-      if (filters.search) {
-        const searchable = group.entries.flatMap(entry => [
-          localizedName(entry),
-          localizedForm(entry),
-          entry.slug,
-          genderText(entry)
-        ]).join(" ");
-        const matchesSearch = isNumberSearch
-          ? String(group.speciesId) === String(Number(numericSearch))
-          : normalize(searchable).includes(filters.search);
-        if (!matchesSearch) return false;
-      }
-      if (filters.generation !== "all" && group.generation !== Number(filters.generation)) return false;
-      if (filters.type !== "all" && !group.entries.some(entry => entry.types.includes(filters.type))) return false;
-      const ownedCount = ownedInGroup(group);
-      if (filters.status === "owned" && ownedCount === 0) return false;
-      if (filters.status === "missing" && ownedCount > 0) return false;
-      if (filters.status === "variants" && (group.visuals.length < 2 || group.speciesId === SPINDA_ID)) return false;
-      return true;
-    });
-
-    const byNumber = (a, b) => a.speciesId - b.speciesId;
-    if (filters.sort === "name") {
-      list.sort((a, b) =>
-        localizedName(a.entries[0]).localeCompare(localizedName(b.entries[0]), locale()) || byNumber(a, b)
-      );
-    } else if (filters.sort === "owned") {
-      list.sort((a, b) => Number(ownedInGroup(b) > 0) - Number(ownedInGroup(a) > 0) || byNumber(a, b));
-    } else if (filters.sort === "missing") {
-      list.sort((a, b) => Number(ownedInGroup(a) > 0) - Number(ownedInGroup(b) > 0) || byNumber(a, b));
-    } else {
-      list.sort(byNumber);
+  const filters = currentFilters();
+  const numericSearch = filters.search.replace(/\D/g, "");
+  const isNumberSearch = Boolean(filters.search) && /^#?\s*\d+$/.test(elements.searchInput.value.trim());
+  const list = speciesGroups.filter(group => {
+    if (filters.search) {
+      const searchable = group.entries.flatMap(entry => [
+        localizedName(entry),
+        localizedForm(entry),
+        entry.slug,
+        genderText(entry)
+      ]).join(" ");
+      const matchesSearch = isNumberSearch
+        ? String(group.speciesId) === String(Number(numericSearch))
+        : normalize(searchable).includes(filters.search);
+      if (!matchesSearch) return false;
     }
-    return list;
-  }
+    if (filters.generation !== "all" && group.generation !== Number(filters.generation)) return false;
+    if (filters.type !== "all" && !group.entries.some(entry => entry.types.includes(filters.type))) return false;
+    const ownedCount = ownedInGroup(group);
+    const legalCount = group.entries.filter(isLegallyObtainable).length;
+    const hasUnavailable = group.entries.some(entry => !isLegallyObtainable(entry));
+    if (filters.status === "owned" && ownedCount === 0) return false;
+    if (filters.status === "missing" && (legalCount === 0 || ownedCount > 0)) return false;
+    if (filters.status === "unobtainable" && !hasUnavailable) return false;
+    if (filters.status === "variants" && (group.visuals.length < 2 || group.speciesId === SPINDA_ID)) return false;
+    return true;
+  });
 
+  const byNumber = (a, b) => a.speciesId - b.speciesId;
+  if (filters.sort === "name") {
+    list.sort((a, b) =>
+      localizedName(a.entries[0]).localeCompare(localizedName(b.entries[0]), locale()) || byNumber(a, b)
+    );
+  } else if (filters.sort === "owned") {
+    list.sort((a, b) => Number(ownedInGroup(b) > 0) - Number(ownedInGroup(a) > 0) || byNumber(a, b));
+  } else if (filters.sort === "missing") {
+    list.sort((a, b) => Number(ownedInGroup(a) > 0) - Number(ownedInGroup(b) > 0) || byNumber(a, b));
+  } else {
+    list.sort(byNumber);
+  }
+  return list;
+}
   function observeCard(card, speciesId) {
     if (!cardObserver) {
       visibleSpecies.add(speciesId);
@@ -634,6 +706,7 @@
       labels.push(t({
         owned: "filterOwned",
         missing: "filterMissing",
+        unobtainable: "filterUnobtainable",
         variants: "filterVariants"
       }[filters.status]));
     }
@@ -644,83 +717,87 @@
   }
 
   function updateStats() {
-    const ownedEntries = DATA.entries.filter(entry => isOwned(entry.key));
-    const ownedSpecies = new Set(ownedEntries.map(entry => entry.speciesId)).size;
-    const totalCopies = Object.values(state.collection).reduce(
-      (sum, value) => sum + (value === EXCEPTION_VALUE ? 0 : (Number(value) || 0)),
-      0
-    );
-    const percentage = DATA.speciesCount ? (ownedSpecies / DATA.speciesCount) * 100 : 0;
-    const rounded = percentage === 0
-      ? "0"
-      : percentage < 0.1
-        ? percentage.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        : percentage < 100
-          ? percentage.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-          : "100";
+  const ownedEntries = eligibleEntries.filter(entry => isOwned(entry.key));
+  const ownedSpecies = new Set(ownedEntries.map(entry => entry.speciesId)).size;
+  const totalCopies = eligibleEntries.reduce((sum, entry) => {
+    const value = state.collection[entry.key];
+    return sum + (value === EXCEPTION_VALUE ? 0 : (Number(value) || 0));
+  }, 0);
+  const percentage = eligibleSpeciesIds.size ? (ownedSpecies / eligibleSpeciesIds.size) * 100 : 0;
+  const rounded = percentage === 0
+    ? "0"
+    : percentage < 0.1
+      ? percentage.toLocaleString(locale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : percentage < 100
+        ? percentage.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        : "100";
 
-    elements.ownedCount.textContent = formatNumber(ownedEntries.length);
-    elements.appearanceTotal.textContent = formatNumber(DATA.appearanceCount);
-    elements.speciesCount.textContent = formatNumber(ownedSpecies);
-    elements.speciesTotal.textContent = formatNumber(DATA.speciesCount);
-    elements.copyCount.textContent = formatNumber(totalCopies);
-    elements.progressPercent.textContent = `${rounded} %`;
-    const visiblePercentage = percentage > 0 ? Math.max(0.35, percentage) : 0;
-    elements.progressBar.style.width = `${Math.min(100, visiblePercentage)}%`;
-    elements.progressBar.parentElement.setAttribute("aria-valuenow", percentage.toFixed(2));
-    elements.progressBar.parentElement.setAttribute("aria-valuetext", `${rounded} %`);
+  elements.ownedCount.textContent = formatNumber(ownedEntries.length);
+  elements.appearanceTotal.textContent = formatNumber(eligibleEntries.length);
+  elements.speciesCount.textContent = formatNumber(ownedSpecies);
+  elements.speciesTotal.textContent = formatNumber(eligibleSpeciesIds.size);
+  elements.copyCount.textContent = formatNumber(totalCopies);
+  elements.progressPercent.textContent = `${rounded} %`;
+  const visiblePercentage = percentage > 0 ? Math.max(0.35, percentage) : 0;
+  elements.progressBar.style.width = `${Math.min(100, visiblePercentage)}%`;
+  elements.progressBar.parentElement.setAttribute("aria-valuenow", percentage.toFixed(2));
+  elements.progressBar.parentElement.setAttribute("aria-valuetext", `${rounded} %`);
 
-    const messageKey = percentage === 0
-      ? "progressStart"
-      : percentage < 25
-        ? "progressLow"
-        : percentage < 50
-          ? "progressQuarter"
-          : percentage < 75
-            ? "progressHalf"
-            : percentage < 100
-              ? "progressNear"
-              : "progressDone";
-    elements.progressMessage.textContent = t(messageKey);
-  }
-
+  const messageKey = percentage === 0
+    ? "progressStart"
+    : percentage < 25
+      ? "progressLow"
+      : percentage < 50
+        ? "progressQuarter"
+        : percentage < 75
+          ? "progressHalf"
+          : percentage < 100
+            ? "progressNear"
+            : "progressDone";
+  elements.progressMessage.textContent = t(messageKey);
+}
   function updateSpeciesCard(speciesId) {
     const group = groupsBySpecies.get(speciesId);
     if (group) updateCardView(group);
   }
 
   function setQuantity(key, rawQuantity, { sparkle = false } = {}) {
-    const previousOwned = isOwned(key);
-    const quantity = rawQuantity === EXCEPTION_VALUE
-      ? EXCEPTION_VALUE
-      : Math.min(MAX_QUANTITY, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
-    if (quantity === EXCEPTION_VALUE || quantity > 0) state.collection[key] = quantity;
-    else delete state.collection[key];
-    saveState();
-    updateStats();
+  const entry = entryByKey.get(key);
+  if (entry && !isLegallyObtainable(entry)) {
+    showToast(t("unobtainableToast"));
+    return;
+  }
+  const previousOwned = isOwned(key);
+  const quantity = rawQuantity === EXCEPTION_VALUE
+    ? EXCEPTION_VALUE
+    : Math.min(MAX_QUANTITY, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
+  if (quantity === EXCEPTION_VALUE || quantity > 0) state.collection[key] = quantity;
+  else delete state.collection[key];
+  saveState();
+  updateStats();
 
-    const group = groupByEntryKey.get(key);
-    const filters = currentFilters();
-    if (
-      filters.status === "owned"
-      || filters.status === "missing"
-      || filters.sort === "owned"
-      || filters.sort === "missing"
-    ) {
-      render();
-    } else if (group) {
-      updateSpeciesCard(group.speciesId);
-    }
-    if (activeDialogSpecies === group?.speciesId && elements.variantDialog.hasAttribute("open")) {
-      renderVariantDialog(group, key);
-    }
-
-    if (sparkle && !previousOwned && isOwned(key) && state.preferences.animations) {
-      const card = group ? cardNodes.get(group.speciesId) : null;
-      if (card) createSparkles(card);
-    }
+  const group = groupByEntryKey.get(key);
+  const filters = currentFilters();
+  if (
+    filters.status === "owned"
+    || filters.status === "missing"
+    || filters.status === "unobtainable"
+    || filters.sort === "owned"
+    || filters.sort === "missing"
+  ) {
+    render();
+  } else if (group) {
+    updateSpeciesCard(group.speciesId);
+  }
+  if (activeDialogSpecies === group?.speciesId && elements.variantDialog.hasAttribute("open")) {
+    renderVariantDialog(group, key);
   }
 
+  if (sparkle && !previousOwned && isOwned(key) && state.preferences.animations) {
+    const card = group ? cardNodes.get(group.speciesId) : null;
+    if (card) createSparkles(card);
+  }
+}
   function incrementEntry(key) {
     if (isException(key)) {
       setQuantity(key, 1);
@@ -939,60 +1016,75 @@
   }
 
   function renderVariantDialog(group, preferredKey = "") {
-    activeDialogSpecies = group.speciesId;
-    const previousScroll = elements.variantGrid.scrollTop;
-    elements.variantDialogTitle.textContent = t("variantsTitle", {
-      name: localizedName(group.entries[0])
-    });
-    const fragment = document.createDocumentFragment();
-    for (const entry of group.entries) {
-      const item = elements.variantCardTemplate.content.cloneNode(true);
-      const card = item.querySelector(".variant-option");
-      const toggle = item.querySelector(".variant-option__toggle");
-      const owned = isOwned(entry.key);
-      const exception = isException(entry.key);
-      card.dataset.key = entry.key;
-      card.classList.toggle("is-owned", owned);
-      card.classList.toggle("is-exception", exception);
-      card.classList.toggle("is-exceptional-form", Boolean(entry.exceptional));
-      if (entry.exceptional) card.title = exceptionReasonText(entry);
-      if (entry.key === preferredKey) card.classList.add("is-current");
-      toggle.setAttribute("aria-pressed", String(owned));
-      toggle.setAttribute(
-        "aria-label",
-        t(owned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
-      );
-      spriteStyle(item.querySelector(".variant-option__sprite"), entry, owned);
-      item.querySelector(".variant-option__form").textContent =
-        localizedForm(entry) || t("defaultForm");
-      item.querySelector(".variant-option__gender").textContent = genderText(entry);
-      item.querySelector(".variant-option__status").textContent = exception
+  activeDialogSpecies = group.speciesId;
+  const previousScroll = elements.variantGrid.scrollTop;
+  elements.variantDialogTitle.textContent = t("variantsTitle", {
+    name: localizedName(group.entries[0])
+  });
+  const fragment = document.createDocumentFragment();
+  for (const entry of group.entries) {
+    const item = elements.variantCardTemplate.content.cloneNode(true);
+    const card = item.querySelector(".variant-option");
+    const toggle = item.querySelector(".variant-option__toggle");
+    const unavailable = !isLegallyObtainable(entry);
+    const owned = !unavailable && isOwned(entry.key);
+    const exception = !unavailable && isException(entry.key);
+    card.dataset.key = entry.key;
+    card.classList.toggle("is-owned", owned);
+    card.classList.toggle("is-exception", exception);
+    card.classList.toggle("is-unobtainable", unavailable);
+    card.classList.toggle("is-exceptional-form", Boolean(entry.exceptional));
+    card.title = unavailable
+      ? t("unobtainableDescription")
+      : entry.exceptional
+        ? exceptionReasonText(entry)
+        : "";
+    if (entry.key === preferredKey) card.classList.add("is-current");
+    toggle.disabled = unavailable;
+    toggle.setAttribute("aria-pressed", String(owned));
+    toggle.setAttribute(
+      "aria-label",
+      unavailable
+        ? t("unobtainableDescription")
+        : t(owned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
+    );
+    spriteStyle(item.querySelector(".variant-option__sprite"), entry, owned);
+    item.querySelector(".variant-option__form").textContent =
+      localizedForm(entry) || t("defaultForm");
+    item.querySelector(".variant-option__gender").textContent = genderText(entry);
+    item.querySelector(".variant-option__status").textContent = unavailable
+      ? t("unobtainableDescription")
+      : exception
         ? t("exception")
         : owned
           ? t("owned")
           : entry.exceptional
             ? t("exceptionSuggested", { reason: exceptionReasonText(entry) })
             : t("missing");
-      renderTypes(item.querySelector(".variant-option__types"), entry.types);
-      const input = item.querySelector(".quantity__input");
-      input.value = displayedQuantity(entry.key);
-      input.classList.toggle("is-exception", exception);
-      input.setAttribute("aria-label", `${t("quantity")} · ${fullVariantName(entry)}`);
-      fragment.append(item);
-    }
-    elements.variantGrid.replaceChildren(fragment);
-    elements.variantGrid.scrollTop = previousScroll;
-
-    const hasGenderDifferences = groupHasGenderDifferences(group);
-    elements.genderDifferenceNote.hidden = !hasGenderDifferences;
-    if (hasGenderDifferences) {
-      elements.genderDifferenceTitle.textContent = t("genderDifferenceTitle");
-      elements.genderDifferenceText.textContent = language() === "fr" && GENDER_DIFFERENCES[group.speciesId]
-        ? GENDER_DIFFERENCES[group.speciesId]
-        : t("genderDifferenceFallback");
-    }
+    renderTypes(item.querySelector(".variant-option__types"), entry.types);
+    const input = item.querySelector(".quantity__input");
+    input.value = unavailable ? "—" : displayedQuantity(entry.key);
+    input.classList.toggle("is-exception", exception);
+    input.setAttribute("aria-label", unavailable
+      ? t("unobtainableDescription")
+      : `${t("quantity")} · ${fullVariantName(entry)}`);
+    item.querySelectorAll(".quantity button, .quantity input").forEach(control => {
+      control.disabled = unavailable;
+    });
+    fragment.append(item);
   }
+  elements.variantGrid.replaceChildren(fragment);
+  elements.variantGrid.scrollTop = previousScroll;
 
+  const hasGenderDifferences = groupHasGenderDifferences(group);
+  elements.genderDifferenceNote.hidden = !hasGenderDifferences;
+  if (hasGenderDifferences) {
+    elements.genderDifferenceTitle.textContent = t("genderDifferenceTitle");
+    elements.genderDifferenceText.textContent = language() === "fr" && GENDER_DIFFERENCES[group.speciesId]
+      ? GENDER_DIFFERENCES[group.speciesId]
+      : t("genderDifferenceFallback");
+  }
+}
   function openVariantDialog(speciesId, preferredKey = "", { autoCloseOutside = false } = {}) {
     const group = groupsBySpecies.get(speciesId);
     if (!group || group.entries.length < 2) return;
@@ -1002,6 +1094,87 @@
     if (autoCloseOutside) scheduleVariantExitClose();
   }
 
+  function renderDistributions() {
+  if (!elements.distributionGrid) return;
+  const now = Date.now();
+  const active = (DISTRIBUTIONS.items || [])
+    .map(item => {
+      const start = Date.parse(`${item.start}T00:00:00Z`);
+      const end = item.end ? Date.parse(`${item.end}T23:59:59Z`) : Number.POSITIVE_INFINITY;
+      const status = now < start ? "upcoming" : now <= end ? "ongoing" : "ended";
+      return { item, start, end, status };
+    })
+    .filter(entry => entry.status !== "ended")
+    .sort((a, b) => {
+      const statusOrder = { ongoing: 0, upcoming: 1 };
+      return statusOrder[a.status] - statusOrder[b.status] || a.start - b.start;
+    });
+
+  const fragment = document.createDocumentFragment();
+  for (const { item, start, end, status } of active) {
+    const card = document.createElement("article");
+    card.className = `distribution-card distribution-card--${status}`;
+    if (item.shiny) card.classList.add("distribution-card--shiny");
+
+    const heading = document.createElement("div");
+    heading.className = "distribution-card__heading";
+    const statusBadge = document.createElement("span");
+    statusBadge.className = "distribution-card__status";
+    statusBadge.textContent = t(status === "ongoing" ? "distributionOngoing" : "distributionUpcoming");
+    heading.append(statusBadge);
+    if (item.shiny) {
+      const shinyBadge = document.createElement("span");
+      shinyBadge.className = "distribution-card__shiny";
+      shinyBadge.textContent = `✦ ${t("shinyBadge")}`;
+      heading.append(shinyBadge);
+    }
+
+    const title = document.createElement("h3");
+    title.textContent = localizedText(item.title);
+    const meta = document.createElement("p");
+    meta.className = "distribution-card__meta";
+    meta.textContent = `${(item.games || []).join(" · ")} · ${t("worldwide")}`;
+    const method = document.createElement("strong");
+    method.className = "distribution-card__method";
+    method.textContent = localizedText(item.method);
+    const details = document.createElement("p");
+    details.className = "distribution-card__details";
+    details.textContent = localizedText(item.details);
+    const period = document.createElement("p");
+    period.className = "distribution-card__period";
+    const startText = new Date(start).toLocaleDateString(locale(), { dateStyle: "medium" });
+    const endText = Number.isFinite(end)
+      ? new Date(end).toLocaleDateString(locale(), { dateStyle: "medium" })
+      : "";
+    period.textContent = endText
+      ? t("distributionPeriod", { start: startText, end: endText })
+      : status === "upcoming"
+        ? t("distributionStarts", { date: startText })
+        : t("distributionSince", { date: startText });
+
+    const sourceLink = document.createElement("a");
+    sourceLink.className = "distribution-card__source";
+    sourceLink.href = item.sourceUrl;
+    sourceLink.target = "_blank";
+    sourceLink.rel = "noreferrer";
+    sourceLink.textContent = t("officialSource");
+
+    card.append(heading, title, meta, method, details, period, sourceLink);
+    fragment.append(card);
+  }
+
+  elements.distributionGrid.replaceChildren(fragment);
+  elements.distributionEmpty.hidden = active.length > 0;
+  elements.distributionCount.textContent = t(
+    active.length === 1 ? "distributionCountOne" : "distributionCount",
+    { count: formatNumber(active.length) }
+  );
+  const updatedAt = new Date(DISTRIBUTIONS.updatedAt);
+  elements.distributionUpdatedAt.textContent = Number.isNaN(updatedAt.getTime())
+    ? t("unknownDate")
+    : updatedAt.toLocaleDateString(locale(), { dateStyle: "medium" });
+}
+
   function applyLanguage() {
     populateLanguageOptions();
     applyStaticTranslations();
@@ -1010,6 +1183,7 @@
     updateStats();
     render();
     renderCloudStatus();
+    renderDistributions();
     updateDataVersion();
     if (activeDialogSpecies && elements.variantDialog.hasAttribute("open")) {
       const group = groupsBySpecies.get(activeDialogSpecies);
@@ -1019,19 +1193,21 @@
   }
 
   function updateDataVersion() {
-    const generatedDate = new Date(DATA.generatedAt);
-    elements.dataVersion.textContent = Number.isNaN(generatedDate.getTime())
-      ? t("dataVersionFallback", {
-          species: formatNumber(DATA.speciesCount),
-          appearances: formatNumber(DATA.appearanceCount)
-        })
-      : t("dataVersion", {
-          date: generatedDate.toLocaleDateString(locale()),
-          species: formatNumber(DATA.speciesCount),
-          appearances: formatNumber(DATA.appearanceCount)
-        });
-  }
-
+  const generatedDate = new Date(DATA.generatedAt);
+  const base = Number.isNaN(generatedDate.getTime())
+    ? t("dataVersionFallback", {
+        species: formatNumber(DATA.speciesCount),
+        appearances: formatNumber(DATA.appearanceCount)
+      })
+    : t("dataVersion", {
+        date: generatedDate.toLocaleDateString(locale()),
+        species: formatNumber(DATA.speciesCount),
+        appearances: formatNumber(DATA.appearanceCount)
+      });
+  elements.dataVersion.textContent = `${base} · ${t("legalitySummary", {
+    count: formatNumber(unavailableSpeciesIds.size)
+  })}`;
+}
   function preloadShinySheets() {
     const queue = [...DATA.shinySheets];
     const loadNext = deadline => {

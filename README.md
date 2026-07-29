@@ -9,7 +9,7 @@ différences mâle/femelle disponibles, etc.
 
 - une seule fiche par espèce, même lorsque plusieurs formes ou différences
   mâle/femelle existent ;
-- sélection détaillée des variantes par clic ou après deux secondes de survol ;
+- sélection détaillée des variantes par clic ;
 - défilement automatique des apparences réellement différentes dans la fiche
   principale et compteur visuel dans son coin supérieur droit : deux sexes
   identiques restent sélectionnables séparément sans être comptés deux fois ;
@@ -36,9 +36,13 @@ différences mâle/femelle disponibles, etc.
   appareils et fusion initiale sans perte ;
 - recherche tolérante aux accents, filtres par génération, type et état ;
 - statistiques par apparence, espèce et nombre total d’exemplaires, avec une
-  complétion calculée sur les espèces représentées ;
-- fermeture automatique du sélecteur après deux secondes passées en dehors de
-  sa fenêtre ;
+  complétion calculée uniquement sur les espèces possédant un shiny légal ;
+- les 24 espèces et les formes sans aucun shiny légal restent visibles avec
+  leur contrôle shiny, un badge explicatif et un filtre dédié, mais sont
+  exclues de la complétion ;
+- section d’informations recensant les distributions Pokémon mondiales en
+  cours ou annoncées, avec dates, méthode, conditions et source ;
+- fermeture explicite du sélecteur avec son bouton dédié ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
 - utilisation fluide de la largeur disponible, y compris sur les écrans
   ultralarges ;
@@ -73,10 +77,17 @@ npx firebase-tools deploy --only firestore:rules
 
 ## Mise à jour automatique
 
-Le workflow `.github/workflows/pages.yml` valide et déploie chaque envoi sur
-`main`. Chaque lundi, il reconstruit aussi la base depuis les sources PokeAPI,
-regroupe les sprites dans des planches WebP optimisées, valide le résultat,
-enregistre les nouveautés et publie la nouvelle version.
+Le workflow `.github/workflows/pages.yml` valide chaque demande de fusion et
+déploie chaque envoi sur `main`. Chaque lundi, il reconstruit aussi la base
+depuis les sources PokeAPI, regroupe les sprites dans des planches WebP
+optimisées, valide le résultat, enregistre les nouveautés et publie la nouvelle
+version.
+
+Le workflow `.github/workflows/monitor-live-data.yml` contrôle chaque jour les
+sources de légalité shiny et de distributions mondiales. Il mémorise leurs
+empreintes et ouvre ou complète automatiquement une issue GitHub dès qu’une
+source change ou devient inaccessible afin que les données éditoriales puissent
+être revérifiées avant publication.
 
 La source PokeAPI n’est utilisée que par le script de construction
 `tools/update-data.mjs`, jamais par les visiteurs.
@@ -86,6 +97,7 @@ La source PokeAPI n’est utilisée que par le script de construction
 ```bash
 npm ci
 npm run update-data
+npm run monitor-live-data
 npm run check
 ```
 

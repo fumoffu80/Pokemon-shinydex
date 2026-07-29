@@ -3,3 +3,4 @@ _site/
 .cache/
 .DS_Store
 npm-debug.log*
+.monitor-report.md

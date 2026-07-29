@@ -121,6 +121,14 @@
         </div>
       </aside>
 
+      <aside class="legality-guide">
+        <span class="legality-guide__icon" aria-hidden="true">◇</span>
+        <div>
+          <strong data-i18n="legalityGuideTitle">Shiny légalement impossible</strong>
+          <p data-i18n="legalityGuideText">Les fiches et leurs contrôles shiny restent visibles. Lorsqu’aucun exemplaire légal n’existe, un badge l’indique et la fiche ne compte pas dans la complétion.</p>
+        </div>
+      </aside>
+
       <div class="filters" role="search">
         <label class="search-field" for="searchInput">
           <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
@@ -159,6 +167,29 @@
         <button class="button button--primary" id="emptyResetButton" type="button" data-i18n="resetFilters">Réinitialiser les filtres</button>
       </div>
     </section>
+
+    <section class="information-panel" aria-labelledby="informationTitle">
+      <div class="collection-heading">
+        <div>
+          <p class="eyebrow" data-i18n="informationEyebrow">Actualités mondiales</p>
+          <h2 id="informationTitle" data-i18n="informationTitle">Informations & distributions</h2>
+        </div>
+        <span id="distributionCount">0 distribution</span>
+      </div>
+      <p class="information-intro" data-i18n="informationIntro">Distributions Pokémon actuellement accessibles ou déjà annoncées dans le monde.</p>
+      <div class="information-monitor">
+        <span class="information-monitor__dot" aria-hidden="true"></span>
+        <strong data-i18n="monitoredDaily">Sources surveillées automatiquement chaque jour</strong>
+        <span>·</span>
+        <span data-i18n="verifiedAt">Informations vérifiées le</span>
+        <time id="distributionUpdatedAt"></time>
+      </div>
+      <div class="distribution-grid" id="distributionGrid" aria-live="polite"></div>
+      <div class="distribution-empty" id="distributionEmpty" hidden>
+        <strong data-i18n="distributionEmptyTitle">Aucune distribution mondiale annoncée</strong>
+        <p data-i18n="distributionEmptyText">La surveillance quotidienne reste active et signalera la prochaine annonce.</p>
+      </div>
+    </section>
   </main>
 
   <footer>
@@ -174,6 +205,10 @@
       </button>
       <button class="pokemon-card__toggle" type="button">
         <span class="pokemon-card__number"></span>
+        <span class="unobtainable-badge" hidden>
+          <span aria-hidden="true">◇</span>
+          <span class="unobtainable-badge__text">Aucun shiny légal</span>
+        </span>
         <span class="pokemon-card__check" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="m6 12 4 4 8-9"/></svg>
         </span>
@@ -374,6 +409,8 @@
   <script src="i18n.js"></script>
   <script src="gender-differences.js"></script>
   <script src="data/pokedex-data.js"></script>
+  <script src="data/shiny-availability.js"></script>
+  <script src="data/distributions.js"></script>
   <script src="app.js"></script>
   <script src="firebase-sync.js"></script>
 </body>
