@@ -339,7 +339,12 @@ check(html.includes('data-i18n="exceptionGuideText"'), "L’explication du palie
 check(css.includes("content-visibility: auto"), "Le rendu différé des cartes n’est pas activé.");
 check(css.includes("--type-color"), "Les couleurs propres aux types sont absentes.");
 check(/\.language-control select option\s*\{[^}]*background:\s*var\(--surface-raised\)/s.test(css), "Le menu des langues n’utilise pas les couleurs sombres du site.");
-check(css.includes("minmax(min(100%, 174px), 1fr)"), "La grille Pokémon n’est pas fluide sur toutes les largeurs.");
+check(css.includes("minmax(min(100%, var(--card-min-width)), 1fr)"), "La grille Pokémon n’est pas fluide sur toutes les largeurs.");
+check(html.includes('id="cardSizeButton"'), "Le bouton d’agrandissement des fiches Pokémon est absent.");
+check(app.includes('cardSize: "normal"') && app.includes("function cycleCardSize"),
+  "La préférence de taille des fiches n’est pas enregistrée.");
+check(css.includes('[data-card-size="large"]') && css.includes('[data-card-size="xlarge"]'),
+  "Les deux niveaux d’agrandissement des fiches sont absents.");
 check(css.includes("100vw - clamp(64px, 6vw, 220px)"), "La mise en page n’exploite pas les écrans ultralarges.");
 check(css.includes("grid-auto-rows: var(--variant-card-height)"), "Les lignes du sélecteur peuvent encore comprimer les variantes.");
 check(css.includes("min-height: var(--variant-card-height)"), "La hauteur minimale des cartes de variante n’est pas verrouillée.");
@@ -382,7 +387,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v12"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v13"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(
   serviceWorker.includes("shiny-availability.js")
@@ -431,6 +436,23 @@ try {
 
   const cards = dom.window.document.querySelectorAll(".pokemon-card");
   check(cards.length === data.speciesCount, `Le rendu affiche ${cards.length} fiches au lieu d’une par espèce.`);
+  const cardSizeButton = dom.window.document.getElementById("cardSizeButton");
+  const initialSpriteBackgroundSize = dom.window.document.querySelector(".pokemon-card .pokemon-sprite")?.style.backgroundSize;
+  cardSizeButton.click();
+  check(dom.window.document.getElementById("pokemonGrid").dataset.cardSize === "large",
+    "Le bouton n’agrandit pas les fiches au premier clic.");
+  check(dom.window.document.getElementById("cardSizeValue").textContent === "125 %",
+    "Le niveau d’agrandissement courant n’est pas affiché.");
+  check(dom.window.document.querySelector(".pokemon-card .pokemon-sprite")?.style.backgroundSize !== initialSpriteBackgroundSize,
+    "Le sprite pixel n’est pas réellement agrandi avec sa fiche.");
+  check(dom.window.SHINYDEX_APP.getState().preferences.cardSize === "large",
+    "La taille agrandie des fiches n’est pas sauvegardée.");
+  cardSizeButton.click();
+  check(dom.window.document.getElementById("pokemonGrid").dataset.cardSize === "xlarge",
+    "Le deuxième clic n’active pas les très grandes fiches.");
+  cardSizeButton.click();
+  check(dom.window.document.getElementById("pokemonGrid").dataset.cardSize === "normal",
+    "Le troisième clic ne rétablit pas la taille normale.");
   check(dom.window.document.querySelectorAll('.pokemon-card[data-species-id="3"]').length === 1, "Florizarre apparaît sur plusieurs fiches.");
   const victiniCard = dom.window.document.querySelector('.pokemon-card[data-species-id="494"]');
   check(victiniCard?.classList.contains("is-unobtainable"), "Victini n’est pas signalé comme shiny légalement impossible.");
