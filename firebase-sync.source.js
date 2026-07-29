@@ -30,6 +30,7 @@ const bridge = window.SHINYDEX_APP;
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+const EXCEPTION_VALUE = "exception";
 
 const elements = Object.fromEntries([
   "authForm", "authEmail", "authPassword", "authError", "signInButton",
@@ -50,7 +51,7 @@ function tr(key, values) {
 
 function serializableState(state) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     collection: state?.collection && typeof state.collection === "object" ? state.collection : {},
     preferences: state?.preferences && typeof state.preferences === "object" ? state.preferences : {}
   };
@@ -67,10 +68,19 @@ function mergeWithoutLoss(localState, cloudState) {
   const cloud = serializableState(cloudState);
   const collection = { ...cloud.collection };
   for (const [key, localQuantity] of Object.entries(local.collection)) {
-    collection[key] = Math.max(Number(collection[key]) || 0, Number(localQuantity) || 0);
+    const cloudQuantity = collection[key];
+    const numericQuantity = Math.max(
+      cloudQuantity === EXCEPTION_VALUE ? 0 : (Number(cloudQuantity) || 0),
+      localQuantity === EXCEPTION_VALUE ? 0 : (Number(localQuantity) || 0)
+    );
+    collection[key] = numericQuantity > 0
+      ? numericQuantity
+      : (cloudQuantity === EXCEPTION_VALUE || localQuantity === EXCEPTION_VALUE)
+        ? EXCEPTION_VALUE
+        : 0;
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     collection,
     preferences: { ...local.preferences, ...cloud.preferences }
   };

@@ -17,6 +17,38 @@ const ATLAS_COLUMNS = 20;
 const ATLAS_ROWS = 20;
 const ATLAS_CAPACITY = ATLAS_COLUMNS * ATLAS_ROWS;
 const ATLAS_SIZE = CELL_SIZE * ATLAS_COLUMNS;
+const EXCEPTIONAL_FUSION_FORMS = new Map([
+  [646, new Set(["black", "white"])],
+  [800, new Set(["dusk", "dawn"])],
+  [898, new Set(["ice", "shadow"])]
+]);
+const EXCEPTIONAL_ITEM_FORMS = new Map([
+  [483, new Set(["origin"])],
+  [484, new Set(["origin"])],
+  [487, new Set(["origin"])],
+  [493, new Set([
+    "bug", "dark", "dragon", "electric", "fairy", "fighting", "fire", "flying",
+    "ghost", "grass", "ground", "ice", "poison", "psychic", "rock", "steel",
+    "unknown", "water"
+  ])],
+  [649, new Set(["burn", "chill", "douse", "shock"])],
+  [773, new Set([
+    "bug", "dark", "dragon", "electric", "fairy", "fighting", "fire", "flying",
+    "ghost", "grass", "ground", "ice", "poison", "psychic", "rock", "steel",
+    "water"
+  ])],
+  [888, new Set(["crowned"])],
+  [889, new Set(["crowned"])],
+  [1017, new Set(["wellspring-mask", "hearthflame-mask", "cornerstone-mask"])]
+]);
+const EXCEPTIONAL_TEMPORARY_FORMS = new Map([
+  [492, new Set(["sky"])],
+  [676, new Set([
+    "heart", "star", "diamond", "debutante", "matron", "dandy", "la-reine",
+    "kabuki", "pharaoh"
+  ])],
+  [720, new Set(["unbound"])]
+]);
 
 const CSV_FILES = [
   "pokemon.csv",
@@ -176,6 +208,18 @@ function speciesGender(species) {
   return "mixed";
 }
 
+function exceptionalReason(species, form) {
+  const identifier = String(form.form_identifier || "").toLowerCase();
+  const tokens = identifier.split("-");
+  if (form.is_mega === "1") return "mega";
+  if (tokens.includes("gmax")) return "gigamax";
+  if (EXCEPTIONAL_FUSION_FORMS.get(species.id)?.has(identifier)) return "fusion";
+  if (EXCEPTIONAL_ITEM_FORMS.get(species.id)?.has(identifier)) return "item";
+  if (EXCEPTIONAL_TEMPORARY_FORMS.get(species.id)?.has(identifier)) return "temporary";
+  if (form.is_battle_only === "1") return "battle";
+  return "";
+}
+
 function localizedValues(map, id, fallback = "") {
   const en = map.get(`${id}:${LANGUAGES.en}`) || fallback;
   return Object.fromEntries(
@@ -314,9 +358,9 @@ for (const row of tables["pokemon_types.csv"]) {
 }
 
 const eligibleForms = tables["pokemon_forms.csv"]
-  // Les transformations temporaires non-Méga et non-Gigamax ont une apparence
-  // shiny propre : Meloetta Danse, formes couronnées, météo, téracristal, etc.
-  .filter(form => form.is_mega === "0" && !String(form.form_identifier).split("-").includes("gmax"))
+  // Toutes les formes disposant de deux sprites locaux sont candidates, y
+  // compris les Méga-Évolutions et Gigamax. Leur nature temporaire est
+  // conservée dans les données afin que l’interface les propose en exception.
   .filter(form => speciesById.has(Number(pokemonById.get(Number(form.pokemon_id))?.species_id)))
   .sort((a, b) => {
     const pokemonA = pokemonById.get(Number(a.pokemon_id));
@@ -364,6 +408,8 @@ for (const form of eligibleForms) {
       formId: Number(form.id),
       formOrder: Number(form.order),
       isDefault: form.is_default === "1",
+      exceptional: Boolean(exceptionalReason(species, form)),
+      exceptionReason: exceptionalReason(species, form),
       formNames,
       types,
       normalUrls: spriteUrls(form, species, gender, false),
@@ -450,6 +496,8 @@ const entries = appearances.map(entry => {
     genderAvailability: entry.genderAvailability,
     formId: entry.formId,
     isDefault: entry.isDefault,
+    exceptional: entry.exceptional,
+    exceptionReason: entry.exceptionReason,
     formNames: entry.formNames,
     label: entry.formNames.fr,
     types: entry.types,

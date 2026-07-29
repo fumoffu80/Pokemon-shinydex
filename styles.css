@@ -594,6 +594,45 @@ main {
   line-height: 1.55;
 }
 
+.exception-guide {
+  display: flex;
+  align-items: flex-start;
+  margin: 0 26px 20px;
+  padding: 13px 15px;
+  gap: 12px;
+  color: var(--muted-strong);
+  border: 1px solid rgba(99, 179, 237, 0.26);
+  border-radius: 13px;
+  background:
+    linear-gradient(120deg, rgba(99, 179, 237, 0.1), rgba(182, 156, 246, 0.06)),
+    rgba(15, 25, 43, 0.42);
+}
+
+.exception-guide__icon {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  color: #d2c4ff;
+  border: 1px solid rgba(182, 156, 246, 0.3);
+  border-radius: 11px;
+  background: rgba(182, 156, 246, 0.13);
+  place-items: center;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.exception-guide strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.exception-guide p {
+  margin: 3px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
 .filters {
   position: sticky;
   z-index: 50;
@@ -741,6 +780,22 @@ kbd {
 .pokemon-card.is-complete {
   border-color: rgba(255, 218, 110, 0.82);
   box-shadow: 0 10px 30px rgba(216, 156, 37, 0.2), inset 0 0 24px rgba(245, 201, 93, 0.05);
+}
+
+.pokemon-card.is-current-exception {
+  border-color: rgba(182, 156, 246, 0.74);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(182, 156, 246, 0.16), transparent 52%),
+    linear-gradient(155deg, #30364a, #222d43);
+}
+
+.pokemon-card.is-current-exception .pokemon-card__check {
+  color: #f2edff;
+  background: linear-gradient(135deg, #9f86e8, #6c5bb6);
+}
+
+.pokemon-card.has-exceptional-form:not(.is-current-owned) .pokemon-card__form {
+  color: #b9a9e8;
 }
 
 .pokemon-card.has-owned::after {
@@ -989,6 +1044,12 @@ kbd {
   font-size: 0.78rem;
 }
 
+.quantity input.is-exception {
+  color: #d9ceff;
+  font-size: 0.62rem;
+  letter-spacing: 0.015em;
+}
+
 .quantity input::-webkit-inner-spin-button,
 .quantity input::-webkit-outer-spin-button {
   margin: 0;
@@ -1137,6 +1198,22 @@ footer p {
     linear-gradient(155deg, #3a3340, #202c42);
 }
 
+.variant-option.is-exception {
+  border-color: rgba(182, 156, 246, 0.7);
+  background:
+    radial-gradient(circle at 50% 28%, rgba(182, 156, 246, 0.18), transparent 52%),
+    linear-gradient(155deg, #30344b, #202c42);
+}
+
+.variant-option.is-exception .variant-option__check {
+  color: #f4f0ff;
+  background: linear-gradient(135deg, #a88fee, #725fc0);
+}
+
+.variant-option.is-exceptional-form:not(.is-owned) {
+  border-color: rgba(182, 156, 246, 0.32);
+}
+
 .variant-option.is-current {
   box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.42);
 }
@@ -1221,6 +1298,11 @@ footer p {
 
 .variant-option.is-owned .variant-option__status {
   color: var(--gold);
+}
+
+.variant-option.is-exception .variant-option__status,
+.variant-option.is-exceptional-form:not(.is-owned) .variant-option__status {
+  color: #c3b3f1;
 }
 
 .variant-option__types {
@@ -1714,6 +1796,11 @@ input[role="switch"]:checked::after {
   .collection-instruction {
     padding: 0 16px 14px;
     font-size: 0.76rem;
+  }
+
+  .exception-guide {
+    margin: 0 16px 16px;
+    padding: 12px;
   }
 
   .filters {

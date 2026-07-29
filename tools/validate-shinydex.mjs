@@ -20,6 +20,7 @@ const [
   i18nSource,
   genderDifferencesSource,
   app,
+  firebaseSource,
   firebaseBundle,
   dataSource,
   serviceWorker,
@@ -31,6 +32,7 @@ const [
   readFile(resolve(root, "i18n.js"), "utf8"),
   readFile(resolve(root, "gender-differences.js"), "utf8"),
   readFile(resolve(root, "app.js"), "utf8"),
+  readFile(resolve(root, "firebase-sync.source.js"), "utf8"),
   readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
   readFile(resolve(root, "sw.js"), "utf8"),
@@ -87,7 +89,9 @@ check(data?.normalSheets?.length === data?.shinySheets?.length, "Les planches no
 check(data?.normalSheets?.length > 0, "Aucune planche de sprites.");
 check(languages.every(language => data?.languages?.includes(language)), "Les six langues de données ne sont pas disponibles.");
 
-const florizarre = data?.entries?.filter(entry => entry.speciesId === 3) || [];
+const florizarre = data?.entries?.filter(entry => entry.speciesId === 3 && !entry.exceptional) || [];
+const megaEntries = data?.entries?.filter(entry => entry.exceptionReason === "mega") || [];
+const gigamaxEntries = data?.entries?.filter(entry => entry.exceptionReason === "gigamax") || [];
 const visualCount = speciesId => new Set(
   data?.entries?.filter(entry => entry.speciesId === speciesId).map(entry => `${entry.sheet}:${entry.slot}`)
 ).size;
@@ -95,12 +99,25 @@ check(florizarre.length === 2, "Florizarre doit proposer exactement un mâle et 
 check(new Set(florizarre.map(entry => entry.gender)).size === 2, "Les deux sexes de Florizarre sont incomplets.");
 check(visualCount(1) === 1, "Bulbizarre ne doit avoir qu’une apparence malgré ses deux sexes.");
 check(visualCount(2) === 1, "Herbizarre ne doit avoir qu’une apparence malgré ses deux sexes.");
-check(visualCount(3) === 2, "Florizarre doit avoir deux apparences mâle/femelle.");
+check(visualCount(3) >= 5, "Florizarre doit réunir ses sexes, sa Méga-Évolution et sa forme Gigamax.");
 check(visualCount(19) === 3, "Rattata doit avoir trois apparences : deux de Kanto et une d’Alola.");
 check(visualCount(58) === 2, "Caninos doit avoir deux apparences régionales, pas quatre variantes de sexe.");
 check(visualCount(648) === 2, "Les formes Chant et Danse de Meloetta doivent être présentes.");
 check(visualCount(888) === 2, "Les formes Héros Aguerri et Épée Suprême de Zacian doivent être présentes.");
 check(visualCount(889) === 2, "Les formes Héros Aguerri et Bouclier Suprême de Zamazenta doivent être présentes.");
+check(megaEntries.length >= 150, "Les Méga-Évolutions disponibles ne sont pas toutes intégrées.");
+check(new Set(megaEntries.map(entry => entry.speciesId)).size >= 75, "Trop peu d’espèces avec Méga-Évolution sont présentes.");
+check(gigamaxEntries.length >= 60, "Les formes Gigamax disponibles ne sont pas toutes intégrées.");
+check(new Set(gigamaxEntries.map(entry => entry.speciesId)).size >= 30, "Trop peu d’espèces Gigamax sont présentes.");
+check(megaEntries.every(entry => entry.exceptional), "Une Méga-Évolution n’est pas classée en exception.");
+check(gigamaxEntries.every(entry => entry.exceptional), "Une forme Gigamax n’est pas classée en exception.");
+check(data?.entries?.filter(entry => entry.speciesId === 646 && entry.formNames.fr.includes("Kyurem ")).every(
+  entry => entry.exceptionReason === "fusion"
+), "Les fusions de Kyurem ne sont pas classées en exception.");
+check(data?.entries?.find(entry => entry.speciesId === 648 && entry.formNames.fr === "Forme Danse")?.exceptional,
+  "La Forme Danse de Meloetta doit être une exception.");
+check(data?.entries?.find(entry => entry.speciesId === 888 && entry.formNames.fr === "Épée Suprême")?.exceptional,
+  "La forme couronnée de Zacian doit être une exception.");
 check(data?.entries?.filter(entry => entry.speciesId === 29).every(entry => entry.gender === "female"), "Nidoran♀ ne doit pas proposer de mâle.");
 check(data?.entries?.filter(entry => entry.speciesId === 32).every(entry => entry.gender === "male"), "Nidoran♂ ne doit pas proposer de femelle.");
 check(data?.entries?.filter(entry => entry.speciesId === 81).every(entry => entry.gender === "genderless"), "Magnéti doit rester asexué.");
@@ -112,6 +129,9 @@ check(data?.entries?.every(entry =>
   && languages.every(language => entry.names?.[language])
   && languages.every(language => typeof entry.formNames?.[language] === "string")
   && ["male", "female", "genderless"].includes(entry.gender)
+  && typeof entry.exceptional === "boolean"
+  && typeof entry.exceptionReason === "string"
+  && (!entry.exceptional || ["mega", "gigamax", "fusion", "item", "temporary", "battle"].includes(entry.exceptionReason))
   && Number.isInteger(entry.visualVariantCount)
   && Number.isInteger(entry.sheet)
 ), "Une variante Pokémon est invalide ou mal traduite.");
@@ -171,6 +191,7 @@ check(html.includes("manifest.webmanifest"), "Le manifeste PWA n’est pas reli�
 check(!/compact|densityButton|is-compact/i.test(`${html}\n${app}\n${css}`), "Le mode compact n’a pas été entièrement supprimé.");
 check(!html.toLowerCase().includes("cliquer pour marquer"), "La consigne répétée est encore présente dans les fiches.");
 check(html.includes('data-i18n="instruction"'), "La consigne générale au-dessus du Pokédex est absente.");
+check(html.includes('data-i18n="exceptionGuideText"'), "L’explication du palier Exception est absente.");
 check(css.includes("content-visibility: auto"), "Le rendu différé des cartes n’est pas activé.");
 check(css.includes("--type-color"), "Les couleurs propres aux types sont absentes.");
 check(/\.language-control select option\s*\{[^}]*background:\s*var\(--surface-raised\)/s.test(css), "Le menu des langues n’utilise pas les couleurs sombres du site.");
@@ -178,6 +199,9 @@ check(css.includes("minmax(min(100%, 174px), 1fr)"), "La grille Pokémon n’est
 check(css.includes("100vw - clamp(64px, 6vw, 220px)"), "La mise en page n’exploite pas les écrans ultralarges.");
 check(html.includes('class="stat-spark"'), "L’icône du total de shiny n’a pas été remplacée.");
 check(app.includes("HOVER_DELAY = 2000"), "L’ouverture après deux secondes de survol n’est pas configurée.");
+check(app.includes("DIALOG_EXIT_DELAY = 2000"), "La fermeture après deux secondes hors du sélecteur n’est pas configurée.");
+check(app.includes('EXCEPTION_VALUE = "exception"'), "Le palier Exception n’est pas enregistré.");
+check(app.includes("(ownedSpecies / DATA.speciesCount) * 100"), "La complétion n’est pas calculée sur les espèces.");
 check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
 check(app.includes("% group.visuals.length"), "Le carrousel n’est pas limité aux apparences visuellement différentes.");
 check(app.includes("minimumFractionDigits: 2"), "Les faibles pourcentages de complétion sont encore arrondis à zéro.");
@@ -190,8 +214,11 @@ check(manifest?.icons?.some(icon => icon.src === "assets/shiny-pokeball-192.png"
 check(manifest?.icons?.some(icon => icon.src === "assets/shiny-pokeball-512.png"), "L’icône Poké Ball 512 px est absente du manifeste.");
 check(firebaseBundle.includes("pokemon-shinydex"), "La configuration Firebase attendue est absente.");
 check(firebaseBundle.includes("users") && firebaseBundle.includes("shinydex"), "Le document Firebase Shinydex est absent.");
+check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource.includes("schemaVersion: 2"),
+  "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
+check(serviceWorker.includes("pokemon-shinydex-v5"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
 
@@ -237,7 +264,7 @@ try {
   };
   check(badgeCount(1) === 0, "Bulbizarre affiche un badge alors que ses sexes ont le même sprite.");
   check(badgeCount(2) === 0, "Herbizarre affiche un badge alors que ses sexes ont le même sprite.");
-  check(badgeCount(3) === 2, "Le badge de Florizarre doit indiquer 2.");
+  check(badgeCount(3) >= 5, "Le badge de Florizarre doit inclure ses apparences Méga et Gigamax.");
   check(badgeCount(19) === 3, "Le badge de Rattata doit indiquer 3.");
   check(badgeCount(58) === 2, "Le badge de Caninos doit indiquer 2.");
   check(cardFor(1)?.querySelector(".pokemon-card__form")?.textContent === "♂ Mâle / ♀ Femelle", "Bulbizarre doit afficher les deux symboles sexuels sans alterner.");
@@ -258,7 +285,8 @@ try {
   const florizarreCard = dom.window.document.querySelector('.pokemon-card[data-species-id="3"]');
   florizarreCard.querySelector(".pokemon-card__toggle").click();
   check(dom.window.document.getElementById("variantDialog").hasAttribute("open"), "Un clic sur une espèce à variantes n’ouvre pas le sélecteur.");
-  check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length === 2, "Le sélecteur de Florizarre ne propose pas les deux sexes.");
+  check(dom.window.document.querySelectorAll("#variantGrid .variant-option").length >= 6,
+    "Le sélecteur de Florizarre ne propose pas ses sexes, sa Méga-Évolution et sa forme Gigamax.");
   check(!dom.window.document.getElementById("genderDifferenceNote").hidden, "L’explication du dimorphisme de Florizarre est absente.");
   check(dom.window.document.getElementById("genderDifferenceText").textContent.includes("fleur"), "La différence mâle/femelle de Florizarre n’est pas expliquée.");
 
@@ -271,11 +299,49 @@ try {
   check(beforeSprite !== afterSprite && afterSprite.includes("sprites-shiny"), "Le sprite normal n’est pas remplacé par le shiny.");
   check(refreshedVariant.querySelector(".quantity__input").value === "1", "Le compteur shiny ne démarre pas à 1.");
   check(dom.window.document.getElementById("progressPercent").textContent !== "0 %", "Un premier shiny affiche encore 0 %.");
+  const oneSpeciesPercentage = dom.window.document.getElementById("progressPercent").textContent;
+  check(dom.window.document.getElementById("speciesCount").textContent === "1", "La première apparence ne représente pas son espèce.");
+  check(dom.window.document.getElementById("copyCount").textContent === "1", "Le premier exemplaire n’est pas compté dans le total.");
   check(dom.window.localStorage.getItem("pokemonShinydex:v1"), "Le clic n’est pas sauvegardé dans localStorage.");
   check(typeof dom.window.SHINYDEX_APP?.getState === "function", "Le pont Firebase n’est pas exposé.");
   check(dom.window.SHINYDEX_APP.getState().collection[florizarre[0].key] === 1, "Le pont Firebase ne lit pas la nouvelle collection.");
 
-  dom.window.document.getElementById("variantDialog").close();
+  const exceptionalVariant = dom.window.document.querySelector("#variantGrid .variant-option.is-exceptional-form");
+  const exceptionalKey = exceptionalVariant?.dataset.key;
+  exceptionalVariant?.querySelector(".variant-option__toggle").click();
+  let refreshedExceptional = dom.window.document.querySelector(`#variantGrid .variant-option[data-key="${exceptionalKey}"]`);
+  check(refreshedExceptional?.classList.contains("is-exception"), "Une forme temporaire ne démarre pas au palier Exception.");
+  check(refreshedExceptional?.querySelector(".quantity__input").value === "Exception", "Le compteur n’affiche pas le palier Exception.");
+  check(dom.window.SHINYDEX_APP.getState().collection[exceptionalKey] === "exception", "Firebase ne reçoit pas la valeur Exception.");
+  check(dom.window.document.getElementById("ownedCount").textContent === "2", "Une exception ne compte pas comme apparence.");
+  check(dom.window.document.getElementById("copyCount").textContent === "1", "Une exception augmente à tort le total de shiny.");
+  check(dom.window.document.getElementById("speciesCount").textContent === "1", "Deux apparences d’une espèce comptent plusieurs espèces.");
+  check(dom.window.document.getElementById("progressPercent").textContent === oneSpeciesPercentage,
+    "La complétion varie encore selon le nombre d’apparences d’une même espèce.");
+
+  refreshedExceptional.querySelector(".quantity__plus").click();
+  refreshedExceptional = dom.window.document.querySelector(`#variantGrid .variant-option[data-key="${exceptionalKey}"]`);
+  check(refreshedExceptional?.querySelector(".quantity__input").value === "1", "Exception + ne passe pas à la quantité 1.");
+  check(dom.window.document.getElementById("copyCount").textContent === "2", "Le passage d’Exception à 1 n’augmente pas le total.");
+  refreshedExceptional.querySelector(".quantity__minus").click();
+  refreshedExceptional = dom.window.document.querySelector(`#variantGrid .variant-option[data-key="${exceptionalKey}"]`);
+  check(refreshedExceptional?.querySelector(".quantity__input").value === "Exception", "1 − ne revient pas au palier Exception.");
+  check(dom.window.document.getElementById("copyCount").textContent === "1", "Le retour à Exception ne retire pas l’exemplaire du total.");
+  refreshedExceptional.querySelector(".quantity__minus").click();
+  check(dom.window.document.getElementById("removeDialog").hasAttribute("open"),
+    "Exception − n’ouvre pas la confirmation « Retirer ce shiny ? ».");
+  dom.window.document.getElementById("confirmRemoveButton").dispatchEvent(
+    new dom.window.Event("click", { bubbles: true })
+  );
+  check(!dom.window.SHINYDEX_APP.getState().collection[exceptionalKey], "La confirmation ne retire pas l’exception.");
+  dom.window.document.getElementById("removeDialog").close("confirm");
+
+  const variantPanel = dom.window.document.querySelector(".variant-panel");
+  variantPanel.dispatchEvent(new dom.window.Event("pointerleave"));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 2050));
+  check(!dom.window.document.getElementById("variantDialog").hasAttribute("open"),
+    "Le sélecteur ne se ferme pas après deux secondes passées à l’extérieur.");
+
   const search = dom.window.document.getElementById("searchInput");
   search.value = "Zarbi";
   search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));

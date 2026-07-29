@@ -11,9 +11,11 @@
 
   const STORAGE_KEY = "pokemonShinydex:v1";
   const LEGACY_KEYS = ["pokemonShinydex", "shinydex"];
+  const EXCEPTION_VALUE = "exception";
   const MAX_QUANTITY = 999;
   const ROTATION_DELAY = 2600;
   const HOVER_DELAY = 2000;
+  const DIALOG_EXIT_DELAY = 2000;
   const SPINDA_ID = 327;
   const TYPE_COLORS = {
     normal: "#A8A77A",
@@ -87,6 +89,7 @@
   let state = loadState();
   let pendingRemovalKey = null;
   let activeDialogSpecies = null;
+  let variantExitTimer;
   let toastTimer;
   let renderFrame;
   let lastCloudDescriptor = { status: "local" };
@@ -97,7 +100,7 @@
 
   function defaultState() {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       collection: {},
       preferences: {
         language: preferredLanguage(),
@@ -111,6 +114,10 @@
     const sanitized = {};
     if (!collection || typeof collection !== "object") return sanitized;
     for (const [key, rawQuantity] of Object.entries(collection)) {
+      if (validKeys.has(key) && rawQuantity === EXCEPTION_VALUE) {
+        sanitized[key] = EXCEPTION_VALUE;
+        continue;
+      }
       const quantity = Math.min(MAX_QUANTITY, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
       if (validKeys.has(key) && quantity > 0) sanitized[key] = quantity;
     }
@@ -197,6 +204,18 @@
     return `${localizedName(entry)} — ${label}`;
   }
 
+  function exceptionReasonText(entry) {
+    const suffix = {
+      mega: "Mega",
+      gigamax: "Gigamax",
+      fusion: "Fusion",
+      item: "Item",
+      temporary: "Temporary",
+      battle: "Battle"
+    }[entry.exceptionReason] || "Temporary";
+    return t(`exceptionReason${suffix}`);
+  }
+
   function normalize(value) {
     return String(value ?? "")
       .normalize("NFD")
@@ -207,12 +226,31 @@
       .trim();
   }
 
+  function collectionValueFor(key) {
+    const value = state.collection[key];
+    if (value === EXCEPTION_VALUE) return EXCEPTION_VALUE;
+    return Number(value) || 0;
+  }
+
   function quantityFor(key) {
-    return Number(state.collection[key]) || 0;
+    const value = collectionValueFor(key);
+    return value === EXCEPTION_VALUE ? 0 : value;
+  }
+
+  function isException(key) {
+    return collectionValueFor(key) === EXCEPTION_VALUE;
   }
 
   function isOwned(key) {
-    return quantityFor(key) > 0;
+    return collectionValueFor(key) === EXCEPTION_VALUE || quantityFor(key) > 0;
+  }
+
+  function displayedQuantity(key) {
+    return isException(key) ? t("exception") : String(quantityFor(key) || 1);
+  }
+
+  function defaultOwnedValue(key) {
+    return entryByKey.get(key)?.exceptional ? EXCEPTION_VALUE : 1;
   }
 
   function ownedInGroup(group) {
@@ -233,6 +271,19 @@
     if (!dialog) return;
     if (typeof dialog.close === "function") dialog.close();
     else dialog.removeAttribute("open");
+  }
+
+  function cancelVariantExitClose() {
+    clearTimeout(variantExitTimer);
+    variantExitTimer = null;
+  }
+
+  function scheduleVariantExitClose() {
+    if (variantExitTimer) return;
+    if (!elements.variantDialog?.hasAttribute("open")) return;
+    variantExitTimer = setTimeout(() => {
+      if (elements.variantDialog.hasAttribute("open")) closeDialog(elements.variantDialog);
+    }, DIALOG_EXIT_DELAY);
   }
 
   function populateLanguageOptions() {
@@ -362,6 +413,10 @@
     return visual.entries.some(entry => isOwned(entry.key));
   }
 
+  function exceptionInVisual(visual) {
+    return visual.entries.some(entry => isException(entry.key));
+  }
+
   function visualVariantLabel(visual) {
     const entry = visual.entry;
     const form = localizedForm(entry);
@@ -392,6 +447,7 @@
     const entry = visual.entry;
     const ownedCount = ownedInGroup(group);
     const currentOwned = ownedInVisual(visual);
+    const currentException = exceptionInVisual(visual);
     const complete = ownedCount === group.entries.length;
     const multiple = group.entries.length > 1;
     const multipleVisuals = group.visuals.length > 1;
@@ -406,6 +462,8 @@
     card.classList.toggle("has-owned", ownedCount > 0);
     card.classList.toggle("is-complete", complete);
     card.classList.toggle("is-current-owned", currentOwned);
+    card.classList.toggle("is-current-exception", currentException);
+    card.classList.toggle("has-exceptional-form", Boolean(entry.exceptional));
     toggle.setAttribute("aria-pressed", String(multiple ? complete : currentOwned));
     toggle.setAttribute(
       "aria-label",
@@ -431,7 +489,8 @@
     badge.setAttribute("title", t("variantBadge", { count: group.visuals.length }));
     badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.visuals.length })}`);
 
-    quantityInput.value = String(quantityFor(entry.key) || 1);
+    quantityInput.value = displayedQuantity(entry.key);
+    quantityInput.classList.toggle("is-exception", isException(entry.key));
     quantityInput.setAttribute("aria-label", `${t("quantity")} · ${fullVariantName(entry)}`);
     spriteStyle(card.querySelector(".pokemon-sprite"), entry, currentOwned);
     card.querySelector(".pokemon-sprite").setAttribute(
@@ -455,7 +514,7 @@
         clearTimeout(hoverTimer);
         hoverTimer = setTimeout(() => {
           if (card.isConnected && card.dataset.hovering === "true") {
-            openVariantDialog(group.speciesId, currentEntry(group).key);
+            openVariantDialog(group.speciesId, currentEntry(group).key, { autoCloseOutside: true });
           }
         }, HOVER_DELAY);
       });
@@ -584,8 +643,11 @@
   function updateStats() {
     const ownedEntries = DATA.entries.filter(entry => isOwned(entry.key));
     const ownedSpecies = new Set(ownedEntries.map(entry => entry.speciesId)).size;
-    const totalCopies = Object.values(state.collection).reduce((sum, value) => sum + (Number(value) || 0), 0);
-    const percentage = DATA.appearanceCount ? (ownedEntries.length / DATA.appearanceCount) * 100 : 0;
+    const totalCopies = Object.values(state.collection).reduce(
+      (sum, value) => sum + (value === EXCEPTION_VALUE ? 0 : (Number(value) || 0)),
+      0
+    );
+    const percentage = DATA.speciesCount ? (ownedSpecies / DATA.speciesCount) * 100 : 0;
     const rounded = percentage === 0
       ? "0"
       : percentage < 0.1
@@ -625,9 +687,11 @@
   }
 
   function setQuantity(key, rawQuantity, { sparkle = false } = {}) {
-    const previous = quantityFor(key);
-    const quantity = Math.min(MAX_QUANTITY, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
-    if (quantity > 0) state.collection[key] = quantity;
+    const previousOwned = isOwned(key);
+    const quantity = rawQuantity === EXCEPTION_VALUE
+      ? EXCEPTION_VALUE
+      : Math.min(MAX_QUANTITY, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
+    if (quantity === EXCEPTION_VALUE || quantity > 0) state.collection[key] = quantity;
     else delete state.collection[key];
     saveState();
     updateStats();
@@ -648,16 +712,56 @@
       renderVariantDialog(group, key);
     }
 
-    if (sparkle && previous === 0 && quantity > 0 && state.preferences.animations) {
+    if (sparkle && !previousOwned && isOwned(key) && state.preferences.animations) {
       const card = group ? cardNodes.get(group.speciesId) : null;
       if (card) createSparkles(card);
     }
   }
 
-  function requestRemoval(key) {
+  function incrementEntry(key) {
+    if (isException(key)) {
+      setQuantity(key, 1);
+      return;
+    }
+    const quantity = quantityFor(key);
+    setQuantity(key, quantity > 0 ? quantity + 1 : defaultOwnedValue(key), {
+      sparkle: quantity === 0
+    });
+  }
+
+  function decrementEntry(key) {
+    if (isException(key)) {
+      requestRemoval(key, { forceConfirm: true });
+      return;
+    }
+    const quantity = quantityFor(key);
+    if (quantity <= 0) {
+      requestRemoval(key);
+    } else if (quantity === 1) {
+      setQuantity(key, EXCEPTION_VALUE);
+    } else {
+      setQuantity(key, quantity - 1);
+    }
+  }
+
+  function applyQuantityInput(key, rawValue) {
+    const value = String(rawValue || "").trim();
+    if (normalize(value) === normalize(t("exception")) || value.toLowerCase() === EXCEPTION_VALUE) {
+      setQuantity(key, EXCEPTION_VALUE);
+      return;
+    }
+    const quantity = Number.parseInt(value, 10);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      requestRemoval(key, { forceConfirm: true });
+      return;
+    }
+    setQuantity(key, quantity);
+  }
+
+  function requestRemoval(key, { forceConfirm = false } = {}) {
     const entry = entryByKey.get(key);
     if (!entry) return;
-    if (!state.preferences.confirmRemove) {
+    if (!forceConfirm && !state.preferences.confirmRemove) {
       setQuantity(key, 0);
       return;
     }
@@ -668,7 +772,7 @@
 
   function toggleEntry(key) {
     if (isOwned(key)) requestRemoval(key);
-    else setQuantity(key, 1, { sparkle: true });
+    else setQuantity(key, defaultOwnedValue(key), { sparkle: true });
   }
 
   function createSparkles(card) {
@@ -714,7 +818,7 @@
 
   function publicState() {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       collection: { ...state.collection },
       preferences: { ...state.preferences }
     };
@@ -793,7 +897,7 @@
   function exportCollection() {
     const payload = {
       format: "pokemon-shinydex",
-      schemaVersion: 1,
+      schemaVersion: 2,
       exportedAt: new Date().toISOString(),
       dataGeneratedAt: DATA.generatedAt,
       collection: state.collection,
@@ -843,8 +947,12 @@
       const card = item.querySelector(".variant-option");
       const toggle = item.querySelector(".variant-option__toggle");
       const owned = isOwned(entry.key);
+      const exception = isException(entry.key);
       card.dataset.key = entry.key;
       card.classList.toggle("is-owned", owned);
+      card.classList.toggle("is-exception", exception);
+      card.classList.toggle("is-exceptional-form", Boolean(entry.exceptional));
+      if (entry.exceptional) card.title = exceptionReasonText(entry);
       if (entry.key === preferredKey) card.classList.add("is-current");
       toggle.setAttribute("aria-pressed", String(owned));
       toggle.setAttribute(
@@ -855,10 +963,17 @@
       item.querySelector(".variant-option__form").textContent =
         localizedForm(entry) || t("defaultForm");
       item.querySelector(".variant-option__gender").textContent = genderText(entry);
-      item.querySelector(".variant-option__status").textContent = t(owned ? "owned" : "missing");
+      item.querySelector(".variant-option__status").textContent = exception
+        ? t("exception")
+        : owned
+          ? t("owned")
+          : entry.exceptional
+            ? t("exceptionSuggested", { reason: exceptionReasonText(entry) })
+            : t("missing");
       renderTypes(item.querySelector(".variant-option__types"), entry.types);
       const input = item.querySelector(".quantity__input");
-      input.value = String(quantityFor(entry.key) || 1);
+      input.value = displayedQuantity(entry.key);
+      input.classList.toggle("is-exception", exception);
       input.setAttribute("aria-label", `${t("quantity")} · ${fullVariantName(entry)}`);
       fragment.append(item);
     }
@@ -875,12 +990,13 @@
     }
   }
 
-  function openVariantDialog(speciesId, preferredKey = "") {
+  function openVariantDialog(speciesId, preferredKey = "", { autoCloseOutside = false } = {}) {
     const group = groupsBySpecies.get(speciesId);
     if (!group || group.entries.length < 2) return;
     if (activeDialogSpecies !== speciesId) elements.variantGrid.scrollTop = 0;
     renderVariantDialog(group, preferredKey);
     showDialog(elements.variantDialog);
+    if (autoCloseOutside) scheduleVariantExitClose();
   }
 
   function applyLanguage() {
@@ -949,23 +1065,23 @@
     const group = groupsBySpecies.get(speciesId);
     const entry = currentEntry(group);
     if (event.target.closest(".variant-badge")) {
-      openVariantDialog(speciesId, entry.key);
+      openVariantDialog(speciesId, entry.key, { autoCloseOutside: event.detail > 0 });
     } else if (event.target.closest(".pokemon-card__toggle")) {
-      if (group.entries.length > 1) openVariantDialog(speciesId, entry.key);
+      if (group.entries.length > 1) {
+        openVariantDialog(speciesId, entry.key, { autoCloseOutside: event.detail > 0 });
+      }
       else toggleEntry(entry.key);
     } else if (event.target.closest(".quantity__plus")) {
-      setQuantity(entry.key, quantityFor(entry.key) + 1);
+      incrementEntry(entry.key);
     } else if (event.target.closest(".quantity__minus")) {
-      const quantity = quantityFor(entry.key);
-      if (quantity <= 1) requestRemoval(entry.key);
-      else setQuantity(entry.key, quantity - 1);
+      decrementEntry(entry.key);
     }
   });
 
   elements.pokemonGrid.addEventListener("change", event => {
     if (!event.target.matches(".quantity__input")) return;
     const key = event.target.closest(".pokemon-card")?.dataset.key;
-    if (key) setQuantity(key, event.target.value || 1);
+    if (key) applyQuantityInput(key, event.target.value);
   });
 
   elements.variantGrid.addEventListener("click", event => {
@@ -975,18 +1091,16 @@
     if (event.target.closest(".variant-option__toggle")) {
       toggleEntry(key);
     } else if (event.target.closest(".quantity__plus")) {
-      setQuantity(key, quantityFor(key) + 1);
+      incrementEntry(key);
     } else if (event.target.closest(".quantity__minus")) {
-      const quantity = quantityFor(key);
-      if (quantity <= 1) requestRemoval(key);
-      else setQuantity(key, quantity - 1);
+      decrementEntry(key);
     }
   });
 
   elements.variantGrid.addEventListener("change", event => {
     if (!event.target.matches(".quantity__input")) return;
     const key = event.target.closest(".variant-option")?.dataset.key;
-    if (key) setQuantity(key, event.target.value || 1);
+    if (key) applyQuantityInput(key, event.target.value);
   });
 
   elements.searchInput.addEventListener("input", scheduleRender);
@@ -1011,7 +1125,19 @@
   elements.closeAuthButton.addEventListener("click", () => closeDialog(elements.authDialog));
   elements.closeVariantButton.addEventListener("click", () => closeDialog(elements.variantDialog));
   elements.variantDialog.addEventListener("close", () => {
+    cancelVariantExitClose();
     activeDialogSpecies = null;
+  });
+  const variantPanel = elements.variantDialog.querySelector(".variant-panel");
+  variantPanel.addEventListener("pointerenter", event => {
+    if (event.pointerType !== "touch") cancelVariantExitClose();
+  });
+  variantPanel.addEventListener("pointerleave", event => {
+    if (event.pointerType !== "touch") scheduleVariantExitClose();
+  });
+  elements.variantDialog.addEventListener("pointermove", event => {
+    if (event.pointerType === "touch") return;
+    if (event.target === elements.variantDialog) scheduleVariantExitClose();
   });
   elements.animationSetting.addEventListener("change", () => {
     state.preferences.animations = elements.animationSetting.checked;

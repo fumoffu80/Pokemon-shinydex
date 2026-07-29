@@ -113,6 +113,13 @@
       <p class="collection-instruction" data-i18n="instruction">
         Cliquez sur une fiche simple pour la marquer. Pour une espèce avec variantes, cliquez sur la fiche ou laissez-la survolée 2 secondes afin de choisir la forme et le sexe.
       </p>
+      <aside class="exception-guide">
+        <span class="exception-guide__icon" aria-hidden="true">◇</span>
+        <div>
+          <strong data-i18n="exceptionGuideTitle">Le palier Exception</strong>
+          <p data-i18n="exceptionGuideText">Pour une forme non permanente — Méga, Gigamax, transformation de combat, fusion ou forme liée à un objet — utilisez le palier 0 (retirer) ↔ Exception ↔ 1 ↔ 2. Une exception compte comme apparence et représente l’espèce, mais ajoute 0 au total de shiny.</p>
+        </div>
+      </aside>
 
       <div class="filters" role="search">
         <label class="search-field" for="searchInput">
@@ -183,7 +190,7 @@
         <button class="quantity__minus" type="button" data-i18n-aria="removeCopy">−</button>
         <label>
           <span class="sr-only" data-i18n="quantity">Quantité</span>
-          <input class="quantity__input" type="number" min="1" max="999" inputmode="numeric">
+          <input class="quantity__input" type="text" inputmode="numeric" maxlength="9" spellcheck="false">
         </label>
         <button class="quantity__plus" type="button" data-i18n-aria="addCopy">+</button>
       </div>
@@ -206,7 +213,7 @@
         <button class="quantity__minus" type="button" data-i18n-aria="removeCopy">−</button>
         <label>
           <span class="sr-only" data-i18n="quantity">Quantité</span>
-          <input class="quantity__input" type="number" min="1" max="999" inputmode="numeric">
+          <input class="quantity__input" type="text" inputmode="numeric" maxlength="9" spellcheck="false">
         </label>
         <button class="quantity__plus" type="button" data-i18n-aria="addCopy">+</button>
       </div>

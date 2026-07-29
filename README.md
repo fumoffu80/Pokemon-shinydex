@@ -18,19 +18,27 @@ différences mâle/femelle disponibles, etc.
   femelles ou asexuées ;
 - sexe indiqué sur chaque fiche principale et explication française du
   dimorphisme dans le sélecteur lorsque les sprites mâle et femelle diffèrent ;
-- transformations non-Méga et non-Gigamax disposant de sprites propres, y
-  compris les formes de combat, météo, couronnées et téracristallisées ;
+- Méga-Évolutions, formes Gigamax et autres transformations disposant de
+  sprites normaux et shiny locaux ;
 - interface et noms Pokémon disponibles en français, anglais, espagnol,
   allemand, italien et japonais ;
 - couleurs distinctes correspondant à chaque type dans les bulles ;
 - clic sur une variante : passage du sprite normal au sprite shiny et ajout à
   la collection ;
-- quantité personnalisable pour chaque shiny possédé ;
+- quantité personnalisable pour chaque shiny possédé, avec un palier
+  `Exception` situé entre le retrait et la quantité 1 ;
+- formes non permanentes automatiquement proposées en exception (Méga,
+  Gigamax, transformations de combat, fusions et formes liées à un objet) :
+  elles comptent comme apparences et représentent l’espèce, sans augmenter le
+  nombre total d’exemplaires shiny ;
 - sauvegarde automatique dans le navigateur, export et import JSON ;
 - compte Firebase facultatif par e-mail/mot de passe avec synchronisation entre
   appareils et fusion initiale sans perte ;
 - recherche tolérante aux accents, filtres par génération, type et état ;
-- statistiques par apparence, espèce et nombre total d’exemplaires ;
+- statistiques par apparence, espèce et nombre total d’exemplaires, avec une
+  complétion calculée sur les espèces représentées ;
+- fermeture automatique du sélecteur après deux secondes passées en dehors de
+  sa fenêtre ;
 - interface responsive, accessible, installable et utilisable hors ligne ;
 - utilisation fluide de la largeur disponible, y compris sur les écrans
   ultralarges ;
