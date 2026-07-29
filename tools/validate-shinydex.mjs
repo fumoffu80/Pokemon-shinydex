@@ -105,6 +105,10 @@ check(availability?.legalExceptions?.some(entry => entry.speciesId === 721), "Vo
 check(availability?.legalExceptions?.some(entry => entry.speciesId === 25 && entry.formIds?.includes(10267)), "Le Pikachu Casquette Partenaire doit rester une exception légale.");
 check(distributions?.schemaVersion === 1, "Version du référentiel de distributions inattendue.");
 check(distributions?.items?.length >= 2, "Les distributions mondiales vérifiées sont absentes.");
+check(distributions?.items?.every(item =>
+  item.sourceUrls?.fr?.startsWith("https://")
+  && item.sourceUrls?.en?.startsWith("https://")
+), "Chaque distribution doit proposer une source officielle française et anglaise lorsqu’elles existent.");
 check(data?.speciesCount >= 1025, "Les 1 025 espèces Pokémon ne sont pas toutes présentes.");
 check(data?.entries?.length === data?.appearanceCount, "Le nombre de variantes est incohérent.");
 check(new Set(data?.entries?.map(entry => entry.speciesId)).size === data?.speciesCount, "Une espèce n’a aucune variante.");
@@ -269,6 +273,8 @@ check(app.includes('EXCEPTION_VALUE = "exception"'), "Le palier Exception n’es
 check(app.includes("(ownedSpecies / eligibleSpeciesIds.size) * 100"), "La complétion n’exclut pas les espèces sans shiny légal.");
 check(app.includes('filters.status === "unobtainable"'), "Le filtre des shiny légalement impossibles est absent.");
 check(app.includes("function renderDistributions"), "La section des distributions n’est pas rendue.");
+check(app.includes("localizedText(item.sourceUrls || item.sourceUrl)"),
+  "Le lien officiel ne sélectionne pas sa version localisée.");
 check(app.includes("setInterval(rotateVisibleVariants"), "Le défilement automatique des variantes est absent.");
 check(app.includes("% group.visuals.length"), "Le carrousel n’est pas limité aux apparences visuellement différentes.");
 check(app.includes("minimumFractionDigits: 2"), "Les faibles pourcentages de complétion sont encore arrondis à zéro.");
@@ -285,7 +291,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v10"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v11"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(serviceWorker.includes("shiny-availability.js") && serviceWorker.includes("distributions.js"), "Les référentiels live ne sont pas disponibles hors ligne.");
 check(languages.every(language => serviceWorker.includes(`assets/flags/${language}.svg`)), "Les drapeaux ne sont pas tous disponibles hors ligne.");
@@ -339,6 +345,13 @@ try {
   );
   check(dom.window.document.querySelectorAll("#distributionGrid .distribution-card").length >= 2,
     "Les distributions mondiales en cours ne sont pas affichées.");
+  const frenchDistributionSource = dom.window.document.querySelector(
+    "#distributionGrid .distribution-card__source"
+  );
+  check(frenchDistributionSource?.href.includes("pokemon.com/fr/actualites/"),
+    "La source française officielle de Volcanion n’est pas utilisée en français.");
+  check(frenchDistributionSource?.hreflang === "fr",
+    "La langue du lien officiel français n’est pas indiquée.");
   check(dom.window.document.querySelectorAll("#distributionTicker .information-ticker__item").length >= 4,
     "Les titres des distributions ne sont pas répétés dans le bandeau défilant.");
   check(dom.window.document.querySelectorAll(
@@ -467,6 +480,13 @@ try {
   check(dom.window.document.getElementById("languageFlag").getAttribute("src") === "assets/flags/en.svg", "Le drapeau ne suit pas la langue sélectionnée.");
   check(dom.window.document.getElementById("distributionTicker")?.textContent.includes("Shiny Volcanion"),
     "Le bandeau des distributions ne suit pas la langue sélectionnée.");
+  const englishDistributionSource = dom.window.document.querySelector(
+    "#distributionGrid .distribution-card__source"
+  );
+  check(englishDistributionSource?.href.includes("pokemon.com/uk/news/"),
+    "La source officielle anglaise n’est pas restaurée avec l’interface anglaise.");
+  check(englishDistributionSource?.hreflang === "en",
+    "La langue du lien officiel anglais n’est pas indiquée.");
 
   const coloredType = dom.window.document.querySelector(".type-pill");
   check(coloredType?.style.getPropertyValue("--type-color"), "Une bulle de type n’a pas sa couleur dédiée.");
