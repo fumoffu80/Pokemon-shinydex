@@ -589,6 +589,20 @@
     card.dataset.speciesId = String(group.speciesId);
     updateCardView(group, card);
 
+    card.addEventListener("pointerenter", event => {
+      if (event.pointerType === "touch") return;
+      card.dataset.hovering = "true";
+      const visual = currentVisual(group);
+      const owned = ownedInVisual(visual);
+      spriteStyle(card.querySelector(".pokemon-sprite"), visual.entry, true);
+      card.classList.toggle("is-shiny-preview", !owned);
+    });
+    card.addEventListener("pointerleave", () => {
+      card.dataset.hovering = "";
+      card.classList.remove("is-shiny-preview");
+      updateCardView(group, card);
+    });
+
     if (ENABLE_VARIANT_HOVER_OPEN && group.entries.length > 1) {
       let hoverTimer;
       card.addEventListener("pointerenter", event => {
@@ -1058,7 +1072,17 @@
         ? t("unobtainableDescription")
         : t(owned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
     );
-    spriteStyle(item.querySelector(".variant-option__sprite"), entry, owned);
+    const sprite = item.querySelector(".variant-option__sprite");
+    spriteStyle(sprite, entry, owned);
+    card.addEventListener("pointerenter", event => {
+      if (event.pointerType === "touch") return;
+      spriteStyle(sprite, entry, true);
+      card.classList.toggle("is-shiny-preview", !owned);
+    });
+    card.addEventListener("pointerleave", () => {
+      spriteStyle(sprite, entry, owned);
+      card.classList.remove("is-shiny-preview");
+    });
     item.querySelector(".variant-option__form").textContent =
       localizedForm(entry) || t("defaultForm");
     item.querySelector(".variant-option__gender").textContent = genderText(entry);
