@@ -1105,12 +1105,15 @@
       const group = document.createElement("span");
       group.className = "information-ticker__group";
       for (let cycle = 0; cycle < 3; cycle += 1) {
-        for (const titleText of titles) {
+        for (const [titleIndex, titleText] of titles.entries()) {
           const title = document.createElement("span");
           title.className = "information-ticker__item";
           title.textContent = titleText;
           const separator = document.createElement("span");
           separator.className = "information-ticker__separator";
+          if (titleIndex === titles.length - 1) {
+            separator.classList.add("information-ticker__separator--sequence-end");
+          }
           separator.textContent = "✦";
           group.append(title, separator);
         }
