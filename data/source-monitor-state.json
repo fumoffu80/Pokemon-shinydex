@@ -1,5 +1,34 @@
 {
   "schemaVersion": 1,
-  "updatedAt": null,
-  "sources": {}
+  "updatedAt": "2026-07-30T06:42:17.527Z",
+  "sources": {
+    "shiny-legality": {
+      "label": "Légalité des Pokémon shiny",
+      "url": "https://bulbapedia.bulbagarden.net/w/api.php?action=query&prop=revisions&titles=List_of_unobtainable_Shiny_Pok%C3%A9mon&rvprop=ids%7Ctimestamp&format=json&origin=*",
+      "fingerprint": "b631ca247414d74fc403b215708f7b570065a437bc78b57488d7ef0c353b21c3",
+      "detail": "révision 4558181 du 2026-05-25T21:44:52Z",
+      "observedAt": "2026-07-30T06:42:17.527Z"
+    },
+    "official-distributions": {
+      "label": "Distributions Pokémon officielles",
+      "url": "https://www.pokemon.com/us/pokemon-video-games/pokemon-distributions",
+      "fingerprint": "6cef4089b717c21e10e2d98061c18136af6e73551e9f07b948296891c25abdd1",
+      "detail": "5824 caractères normalisés",
+      "observedAt": "2026-07-30T06:42:17.527Z"
+    },
+    "pokemon-home-gifts": {
+      "label": "Cadeaux Pokémon HOME",
+      "url": "https://home.pokemon.com/en-us/move/",
+      "fingerprint": "28af3f191d20c05dcbcab184c95f7309c909cd055fe0c2d4dd6a3e5de92ea6ac",
+      "detail": "6936 caractères normalisés",
+      "observedAt": "2026-07-30T06:42:17.527Z"
+    },
+    "event-database": {
+      "label": "Base mondiale des événements",
+      "url": "https://www.serebii.net/events/2026.shtml",
+      "fingerprint": "6e7f81dd867a7a6e9d1c3d93d8e734bb82c36f30c2cdef16e43f0419b13278dc",
+      "detail": "10445 caractères normalisés",
+      "observedAt": "2026-07-30T06:42:17.527Z"
+    }
+  }
 }
