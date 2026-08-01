@@ -145,6 +145,7 @@
     speciesGroups.flatMap(group => group.entries.map(entry => [entry.key, group]))
   );
   const evolutionAdjacency = new Map();
+  const evolutionPredecessors = new Map();
   const evolutionNeighbors = new Map();
   for (const edge of DATA.evolutions || []) {
     const from = Number(edge.from);
@@ -152,6 +153,9 @@
     const targets = evolutionAdjacency.get(from) || [];
     targets.push(to);
     evolutionAdjacency.set(from, targets);
+    const predecessors = evolutionPredecessors.get(to) || [];
+    predecessors.push(from);
+    evolutionPredecessors.set(to, predecessors);
     for (const [speciesId, neighbor] of [[from, to], [to, from]]) {
       const neighbors = evolutionNeighbors.get(speciesId) || new Set();
       neighbors.add(neighbor);
@@ -342,6 +346,11 @@
     if (activeDialogSpecies && elements.variantDialog.hasAttribute("open")) {
       const group = groupsBySpecies.get(activeDialogSpecies);
       if (group) renderVariantDialog(group);
+    }
+    if (activeEvolutionSourceKey && elements.evolutionDialog.hasAttribute("open")) {
+      const group = evolutionRecommendationGroups()
+        .find(option => option.source.key === activeEvolutionSourceKey);
+      if (group) renderEvolutionDialog(group);
     }
     if (next === "3d") preloadShinySheets(true);
   }
@@ -667,7 +676,7 @@
       : (shiny ? DATA.shinySheets : DATA.normalSheets);
     const displaySize = explicitSize || (sprite.closest(".pokemon-card")
       ? currentCardSize().spriteSize
-      : cellSize);
+      : DATA.cellSize);
     const scale = displaySize / cellSize;
     sprite.style.backgroundImage = `url("${sheets[sheet]}")`;
     sprite.style.backgroundPosition = `${-column * cellSize * scale}px ${-row * cellSize * scale}px`;
@@ -911,7 +920,16 @@
   });
 
   const byNumber = (a, b) => a.speciesId - b.speciesId;
-  if (filters.sort === "name") {
+  if (activeLineageSpeciesIds) {
+    const lineageOrder = new Map(
+      [...activeLineageSpeciesIds].map((speciesId, index) => [speciesId, index])
+    );
+    list.sort((a, b) =>
+      (lineageOrder.get(a.speciesId) ?? Number.MAX_SAFE_INTEGER)
+      - (lineageOrder.get(b.speciesId) ?? Number.MAX_SAFE_INTEGER)
+      || byNumber(a, b)
+    );
+  } else if (filters.sort === "name") {
     list.sort((a, b) =>
       localizedName(a.entries[0]).localeCompare(localizedName(b.entries[0]), locale()) || byNumber(a, b)
     );
@@ -1058,8 +1076,32 @@
         queue.push(neighbor);
       }
     }
-    lineageCache.set(speciesId, lineage);
-    return lineage;
+
+    const roots = [...lineage]
+      .filter(candidate => !(evolutionPredecessors.get(candidate) || [])
+        .some(predecessor => lineage.has(predecessor)))
+      .sort((a, b) => a - b);
+    if (!roots.length) roots.push(speciesId);
+
+    const depthBySpecies = new Map(roots.map(root => [root, 0]));
+    const depthQueue = [...roots];
+    while (depthQueue.length) {
+      const current = depthQueue.shift();
+      const nextDepth = (depthBySpecies.get(current) || 0) + 1;
+      for (const target of evolutionAdjacency.get(current) || []) {
+        if (!lineage.has(target) || depthBySpecies.has(target)) continue;
+        depthBySpecies.set(target, nextDepth);
+        depthQueue.push(target);
+      }
+    }
+
+    const orderedLineage = [...lineage].sort((a, b) =>
+      (depthBySpecies.get(a) ?? Number.MAX_SAFE_INTEGER)
+      - (depthBySpecies.get(b) ?? Number.MAX_SAFE_INTEGER)
+      || a - b
+    );
+    lineageCache.set(speciesId, orderedLineage);
+    return orderedLineage;
   }
 
   function applyLineageFilter(speciesId) {

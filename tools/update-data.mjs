@@ -13,6 +13,7 @@ const SOURCE_OVERRIDE_DIR = resolve(ROOT, "tools/source-overrides");
 const CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv";
 const SPRITE_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const HOME_SPRITE_BASE = `${SPRITE_BASE}/other/home`;
+const SHOWDOWN_SPRITE_BASE = "https://play.pokemonshowdown.com/sprites";
 const LANGUAGES = { fr: 5, en: 9, es: 7, de: 6, it: 8, ja: 1 };
 const CELL_SIZE = 96;
 const ATLAS_COLUMNS = 20;
@@ -34,6 +35,15 @@ const SPRITE_SOURCE_OVERRIDES = new Map([
     normal: "pichu-spiky-eared-normal.png",
     shiny: "pichu-spiky-eared-shiny.png"
   }]
+]);
+const SHOWDOWN_HOME_SPRITES_BY_FORM_ID = new Map([
+  [10196, "pikachu-original"],
+  [10197, "pikachu-hoenn"],
+  [10198, "pikachu-sinnoh"],
+  [10199, "pikachu-unova"],
+  [10200, "pikachu-kalos"],
+  [10201, "pikachu-alola"],
+  [10319, "pikachu-world"]
 ]);
 const SPRITE_FALLBACK_FORMS = new Map([
   // Ces formes sont bien référencées par PokéAPI, mais leurs sprites pixel ne
@@ -58,7 +68,8 @@ const CUSTOM_FORMS = [
       it: "Teracristallizzazione — Maschera Turchese",
       ja: "テラスタル — みどりのめん"
     },
-    types: ["grass"]
+    types: ["grass"],
+    showdownSprite: "ogerpon-tealtera"
   },
   {
     speciesId: 1017,
@@ -73,7 +84,8 @@ const CUSTOM_FORMS = [
       it: "Teracristallizzazione — Maschera Pozzo",
       ja: "テラスタル — いどのめん"
     },
-    types: ["grass", "water"]
+    types: ["grass", "water"],
+    showdownSprite: "ogerpon-wellspringtera"
   },
   {
     speciesId: 1017,
@@ -88,7 +100,8 @@ const CUSTOM_FORMS = [
       it: "Teracristallizzazione — Maschera Focolare",
       ja: "テラスタル — かまどのめん"
     },
-    types: ["grass", "fire"]
+    types: ["grass", "fire"],
+    showdownSprite: "ogerpon-hearthflametera"
   },
   {
     speciesId: 1017,
@@ -103,7 +116,8 @@ const CUSTOM_FORMS = [
       it: "Teracristallizzazione — Maschera Fondamenta",
       ja: "テラスタル — いしずえのめん"
     },
-    types: ["grass", "rock"]
+    types: ["grass", "rock"],
+    showdownSprite: "ogerpon-cornerstonetera"
   }
 ];
 const EXCEPTIONAL_FUSION_FORMS = new Map([
@@ -243,7 +257,11 @@ function hashPair(normal, shiny) {
 
 function cachePath(url) {
   const parsed = new URL(url);
-  return resolve(CACHE_DIR, parsed.pathname.replace(/^.*\/sprites\/pokemon\//, ""));
+  const pokeApiPath = parsed.pathname.match(/\/sprites\/pokemon\/(.+)$/)?.[1];
+  const relativePath = pokeApiPath
+    ? pokeApiPath
+    : `external/${parsed.hostname}${parsed.pathname}`;
+  return resolve(CACHE_DIR, relativePath.replace(/^\/+/, ""));
 }
 
 const activeSpriteDownloads = new Map();
@@ -388,6 +406,13 @@ function homeSpriteUrlsForPokemonId(pokemonId, shiny, female = false) {
   return female
     ? [`${root}/female/${pokemonId}.png`, `${root}/${pokemonId}.png`]
     : [`${root}/${pokemonId}.png`];
+}
+
+function showdownHomeSpriteUrls(formId, shiny) {
+  const sprite = SHOWDOWN_HOME_SPRITES_BY_FORM_ID.get(Number(formId));
+  if (!sprite) return [];
+  const folder = shiny ? "home-shiny" : "home";
+  return [`${SHOWDOWN_SPRITE_BASE}/${folder}/${sprite}.png`];
 }
 
 function localizedValues(map, id, fallback = "") {
@@ -658,8 +683,14 @@ for (const form of eligibleForms) {
       shinyUrls: baseSpriteSuffix
         ? primaryShinyUrls.filter(url => !url.endsWith(baseSpriteSuffix))
         : primaryShinyUrls,
-      homeNormalUrls: homeSpriteUrls(form, species, gender, false),
-      homeShinyUrls: homeSpriteUrls(form, species, gender, true),
+      homeNormalUrls: [
+        ...homeSpriteUrls(form, species, gender, false),
+        ...showdownHomeSpriteUrls(form.id, false)
+      ],
+      homeShinyUrls: [
+        ...homeSpriteUrls(form, species, gender, true),
+        ...showdownHomeSpriteUrls(form.id, true)
+      ],
       fallbackNormalUrls: fallbackPokemonId
         ? spriteUrlsForPokemonId(fallbackPokemonId, false)
         : [],
@@ -699,8 +730,10 @@ for (const custom of CUSTOM_FORMS) {
     exceptionReason: "battle",
     formNames: custom.formNames,
     types: custom.types,
-    normalUrls: [],
-    shinyUrls: [],
+    // Pokémon Showdown publie les sprites de combat 2D exacts de ces quatre
+    // téracristallisations ; PokéAPI reste le repli pour les rendus HOME.
+    normalUrls: [`${SHOWDOWN_SPRITE_BASE}/gen5/${custom.showdownSprite}.png`],
+    shinyUrls: [`${SHOWDOWN_SPRITE_BASE}/gen5-shiny/${custom.showdownSprite}.png`],
     homeNormalUrls: [],
     homeShinyUrls: [],
     fallbackNormalUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, false),

@@ -155,6 +155,12 @@ check(data?.homeCellSize === 128 && data?.homeAtlasColumns === 15 && data?.homeA
   "La géométrie des planches Pokémon HOME est inattendue.");
 check(updateDataSource.includes("/other/home") && updateDataSource.includes("function buildHomeAtlas"),
   "La reconstruction ne télécharge pas les rendus Pokémon HOME officiels.");
+check(updateDataSource.includes("play.pokemonshowdown.com/sprites")
+  && updateDataSource.includes("ogerpon-tealtera")
+  && updateDataSource.includes("ogerpon-cornerstonetera")
+  && updateDataSource.includes("pikachu-original")
+  && updateDataSource.includes("pikachu-world"),
+  "Les sprites exacts trouvés dans Pokémon Showdown ne sont pas tous reliés à leur source.");
 check(
   updateDataSource.includes("pichu-spiky-eared-normal.png")
     && updateDataSource.includes("pichu-spiky-eared-shiny.png"),
@@ -256,11 +262,17 @@ const ogerponTerastallized = data?.entries?.filter(
 check(
   ogerponTerastallized.length === 4
     && ogerponTerastallized.every(entry => entry.exceptional
-      && entry.spritePlaceholder
+      && !entry.spritePlaceholder
       && entry.homeSpriteFallback)
     && Math.min(...ogerponTerastallized.map(entry => entry.formOrder)) > 1433,
-  "Les quatre fiches Téracristallisation d’Ogerpon doivent suivre les masques avec un sprite provisoire."
+  "Les quatre fiches Téracristallisation d’Ogerpon doivent avoir un sprite 2D exact et suivre les masques."
 );
+const pikachuCapFormIds = new Set([10196, 10197, 10198, 10199, 10200, 10201, 10319]);
+const pikachuCaps = data?.entries?.filter(
+  entry => entry.speciesId === 25 && pikachuCapFormIds.has(entry.formId)
+) || [];
+check(pikachuCaps.length === 14 && pikachuCaps.every(entry => !entry.homeSpriteFallback),
+  "Les sept Pikachu à casquette n’utilisent pas tous leur rendu HOME exact.");
 check(data?.entries?.find(entry => entry.speciesId === 888 && entry.formNames.fr === "Épée Suprême")?.exceptional,
   "La forme couronnée de Zacian doit être une exception.");
 check(data?.entries?.filter(entry => entry.speciesId === 29).every(entry => entry.gender === "female"), "Nidoran♀ ne doit pas proposer de mâle.");
@@ -514,9 +526,11 @@ check(app.includes("function formsCanShareEvolution")
   && app.includes("function targetFormCanResultFromEvolution"),
   "Les incompatibilités de forme des évolutions ne sont pas contrôlées.");
 check(app.includes("function lineageSpeciesIdsFor")
+  && app.includes("evolutionPredecessors")
+  && app.includes("depthBySpecies")
   && app.includes("function applyLineageFilter")
   && html.includes('id="lineageButton"'),
-  "Le filtre de lignée évolutive est absent des fenêtres de variantes.");
+  "Le filtre de lignée évolutive ou son tri par stade est absent des fenêtres de variantes.");
 check(css.includes(".is-form-complete .status-check")
   && css.includes(".pokemon-card__trophy.is-silver")
   && css.includes(".pokemon-card__trophy.is-gold")
@@ -638,6 +652,10 @@ try {
   const cards = dom.window.document.querySelectorAll(".pokemon-card");
   check(cards.length === data.speciesCount, `Le rendu affiche ${cards.length} fiches au lieu d’une par espèce.`);
   const spriteModeButton = dom.window.document.getElementById("spriteModeButton");
+  const homeBackgroundSizeFor = displaySize => {
+    const scaledAtlasSize = data.homeAtlasSize * displaySize / data.homeCellSize;
+    return `${scaledAtlasSize}px ${scaledAtlasSize}px`;
+  };
   const initialModeSprite = dom.window.document.querySelector(".pokemon-card .pokemon-sprite");
   check(spriteModeButton.dataset.mode === "2d"
     && spriteModeButton.getAttribute("aria-pressed") === "false"
@@ -767,6 +785,13 @@ try {
     "Le sélecteur de Florizarre ne propose pas ses sexes, sa Méga-Évolution et sa forme Gigamax.");
   check(!dom.window.document.getElementById("genderDifferenceNote").hidden, "L’explication du dimorphisme de Florizarre est absente.");
   check(dom.window.document.getElementById("genderDifferenceText").textContent.includes("fleur"), "La différence mâle/femelle de Florizarre n’est pas expliquée.");
+
+  spriteModeButton.click();
+  const homeVariantSprite = dom.window.document.querySelector("#variantGrid .variant-option__sprite");
+  check(homeVariantSprite?.dataset.spriteMode === "3d"
+    && homeVariantSprite?.style.backgroundSize === homeBackgroundSizeFor(96),
+  "Les sprites HOME des variantes ne sont pas redimensionnés dans leur cadre de 96 px.");
+  spriteModeButton.click();
 
   const firstVariant = dom.window.document.querySelector("#variantGrid .variant-option");
   const firstVariantSprite = firstVariant.querySelector(".variant-option__sprite");
@@ -924,7 +949,23 @@ try {
   });
   check(dom.window.document.querySelectorAll("#evolutionSuggestions .evolution-card").length === 1,
     "Deux Abra mâles doivent produire une seule fiche d’évolution regroupée.");
+  spriteModeButton.click();
+  const homeEvolutionCardSprite = dom.window.document.querySelector(
+    "#evolutionSuggestions .evolution-card__sprite"
+  );
+  check(homeEvolutionCardSprite?.dataset.spriteMode === "3d"
+    && homeEvolutionCardSprite?.style.backgroundSize === homeBackgroundSizeFor(96),
+  "Le sprite HOME du Pokémon évoluable déborde encore de son cadre de 96 px.");
   let evolutionChoices = openEvolutionChoices(abraMale.key);
+  check(dom.window.document.querySelector(".evolution-dialog__source-sprite")?.style.backgroundSize
+    === homeBackgroundSizeFor(72)
+    && evolutionChoices[0]?.querySelector(".evolution-choice__sprite")?.style.backgroundSize
+      === homeBackgroundSizeFor(96),
+  "Les sprites HOME de la fenêtre d’évolutions ne respectent pas leurs cadres de 72 et 96 px.");
+  spriteModeButton.click();
+  evolutionChoices = [...dom.window.document.querySelectorAll("#evolutionDialogGrid .evolution-choice")];
+  check(evolutionChoices[0]?.querySelector(".evolution-choice__sprite")?.dataset.spriteMode === "2d",
+    "Une fenêtre d’évolutions ouverte ne suit pas le retour au mode 2D.");
   let evolutionTargets = evolutionChoices.map(choice => choice.querySelector("strong")?.textContent);
   check(evolutionTargets.includes("Kadabra") && evolutionTargets.includes("Alakazam"),
     "Deux Abra mâles ne proposent pas Kadabra ou Alakazam manquants.");
@@ -1058,6 +1099,17 @@ try {
     "Le bouton de Dracaufeu ne remonte pas jusqu’à Salamèche.");
   dom.window.document.getElementById("clearFiltersButton").click();
 
+  lineageSearch.value = "Pikachu";
+  lineageSearch.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
+  cardFor(25)?.querySelector(".pokemon-card__toggle")?.click();
+  dom.window.document.getElementById("lineageButton").click();
+  lineageIds = [...dom.window.document.querySelectorAll(".pokemon-card")]
+    .map(card => Number(card.dataset.speciesId));
+  check(lineageIds.join(",") === "172,25,26",
+    "La lignée de Pikachu n’est pas affichée dans l’ordre Pichu → Pikachu → Raichu.");
+  dom.window.document.getElementById("clearFiltersButton").click();
+
   const search = dom.window.document.getElementById("searchInput");
   search.value = "Poltchageist";
   search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
@@ -1071,10 +1123,15 @@ try {
   search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
   dom.window.document.querySelector(".pokemon-card__toggle")?.click();
-  const provisionalVariants = [...dom.window.document.querySelectorAll("#variantGrid .has-placeholder-sprite")];
+  let provisionalVariants = [...dom.window.document.querySelectorAll("#variantGrid .has-placeholder-sprite")];
+  check(provisionalVariants.length === 0,
+    "Les quatre téracristallisations d’Ogerpon sont encore provisoires en mode 2D.");
+  spriteModeButton.click();
+  provisionalVariants = [...dom.window.document.querySelectorAll("#variantGrid .has-placeholder-sprite")];
   check(provisionalVariants.length === 4
     && provisionalVariants.every(card => !card.querySelector(".sprite-placeholder-badge")?.hidden),
-    "Les vraies fiches provisoires d’Ogerpon n’affichent pas toutes leur bandeau rouge.");
+    "Les quatre rendus HOME provisoires d’Ogerpon n’affichent pas tous leur bandeau rouge.");
+  spriteModeButton.click();
   dom.window.document.getElementById("variantDialog").close();
 
   search.value = "Zygarde";
