@@ -225,14 +225,14 @@ const poltchageistForms = data?.entries?.filter(entry => entry.speciesId === 101
 check(
   poltchageistForms.length === 2
     && poltchageistForms.some(entry => entry.formNames.fr === "Forme Imitation")
-    && poltchageistForms.some(entry => entry.formNames.fr === "Forme Onéreuse" && entry.spritePlaceholder),
+    && poltchageistForms.some(entry => entry.formNames.fr === "Forme Onéreuse" && !entry.spritePlaceholder),
   "Les formes Imitation et Onéreuse de Poltchageist sont incomplètes."
 );
 const theffroyableForms = data?.entries?.filter(entry => entry.speciesId === 1013) || [];
 check(
   theffroyableForms.length === 2
     && theffroyableForms.some(entry => entry.formNames.fr === "Forme Médiocre")
-    && theffroyableForms.some(entry => entry.formNames.fr === "Forme Exceptionnelle" && entry.spritePlaceholder),
+    && theffroyableForms.some(entry => entry.formNames.fr === "Forme Exceptionnelle" && !entry.spritePlaceholder),
   "Les formes Médiocre et Exceptionnelle de Théffroyable sont incomplètes."
 );
 const miniorMeteor = data?.entries?.filter(
@@ -256,6 +256,15 @@ check(data?.entries?.filter(entry => entry.speciesId === 32).every(entry => entr
 check(data?.entries?.filter(entry => entry.speciesId === 81).every(entry => entry.gender === "genderless"), "Magnéti doit rester asexué.");
 check(data?.entries?.filter(entry => entry.speciesId === 201).length >= 28, "Les 28 formes de Zarbi sont absentes.");
 check(data?.entries?.filter(entry => entry.speciesId === 585).length >= 8, "Les saisons et sexes de Vivaldaim sont incomplets.");
+for (const [speciesId, name] of [[664, "Lépidonille"], [665, "Pérégrain"]]) {
+  const entries = data?.entries?.filter(entry => entry.speciesId === speciesId) || [];
+  check(entries.length === 2 && new Set(entries.map(entry => entry.formKey)).size === 1,
+    `${name} doit avoir une seule forme, déclinée en mâle et femelle.`);
+  check(Object.keys(data?.keyAliases || {}).filter(key => key.startsWith(`${speciesId}:`)).length === 38,
+    `Les anciennes formes artificielles de ${name} ne sont pas toutes migrées.`);
+}
+check(data?.entries?.filter(entry => entry.speciesId === 666).length === 40,
+  "Les 20 motifs mâle/femelle de Prismillon doivent rester disponibles.");
 check(data?.entries?.every(entry =>
   entry.key
   && entry.names?.fr
@@ -361,6 +370,8 @@ for (const id of [
   "informationPanel", "informationTitle", "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount",
   "distributionTicker",
   "evolutionTitle", "evolutionCount", "evolutionSuggestions", "evolutionEmpty",
+  "evolutionDialog", "evolutionDialogTitle", "evolutionDialogIntro", "evolutionDialogSource",
+  "evolutionDialogGrid", "closeEvolutionButton", "lineageButton",
   "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
   "syncNowButton", "signOutButton"
 ]) {
@@ -443,11 +454,36 @@ check(app.includes("function evolutionRecommendations")
   && app.includes("quantityFor(entry.key) > 1")
   && app.includes("function renderEvolutionSuggestions"),
   "Les suggestions d’évolution ne protègent pas le dernier exemplaire de chaque variante.");
+check(app.includes("function evolutionRecommendationGroups")
+  && app.includes("function openEvolutionDialog")
+  && html.includes('class="modal evolution-modal"'),
+  "Les évolutions ne sont pas regroupées par Pokémon dans une fenêtre dédiée.");
+check(app.includes("function formsCanShareEvolution")
+  && app.includes("function sourceFormCanEvolve")
+  && app.includes("function targetFormCanResultFromEvolution"),
+  "Les incompatibilités de forme des évolutions ne sont pas contrôlées.");
+check(app.includes("function lineageSpeciesIdsFor")
+  && app.includes("function applyLineageFilter")
+  && html.includes('id="lineageButton"'),
+  "Le filtre de lignée évolutive est absent des fenêtres de variantes.");
 check(css.includes(".is-form-complete .status-check")
   && css.includes(".pokemon-card__trophy.is-silver")
   && css.includes(".pokemon-card__trophy.is-gold")
-  && css.includes("@keyframes statusPokeballSparkle"),
+  && css.includes("@keyframes statusPokeballSparkle")
+  && css.includes("@keyframes trophyGoldSparkle")
+  && css.includes("@keyframes trophyGoldGlow"),
   "Les nouveaux indicateurs de collection ne sont pas entièrement stylés.");
+check(css.includes(".pokemon-card.is-current-owned")
+  && !/\.pokemon-card\.has-owned\s*\{/.test(css),
+  "La couleur or d’une fiche dépend encore d’une autre forme possédée dans le carrousel.");
+check(html.includes('class="pokemon-sprite-frame"')
+  && html.includes('class="variant-option__sprite-frame"')
+  && /\.sprite-placeholder-badge\s*\{[^}]*position:\s*absolute[^}]*background:\s*rgba\(174, 19, 36/s.test(css)
+  && css.includes("rotate(-13deg)"),
+  "Le bandeau rouge diagonal des sprites provisoires est absent.");
+check(/\.pokemon-card\.is-unobtainable\s*\{[^}]*border-color:\s*rgba\(218, 226, 237/s.test(css)
+  && !css.includes("filter: saturate(0.58)"),
+  "Les fiches sans shiny légal ne sont pas affichées en argent non estompé.");
 check(app.includes("ENABLE_VARIANT_HOVER_OPEN = false"), "L’ouverture au survol des fiches n’est pas désactivée.");
 check(app.includes("ENABLE_VARIANT_EXIT_CLOSE = false"), "La fermeture automatique hors du sélecteur n’est pas désactivée.");
 check(app.includes("HOVER_DELAY = 2000"), "Le délai de survol n’est plus conservé dans le code.");
@@ -484,7 +520,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v14"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v15"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(
   serviceWorker.includes("shiny-availability.js")
@@ -555,6 +591,8 @@ try {
   check(victiniCard?.classList.contains("is-unobtainable"), "Victini n’est pas signalé comme shiny légalement impossible.");
   check(!victiniCard?.querySelector(".unobtainable-badge")?.hidden, "Le badge de légalité de Victini est absent.");
   check(victiniCard?.querySelector(".pokemon-card__toggle")?.disabled, "Le contrôle shiny de Victini doit rester visible mais inactif.");
+  check(victiniCard?.querySelector(".pokemon-card__trophy")?.hidden,
+    "Une espèce dont aucun shiny légal n’existe ne doit recevoir aucun trophée.");
   check(
     Number(dom.window.document.getElementById("speciesTotal").textContent.replace(/\D/g, "")) === data.speciesCount - 24,
     "Les 24 espèces impossibles ne sont pas exclues de la complétion."
@@ -736,34 +774,78 @@ try {
   check(completeBulbizarreCard?.querySelectorAll(".pokemon-card__counts > span").length === 2,
     "Les deux compteurs mâle et femelle ne sont pas affichés ensemble.");
 
+  const pichuDefaultMale = data.entries.find(entry =>
+    entry.speciesId === 172 && entry.formId === 172 && entry.gender === "male"
+  );
+  const pichuDefaultFemale = data.entries.find(entry =>
+    entry.speciesId === 172 && entry.formId === 172 && entry.gender === "female"
+  );
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [pichuDefaultMale.key]: 1, [pichuDefaultFemale.key]: 1 },
+    preferences: synchronizedPreferences
+  });
+  check(cardFor(172)?.querySelector(".pokemon-card__trophy")?.classList.contains("is-gold"),
+    "Une forme sans shiny légal empêche encore le trophée or des formes légalement obtenables.");
+
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: {},
+    preferences: synchronizedPreferences
+  });
+  const taurosCardBefore = cardFor(128);
+  const displayedTaurosKey = taurosCardBefore?.dataset.key;
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [displayedTaurosKey]: 1 },
+    preferences: synchronizedPreferences
+  });
+  check(cardFor(128)?.classList.contains("is-current-owned"),
+    "La forme de Tauros possédée n’active pas son état doré.");
+  rotateCards?.();
+  check(cardFor(128)?.dataset.key !== displayedTaurosKey
+    && cardFor(128)?.classList.contains("has-owned")
+    && !cardFor(128)?.classList.contains("is-current-owned"),
+    "Une forme de Tauros non possédée conserve encore la couleur or d’une autre forme du carrousel.");
+
   const abraMale = data.entries.find(entry =>
     entry.speciesId === 63 && entry.gender === "male" && !entry.exceptional
   );
   const kadabraMale = data.entries.find(entry =>
     entry.speciesId === 64 && entry.gender === "male" && !entry.exceptional
   );
+  const openEvolutionChoices = sourceKey => {
+    const sourceCard = [...dom.window.document.querySelectorAll("#evolutionSuggestions .evolution-card")]
+      .find(card => card.dataset.sourceKey === sourceKey);
+    sourceCard?.click();
+    return [...dom.window.document.querySelectorAll("#evolutionDialogGrid .evolution-choice")];
+  };
   dom.window.SHINYDEX_APP.applySyncedState({
     schemaVersion: 2,
     collection: { [abraMale.key]: 2 },
     preferences: synchronizedPreferences
   });
-  let evolutionTargets = [...dom.window.document.querySelectorAll(
-    ".evolution-card__pokemon--target strong"
-  )].map(node => node.textContent);
+  check(dom.window.document.querySelectorAll("#evolutionSuggestions .evolution-card").length === 1,
+    "Deux Abra mâles doivent produire une seule fiche d’évolution regroupée.");
+  let evolutionChoices = openEvolutionChoices(abraMale.key);
+  let evolutionTargets = evolutionChoices.map(choice => choice.querySelector("strong")?.textContent);
   check(evolutionTargets.includes("Kadabra") && evolutionTargets.includes("Alakazam"),
     "Deux Abra mâles ne proposent pas Kadabra ou Alakazam manquants.");
+  check(dom.window.document.getElementById("evolutionDialog").hasAttribute("open"),
+    "Un clic sur le Pokémon évoluable n’ouvre pas sa fenêtre de possibilités.");
   check(dom.window.document.querySelector(".evolution-card__count")?.textContent.includes("1"),
     "La suggestion n’indique pas qu’un Abra restera dans la collection.");
+  dom.window.document.getElementById("evolutionDialog").close();
   dom.window.SHINYDEX_APP.applySyncedState({
     schemaVersion: 2,
     collection: { [abraMale.key]: 2, [kadabraMale.key]: 1 },
     preferences: synchronizedPreferences
   });
-  evolutionTargets = [...dom.window.document.querySelectorAll(
-    ".evolution-card__pokemon--target strong"
-  )].map(node => node.textContent);
+  evolutionChoices = openEvolutionChoices(abraMale.key);
+  evolutionTargets = evolutionChoices.map(choice => choice.querySelector("strong")?.textContent);
   check(!evolutionTargets.includes("Kadabra") && evolutionTargets.includes("Alakazam"),
     "Kadabra déjà possédé doit disparaître des propositions tandis qu’Alakazam reste proposé.");
+  dom.window.document.getElementById("evolutionDialog").close();
 
   const paldeanWooperMale = data.entries.find(entry =>
     entry.speciesId === 194
@@ -776,13 +858,128 @@ try {
     collection: { [paldeanWooperMale.key]: 2 },
     preferences: synchronizedPreferences
   });
-  evolutionTargets = [...dom.window.document.querySelectorAll(
-    ".evolution-card__pokemon--target strong"
-  )].map(node => node.textContent);
+  evolutionChoices = openEvolutionChoices(paldeanWooperMale.key);
+  evolutionTargets = evolutionChoices.map(choice => choice.querySelector("strong")?.textContent);
   check(evolutionTargets.includes("Terraiste") && !evolutionTargets.includes("Maraiste"),
     "Axoloto de Paldea doit proposer Terraiste sans proposer Maraiste.");
+  dom.window.document.getElementById("evolutionDialog").close();
+
+  const pichuMale = data.entries.find(entry =>
+    entry.speciesId === 172 && entry.gender === "male" && entry.formId === 172
+  );
+  const spikyPichu = data.entries.find(entry => entry.speciesId === 172 && entry.formId === 10065);
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [pichuMale.key]: 2 },
+    preferences: synchronizedPreferences
+  });
+  evolutionChoices = openEvolutionChoices(pichuMale.key);
+  check(evolutionChoices.some(choice => choice.querySelector("strong")?.textContent === "Pikachu")
+    && evolutionChoices.every(choice => !choice.querySelector("small")?.textContent.includes("Casquette")),
+    "Pichu doit proposer Pikachu standard sans aucune forme à casquette.");
+  dom.window.document.getElementById("evolutionDialog").close();
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [spikyPichu.key]: 2 },
+    preferences: synchronizedPreferences
+  });
+  check(![...dom.window.document.querySelectorAll("#evolutionSuggestions .evolution-card")]
+    .some(card => card.dataset.sourceKey === spikyPichu.key),
+  "Pichu Troizépi ne doit proposer aucune évolution.");
+
+  const redFlabebe = data.entries.find(entry =>
+    entry.speciesId === 669 && entry.formNames.en === "Red Flower"
+  );
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [redFlabebe.key]: 2 },
+    preferences: synchronizedPreferences
+  });
+  evolutionChoices = openEvolutionChoices(redFlabebe.key);
+  check(evolutionChoices.length === 2
+    && evolutionChoices.every(choice => choice.querySelector("small")?.textContent.includes("Fleur Rouge")),
+    "Flabébé Fleur Rouge doit uniquement proposer Floette et Florges Fleur Rouge.");
+  dom.window.document.getElementById("evolutionDialog").close();
+
+  const counterfeitPoltchageist = data.entries.find(entry =>
+    entry.speciesId === 1012 && entry.formNames.en === "Counterfeit Form"
+  );
+  const artisanPoltchageist = data.entries.find(entry =>
+    entry.speciesId === 1012 && entry.formNames.en === "Artisan Form"
+  );
+  for (const [source, expected, rejected] of [
+    [counterfeitPoltchageist, "Forme Médiocre", "Forme Exceptionnelle"],
+    [artisanPoltchageist, "Forme Exceptionnelle", "Forme Médiocre"]
+  ]) {
+    dom.window.SHINYDEX_APP.applySyncedState({
+      schemaVersion: 2,
+      collection: { [source.key]: 2 },
+      preferences: synchronizedPreferences
+    });
+    evolutionChoices = openEvolutionChoices(source.key);
+    const labels = evolutionChoices.map(choice => choice.querySelector("small")?.textContent || "");
+    check(labels.length === 1 && labels[0].includes(expected) && !labels[0].includes(rejected),
+      `${source.formNames.fr} doit uniquement évoluer vers ${expected}.`);
+    dom.window.document.getElementById("evolutionDialog").close();
+  }
+
+  const milcery = data.entries.find(entry => entry.speciesId === 868 && !entry.exceptional);
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [milcery.key]: 5 },
+    preferences: synchronizedPreferences
+  });
+  check(dom.window.document.querySelectorAll("#evolutionSuggestions .evolution-card").length === 1,
+    "Crèmy doit rester une seule fiche, quel que soit le nombre de formes de Charmilly.");
+  evolutionChoices = openEvolutionChoices(milcery.key);
+  check(evolutionChoices.length >= 60,
+    "La fenêtre de Crèmy n’affiche pas toutes les formes compatibles de Charmilly.");
+  dom.window.document.getElementById("evolutionDialog").close();
+
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: {},
+    preferences: synchronizedPreferences
+  });
+  const lineageSearch = dom.window.document.getElementById("searchInput");
+  lineageSearch.value = "Salamèche";
+  lineageSearch.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
+  cardFor(4)?.querySelector(".pokemon-card__toggle")?.click();
+  dom.window.document.getElementById("lineageButton").click();
+  let lineageIds = [...dom.window.document.querySelectorAll(".pokemon-card")]
+    .map(card => Number(card.dataset.speciesId));
+  check(lineageIds.join(",") === "4,5,6"
+    && dom.window.document.getElementById("activeFilterText").textContent.includes("lignée de Salamèche"),
+    "Le bouton de Salamèche n’affiche pas uniquement toute sa lignée évolutive.");
+  cardFor(6)?.querySelector(".pokemon-card__toggle")?.click();
+  dom.window.document.getElementById("lineageButton").click();
+  lineageIds = [...dom.window.document.querySelectorAll(".pokemon-card")]
+    .map(card => Number(card.dataset.speciesId));
+  check(lineageIds.join(",") === "4,5,6"
+    && dom.window.document.getElementById("activeFilterText").textContent.includes("lignée de Dracaufeu"),
+    "Le bouton de Dracaufeu ne remonte pas jusqu’à Salamèche.");
+  dom.window.document.getElementById("clearFiltersButton").click();
 
   const search = dom.window.document.getElementById("searchInput");
+  search.value = "Poltchageist";
+  search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
+  dom.window.document.querySelector(".pokemon-card__toggle")?.click();
+  check(dom.window.document.querySelectorAll("#variantGrid .has-placeholder-sprite").length === 0,
+    "Les sprites identiques des deux formes de Poltchageist sont encore marqués provisoires.");
+  dom.window.document.getElementById("variantDialog").close();
+
+  search.value = "Ogerpon";
+  search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
+  dom.window.document.querySelector(".pokemon-card__toggle")?.click();
+  const provisionalVariants = [...dom.window.document.querySelectorAll("#variantGrid .has-placeholder-sprite")];
+  check(provisionalVariants.length === 4
+    && provisionalVariants.every(card => !card.querySelector(".sprite-placeholder-badge")?.hidden),
+    "Les vraies fiches provisoires d’Ogerpon n’affichent pas toutes leur bandeau rouge.");
+  dom.window.document.getElementById("variantDialog").close();
+
   search.value = "Zarbi";
   search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   await new Promise(resolveDelay => setTimeout(resolveDelay, 60));

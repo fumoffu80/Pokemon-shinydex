@@ -41,14 +41,14 @@
     ["215:461", "hisui"], // Farfuret de Hisui ne devient pas Dimoret
     ["562:563", "galar"] // Tutafeh de Galar ne devient pas Tutankafer
   ]);
-  const EVOLUTION_MATCH_FORM_EDGES = new Set([
-    "412:413", // Cheniti → Cheniselle (cape conservée)
-    "422:423", // Sancoki → Tritosor (mer conservée)
-    "585:586", // Vivaldaim → Haydaim (saison conservée)
-    "669:670", "670:671", // Flabébé → Floette → Florges (couleur conservée)
-    "710:711", // Pitrouille → Banshitrouye (taille conservée)
-    "854:855" // Théffroi → Polthégeist (authenticité conservée)
-  ]);
+  const EVOLUTION_FORM_TRAIT_GROUPS = [
+    { species: new Set([412, 413]), values: ["plant", "sandy", "trash"] },
+    { species: new Set([422, 423]), values: ["west", "east"] },
+    { species: new Set([585, 586]), values: ["spring", "summer", "autumn", "winter"] },
+    { species: new Set([669, 670, 671]), values: ["red", "yellow", "orange", "blue", "white"] },
+    { species: new Set([710, 711]), values: ["small", "average", "large", "super"] },
+    { species: new Set([854, 855]), values: ["phony", "antique"] }
+  ];
   const CARD_SIZE_LEVELS = Object.freeze([
     { id: "normal", percent: 100, spriteSize: 96, labelKey: "cardSizeNormal" },
     { id: "large", percent: 125, spriteSize: 120, labelKey: "cardSizeLarge" },
@@ -91,7 +91,9 @@
     "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail", "cloudStatusText",
     "cloudStatusDetail", "dialogCloudDot", "authPassword", "togglePasswordButton",
     "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount", "distributionTicker",
-    "evolutionSuggestions", "evolutionEmpty", "evolutionCount"
+    "evolutionSuggestions", "evolutionEmpty", "evolutionCount",
+    "evolutionDialog", "evolutionDialogTitle", "evolutionDialogIntro", "evolutionDialogSource",
+    "evolutionDialogGrid", "closeEvolutionButton", "lineageButton"
   ].map(id => [id, document.getElementById(id)]));
 
   const validKeys = new Set(DATA.entries.map(entry => entry.key));
@@ -143,12 +145,21 @@
     speciesGroups.flatMap(group => group.entries.map(entry => [entry.key, group]))
   );
   const evolutionAdjacency = new Map();
+  const evolutionNeighbors = new Map();
   for (const edge of DATA.evolutions || []) {
-    const targets = evolutionAdjacency.get(Number(edge.from)) || [];
-    targets.push(Number(edge.to));
-    evolutionAdjacency.set(Number(edge.from), targets);
+    const from = Number(edge.from);
+    const to = Number(edge.to);
+    const targets = evolutionAdjacency.get(from) || [];
+    targets.push(to);
+    evolutionAdjacency.set(from, targets);
+    for (const [speciesId, neighbor] of [[from, to], [to, from]]) {
+      const neighbors = evolutionNeighbors.get(speciesId) || new Set();
+      neighbors.add(neighbor);
+      evolutionNeighbors.set(speciesId, neighbors);
+    }
   }
   const evolutionPathsCache = new Map();
+  const lineageCache = new Map();
 
   const cardNodes = new Map();
   const activeVariantIndex = new Map();
@@ -156,6 +167,9 @@
   let state = loadState();
   let pendingRemovalKey = null;
   let activeDialogSpecies = null;
+  let activeEvolutionSourceKey = "";
+  let activeLineageSpeciesIds = null;
+  let activeLineageRootId = 0;
   let variantExitTimer;
   let toastTimer;
   let renderFrame;
@@ -590,13 +604,13 @@
     }
   }
 
-  function spriteStyle(sprite, entry, shiny) {
+  function spriteStyle(sprite, entry, shiny, explicitSize = 0) {
     const column = entry.slot % DATA.atlasColumns;
     const row = Math.floor(entry.slot / DATA.atlasColumns);
     const sheets = shiny ? DATA.shinySheets : DATA.normalSheets;
-    const displaySize = sprite.closest(".pokemon-card")
+    const displaySize = explicitSize || (sprite.closest(".pokemon-card")
       ? currentCardSize().spriteSize
-      : DATA.cellSize;
+      : DATA.cellSize);
     const scale = displaySize / DATA.cellSize;
     sprite.style.backgroundImage = `url("${sheets[entry.sheet]}")`;
     sprite.style.backgroundPosition = `${-column * DATA.cellSize * scale}px ${-row * DATA.cellSize * scale}px`;
@@ -804,6 +818,7 @@
   const numericSearch = filters.search.replace(/\D/g, "");
   const isNumberSearch = Boolean(filters.search) && /^#?\s*\d+$/.test(elements.searchInput.value.trim());
   const list = speciesGroups.filter(group => {
+    if (activeLineageSpeciesIds && !activeLineageSpeciesIds.has(group.speciesId)) return false;
     if (filters.search) {
       const searchable = group.entries.flatMap(entry => [
         localizedName(entry),
@@ -852,6 +867,50 @@
     return ["alola", "galar", "hisui", "paldea"].find(region => form.includes(region)) || "";
   }
 
+  function evolutionFormTrait(entry) {
+    const form = evolutionFormName(entry);
+    for (const [groupIndex, group] of EVOLUTION_FORM_TRAIT_GROUPS.entries()) {
+      if (!group.species.has(entry.speciesId)) continue;
+      const value = group.values.find(candidate => form.includes(candidate));
+      return value ? `${groupIndex}:${value}` : "";
+    }
+    return "";
+  }
+
+  function formsCanShareEvolution(source, target) {
+    const sourceGroupIndex = EVOLUTION_FORM_TRAIT_GROUPS.findIndex(group =>
+      group.species.has(source.speciesId)
+    );
+    if (sourceGroupIndex < 0) return true;
+    const traitGroup = EVOLUTION_FORM_TRAIT_GROUPS[sourceGroupIndex];
+    if (!traitGroup.species.has(target.speciesId)) return true;
+    const sourceTrait = evolutionFormTrait(source);
+    const targetTrait = evolutionFormTrait(target);
+    return Boolean(sourceTrait && targetTrait && sourceTrait === targetTrait);
+  }
+
+  function sourceFormCanEvolve(source) {
+    const form = evolutionFormName(source);
+    if (source.speciesId === 172 && source.formId !== 172) return false;
+    if (source.speciesId === 25 && source.formId !== 25) return false;
+    if (source.speciesId === 670 && form.includes("eternal")) return false;
+    return true;
+  }
+
+  function targetFormCanResultFromEvolution(source, target, path) {
+    if (!formsCanShareEvolution(source, target)) return false;
+    if (source.speciesId === 172 && target.speciesId === 25 && target.formId !== 25) return false;
+    if (target.speciesId === 666 && target.formId === 10162) return false;
+
+    const sourceForm = evolutionFormName(source);
+    const targetForm = evolutionFormName(target);
+    if (source.speciesId === 744 && target.speciesId === 745) {
+      const ownsTempo = sourceForm.includes("own tempo");
+      return ownsTempo ? targetForm.includes("dusk") : !targetForm.includes("dusk");
+    }
+    return path.length > 1;
+  }
+
   function genderCanEvolveTo(source, target) {
     if (target.gender === "genderless") return true;
     if (source.gender === "genderless") return target.gender === "genderless";
@@ -876,6 +935,7 @@
       !entry.exceptional
       && isLegallyObtainable(entry)
       && genderCanEvolveTo(source, entry)
+      && targetFormCanResultFromEvolution(source, entry, path)
     );
     if (!candidates.length || !sourceCanFollowPath(source, path)) return [];
 
@@ -889,14 +949,6 @@
       candidates = candidates.filter(entry =>
         expected.some(token => evolutionFormName(entry).includes(token))
       );
-    } else if (EVOLUTION_MATCH_FORM_EDGES.has(directEdge) && sourceForm) {
-      const ignored = new Set(["form", "forme", "cloak", "core"]);
-      const sourceTokens = sourceForm.split(" ").filter(token => token.length > 2 && !ignored.has(token));
-      const matching = candidates.filter(entry => {
-        const targetForm = evolutionFormName(entry);
-        return sourceTokens.some(token => targetForm.includes(token));
-      });
-      if (matching.length) candidates = matching;
     }
 
     const region = evolutionRegion(source);
@@ -927,11 +979,47 @@
     return paths;
   }
 
+  function lineageSpeciesIdsFor(speciesId) {
+    if (lineageCache.has(speciesId)) return lineageCache.get(speciesId);
+    const lineage = new Set([speciesId]);
+    const queue = [speciesId];
+    while (queue.length) {
+      const current = queue.shift();
+      for (const neighbor of evolutionNeighbors.get(current) || []) {
+        if (lineage.has(neighbor)) continue;
+        lineage.add(neighbor);
+        queue.push(neighbor);
+      }
+    }
+    lineageCache.set(speciesId, lineage);
+    return lineage;
+  }
+
+  function applyLineageFilter(speciesId) {
+    const group = groupsBySpecies.get(speciesId);
+    if (!group) return;
+    activeLineageRootId = speciesId;
+    activeLineageSpeciesIds = new Set(lineageSpeciesIdsFor(speciesId));
+    elements.searchInput.value = "";
+    elements.generationFilter.value = "all";
+    elements.typeFilter.value = "all";
+    elements.statusFilter.value = "all";
+    elements.sortSelect.value = "number";
+    closeDialog(elements.variantDialog);
+    render();
+    document.querySelector(".collection-panel")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    showToast(t("lineageApplied", {
+      name: localizedName(group.entries[0]),
+      count: formatNumber(activeLineageSpeciesIds.size)
+    }));
+  }
+
   function evolutionRecommendations() {
-    const bestByTarget = new Map();
+    const bestBySourceAndTarget = new Map();
     const sources = DATA.entries.filter(entry =>
       !entry.exceptional
       && isLegallyObtainable(entry)
+      && sourceFormCanEvolve(entry)
       && quantityFor(entry.key) > 1
     );
 
@@ -949,7 +1037,8 @@
             path,
             steps: path.length - 1
           };
-          const existing = bestByTarget.get(target.key);
+          const recommendationKey = `${source.key}|${target.key}`;
+          const existing = bestBySourceAndTarget.get(recommendationKey);
           if (
             !existing
             || recommendation.steps < existing.steps
@@ -958,13 +1047,13 @@
               && recommendation.sourceQuantity > existing.sourceQuantity
             )
           ) {
-            bestByTarget.set(target.key, recommendation);
+            bestBySourceAndTarget.set(recommendationKey, recommendation);
           }
         }
       }
     }
 
-    return [...bestByTarget.values()].sort((a, b) =>
+    return [...bestBySourceAndTarget.values()].sort((a, b) =>
       a.source.speciesId - b.source.speciesId
       || a.target.speciesId - b.target.speciesId
       || (a.target.formOrder ?? 0) - (b.target.formOrder ?? 0)
@@ -972,34 +1061,123 @@
     );
   }
 
+  function evolutionRecommendationGroups() {
+    const groups = new Map();
+    for (const recommendation of evolutionRecommendations()) {
+      const group = groups.get(recommendation.source.key) || {
+        source: recommendation.source,
+        sourceQuantity: recommendation.sourceQuantity,
+        recommendations: []
+      };
+      group.recommendations.push(recommendation);
+      groups.set(recommendation.source.key, group);
+    }
+    return [...groups.values()].sort((a, b) =>
+      a.source.speciesId - b.source.speciesId
+      || (a.source.formOrder ?? 0) - (b.source.formOrder ?? 0)
+      || (GENDER_ORDER[a.source.gender] ?? 9) - (GENDER_ORDER[b.source.gender] ?? 9)
+    );
+  }
+
+  function evolutionPathText(recommendation) {
+    return t("evolutionPath", {
+      path: recommendation.path.map(speciesId => {
+        const group = groupsBySpecies.get(speciesId);
+        return group ? localizedName(group.entries[0]) : `#${speciesId}`;
+      }).join(" → ")
+    });
+  }
+
+  function renderEvolutionDialog(group) {
+    if (!group) return;
+    elements.evolutionDialogTitle.textContent = t("evolutionDialogTitle", {
+      name: localizedName(group.source)
+    });
+    elements.evolutionDialogIntro.textContent = t(
+      group.recommendations.length === 1 ? "evolutionDialogIntroOne" : "evolutionDialogIntro",
+      { count: formatNumber(group.recommendations.length) }
+    );
+
+    const sourceSprite = document.createElement("span");
+    sourceSprite.className = "evolution-dialog__source-sprite";
+    spriteStyle(sourceSprite, group.source, true, 72);
+    const sourceText = document.createElement("span");
+    const sourceName = document.createElement("strong");
+    sourceName.textContent = localizedName(group.source);
+    const sourceVariant = document.createElement("small");
+    sourceVariant.textContent = variantLabel(group.source, { alwaysGender: true }) || t("defaultForm");
+    const sourceCount = document.createElement("em");
+    sourceCount.textContent = t("evolutionCopies", {
+      count: formatNumber(group.sourceQuantity),
+      remaining: formatNumber(group.sourceQuantity - 1)
+    });
+    sourceText.append(sourceName, sourceVariant, sourceCount);
+    elements.evolutionDialogSource.replaceChildren(sourceSprite, sourceText);
+
+    const fragment = document.createDocumentFragment();
+    for (const recommendation of group.recommendations) {
+      const card = document.createElement("article");
+      card.className = "evolution-choice";
+      const sprite = document.createElement("span");
+      sprite.className = "evolution-choice__sprite";
+      spriteStyle(sprite, recommendation.target, true);
+      const name = document.createElement("strong");
+      name.textContent = localizedName(recommendation.target);
+      const variant = document.createElement("small");
+      variant.textContent = variantLabel(recommendation.target, { alwaysGender: true }) || t("defaultForm");
+      const status = document.createElement("span");
+      status.className = "evolution-card__target-status";
+      status.textContent = t("evolutionMissingTarget");
+      const path = document.createElement("p");
+      path.textContent = evolutionPathText(recommendation);
+      card.append(sprite, name, variant, status, path);
+      fragment.append(card);
+    }
+    elements.evolutionDialogGrid.replaceChildren(fragment);
+  }
+
+  function openEvolutionDialog(sourceKey) {
+    const group = evolutionRecommendationGroups().find(option => option.source.key === sourceKey);
+    if (!group) return;
+    activeEvolutionSourceKey = sourceKey;
+    renderEvolutionDialog(group);
+    showDialog(elements.evolutionDialog);
+  }
+
   function renderEvolutionSuggestions() {
     if (!elements.evolutionSuggestions) return;
-    const recommendations = evolutionRecommendations();
+    const groups = evolutionRecommendationGroups();
     elements.evolutionCount.textContent = t(
-      recommendations.length === 1 ? "evolutionCountOne" : "evolutionCount",
-      { count: formatNumber(recommendations.length) }
+      groups.length === 1 ? "evolutionCountOne" : "evolutionCount",
+      { count: formatNumber(groups.length) }
     );
-    elements.evolutionEmpty.hidden = recommendations.length > 0;
+    elements.evolutionEmpty.hidden = groups.length > 0;
     const fragment = document.createDocumentFragment();
 
-    for (const recommendation of recommendations) {
-      const card = document.createElement("article");
+    for (const group of groups) {
+      const card = document.createElement("button");
       card.className = "evolution-card";
+      card.type = "button";
+      card.dataset.sourceKey = group.source.key;
+      card.setAttribute("aria-label", t("evolutionOpen", {
+        name: localizedName(group.source),
+        count: formatNumber(group.recommendations.length)
+      }));
 
       const source = document.createElement("div");
       source.className = "evolution-card__pokemon";
       const sourceSprite = document.createElement("span");
       sourceSprite.className = "evolution-card__sprite";
-      spriteStyle(sourceSprite, recommendation.source, true);
+      spriteStyle(sourceSprite, group.source, true);
       const sourceName = document.createElement("strong");
-      sourceName.textContent = localizedName(recommendation.source);
+      sourceName.textContent = localizedName(group.source);
       const sourceVariant = document.createElement("small");
-      sourceVariant.textContent = variantLabel(recommendation.source, { alwaysGender: true }) || t("defaultForm");
+      sourceVariant.textContent = variantLabel(group.source, { alwaysGender: true }) || t("defaultForm");
       const sourceCount = document.createElement("span");
       sourceCount.className = "evolution-card__count";
       sourceCount.textContent = t("evolutionCopies", {
-        count: formatNumber(recommendation.sourceQuantity),
-        remaining: formatNumber(recommendation.sourceQuantity - 1)
+        count: formatNumber(group.sourceQuantity),
+        remaining: formatNumber(group.sourceQuantity - 1)
       });
       source.append(sourceSprite, sourceName, sourceVariant, sourceCount);
 
@@ -1009,27 +1187,28 @@
       arrow.textContent = "→";
 
       const target = document.createElement("div");
-      target.className = "evolution-card__pokemon evolution-card__pokemon--target";
-      const targetSprite = document.createElement("span");
-      targetSprite.className = "evolution-card__sprite";
-      spriteStyle(targetSprite, recommendation.target, true);
-      const targetName = document.createElement("strong");
-      targetName.textContent = localizedName(recommendation.target);
-      const targetVariant = document.createElement("small");
-      targetVariant.textContent = variantLabel(recommendation.target, { alwaysGender: true }) || t("defaultForm");
-      const targetStatus = document.createElement("span");
-      targetStatus.className = "evolution-card__target-status";
-      targetStatus.textContent = t("evolutionMissingTarget");
-      target.append(targetSprite, targetName, targetVariant, targetStatus);
+      target.className = "evolution-card__summary";
+      const previews = document.createElement("span");
+      previews.className = "evolution-card__previews";
+      for (const recommendation of group.recommendations.slice(0, 3)) {
+        const preview = document.createElement("span");
+        spriteStyle(preview, recommendation.target, true, 52);
+        previews.append(preview);
+      }
+      const targetCount = document.createElement("strong");
+      targetCount.textContent = t(
+        group.recommendations.length === 1 ? "evolutionOptionsOne" : "evolutionOptions",
+        { count: formatNumber(group.recommendations.length) }
+      );
+      const openText = document.createElement("small");
+      openText.textContent = t("evolutionOpenDetails");
+      target.append(previews, targetCount, openText);
 
       const path = document.createElement("p");
       path.className = "evolution-card__path";
-      path.textContent = t("evolutionPath", {
-        path: recommendation.path.map(speciesId => {
-          const group = groupsBySpecies.get(speciesId);
-          return group ? localizedName(group.entries[0]) : `#${speciesId}`;
-        }).join(" → ")
-      });
+      path.textContent = [...new Set(group.recommendations.map(recommendation =>
+        localizedName(recommendation.target)
+      ))].join(" · ");
 
       const body = document.createElement("div");
       body.className = "evolution-card__body";
@@ -1039,6 +1218,11 @@
     }
 
     elements.evolutionSuggestions.replaceChildren(fragment);
+    if (activeEvolutionSourceKey && elements.evolutionDialog.hasAttribute("open")) {
+      const activeGroup = groups.find(group => group.source.key === activeEvolutionSourceKey);
+      if (activeGroup) renderEvolutionDialog(activeGroup);
+      else closeDialog(elements.evolutionDialog);
+    }
   }
   function observeCard(card, speciesId) {
     if (!cardObserver) {
@@ -1097,6 +1281,12 @@
         unobtainable: "filterUnobtainable",
         variants: "filterVariants"
       }[filters.status]));
+    }
+    if (activeLineageSpeciesIds) {
+      const root = groupsBySpecies.get(activeLineageRootId);
+      labels.push(t("filterLineage", {
+        name: root ? localizedName(root.entries[0]) : `#${activeLineageRootId}`
+      }));
     }
     elements.activeFilter.hidden = labels.length === 0;
     elements.activeFilterText.textContent = labels.length
@@ -1269,6 +1459,8 @@
     elements.typeFilter.value = "all";
     elements.statusFilter.value = "all";
     elements.sortSelect.value = "number";
+    activeLineageSpeciesIds = null;
+    activeLineageRootId = 0;
     render();
   }
 
@@ -1412,6 +1604,11 @@
   elements.variantDialogTitle.textContent = t("variantsTitle", {
     name: localizedName(group.entries[0])
   });
+  elements.lineageButton.dataset.speciesId = String(group.speciesId);
+  elements.lineageButton.querySelector("span").textContent = t("showLineage");
+  elements.lineageButton.setAttribute("aria-label", t("showLineageFor", {
+    name: localizedName(group.entries[0])
+  }));
   const fragment = document.createDocumentFragment();
   for (const entry of group.entries) {
     const item = elements.variantCardTemplate.content.cloneNode(true);
@@ -1442,7 +1639,11 @@
         : t(owned ? "removeOwned" : "markOwned", { name: fullVariantName(entry) })
     );
     const sprite = item.querySelector(".variant-option__sprite");
+    const placeholderBadge = item.querySelector(".sprite-placeholder-badge");
     spriteStyle(sprite, entry, owned);
+    placeholderBadge.hidden = !entry.spritePlaceholder;
+    placeholderBadge.textContent = t("placeholderSprite");
+    placeholderBadge.setAttribute("title", t("placeholderSpriteDescription"));
     card.addEventListener("pointerenter", event => {
       if (event.pointerType === "touch") return;
       spriteStyle(sprite, entry, true);
@@ -1464,9 +1665,7 @@
           : entry.exceptional
             ? t("exceptionSuggested", { reason: exceptionReasonText(entry) })
             : t("missing");
-    item.querySelector(".variant-option__status").textContent = entry.spritePlaceholder
-      ? `${t("placeholderSprite")} · ${variantStatus}`
-      : variantStatus;
+    item.querySelector(".variant-option__status").textContent = variantStatus;
     renderTypes(item.querySelector(".variant-option__types"), entry.types);
     const input = item.querySelector(".quantity__input");
     input.value = unavailable ? "—" : displayedQuantity(entry.key);
@@ -1745,11 +1944,23 @@
   });
   elements.clearFiltersButton.addEventListener("click", resetFilters);
   elements.emptyResetButton.addEventListener("click", resetFilters);
+  elements.evolutionSuggestions.addEventListener("click", event => {
+    const card = event.target.closest(".evolution-card[data-source-key]");
+    if (card) openEvolutionDialog(card.dataset.sourceKey);
+  });
   elements.cardSizeButton.addEventListener("click", cycleCardSize);
   elements.settingsButton.addEventListener("click", () => showDialog(elements.settingsDialog));
   elements.accountButton.addEventListener("click", () => showDialog(elements.authDialog));
   elements.closeAuthButton.addEventListener("click", () => closeDialog(elements.authDialog));
   elements.closeVariantButton.addEventListener("click", () => closeDialog(elements.variantDialog));
+  elements.lineageButton.addEventListener("click", () => {
+    const speciesId = Number(elements.lineageButton.dataset.speciesId || activeDialogSpecies);
+    if (speciesId) applyLineageFilter(speciesId);
+  });
+  elements.closeEvolutionButton.addEventListener("click", () => closeDialog(elements.evolutionDialog));
+  elements.evolutionDialog.addEventListener("close", () => {
+    activeEvolutionSourceKey = "";
+  });
   elements.variantDialog.addEventListener("close", () => {
     cancelVariantExitClose();
     activeDialogSpecies = null;
