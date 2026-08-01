@@ -37,3 +37,93 @@ window.SHINYDEX_AVAILABILITY = Object.freeze({
     })
   ])
 });
+
+/*
+ * Correctifs appliqués avant app.js : Lépidonille et Pérégrain n'ont qu'une
+ * forme. Les anciennes clés de motifs sont redirigées vers la forme conservée,
+ * ce qui migre automatiquement les sauvegardes existantes sans les additionner.
+ */
+(() => {
+  const data = window.SHINYDEX_DATA;
+  if (data?.entries?.length) {
+    const collapsedSpecies = new Set([664, 665]);
+    const aliases = { ...(data.keyAliases || {}) };
+    const entries = [];
+
+    for (const speciesId of collapsedSpecies) {
+      const speciesEntries = data.entries.filter(entry => entry.speciesId === speciesId);
+      const representatives = new Map();
+      for (const entry of speciesEntries) {
+        const gender = entry.gender || "genderless";
+        const current = representatives.get(gender);
+        const score = candidate => {
+          const formKey = String(candidate.formKey || "");
+          const slug = String(candidate.slug || "");
+          return [
+            Number(formKey !== slug),
+            candidate.formOrder ?? Number.MAX_SAFE_INTEGER,
+            candidate.formId ?? Number.MAX_SAFE_INTEGER
+          ];
+        };
+        const entryScore = score(entry);
+        const currentScore = current ? score(current) : null;
+        const isBetter = !currentScore
+          || entryScore[0] < currentScore[0]
+          || (entryScore[0] === currentScore[0] && entryScore[1] < currentScore[1])
+          || (entryScore[0] === currentScore[0] && entryScore[1] === currentScore[1] && entryScore[2] < currentScore[2]);
+        if (isBetter) representatives.set(gender, entry);
+      }
+
+      const canonicalByGender = new Map();
+      for (const [gender, representative] of representatives) {
+        const canonical = {
+          ...representative,
+          formKey: "default",
+          formOrder: 0,
+          label: "",
+          formNames: Object.freeze(Object.fromEntries((data.languages || ["fr", "en", "es", "de", "it", "ja"]).map(code => [code, ""])))
+        };
+        canonicalByGender.set(gender, canonical);
+        entries.push(canonical);
+      }
+
+      for (const entry of speciesEntries) {
+        const canonical = canonicalByGender.get(entry.gender || "genderless")
+          || canonicalByGender.values().next().value;
+        if (canonical && entry.key !== canonical.key) aliases[entry.key] = canonical.key;
+      }
+    }
+
+    for (const entry of data.entries) {
+      if (!collapsedSpecies.has(entry.speciesId)) entries.push(entry);
+    }
+
+    entries.sort((a, b) =>
+      a.speciesId - b.speciesId
+      || (a.formOrder ?? Number.MAX_SAFE_INTEGER) - (b.formOrder ?? Number.MAX_SAFE_INTEGER)
+      || String(a.formKey || a.formId).localeCompare(String(b.formKey || b.formId), "en")
+      || ({ male: 0, female: 1, genderless: 2 }[a.gender] ?? 9)
+    );
+
+    window.SHINYDEX_DATA = {
+      ...data,
+      entries,
+      keyAliases: aliases,
+      appearanceCount: entries.length
+    };
+  }
+
+  if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", () => {
+    if (!document.querySelector('link[href="shinydex-enhancements.css"]')) {
+      const style = document.createElement("link");
+      style.rel = "stylesheet";
+      style.href = "shinydex-enhancements.css";
+      document.head.append(style);
+    }
+    if (!document.querySelector('script[src="shinydex-enhancements.js"]')) {
+      const script = document.createElement("script");
+      script.src = "shinydex-enhancements.js";
+      document.body.append(script);
+    }
+  }, { once: true });
+})();

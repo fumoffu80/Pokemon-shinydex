@@ -8,9 +8,11 @@ const destination = resolve(root, "_site");
 const files = [
   "index.html",
   "styles.css",
+  "shinydex-enhancements.css",
   "i18n.js",
   "gender-differences.js",
   "app.js",
+  "shinydex-enhancements.js",
   "firebase-sync.js",
   "manifest.webmanifest",
   "sw.js",
