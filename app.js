@@ -81,7 +81,7 @@
     "ownedCount", "appearanceTotal", "speciesCount", "speciesTotal", "copyCount",
     "progressPercent", "progressBar", "progressMessage", "resultCount", "activeFilter",
     "activeFilterText", "clearFiltersButton", "emptyState", "emptyResetButton",
-    "cardSizeButton", "cardSizeValue",
+    "cardSizeButton", "cardSizeValue", "spriteModeButton", "spriteModeValue",
     "settingsButton", "settingsDialog", "animationSetting", "confirmSetting", "openResetButton",
     "resetDialog", "confirmResetButton", "removeDialog", "removeDialogText",
     "confirmRemoveButton", "variantDialog", "variantDialogTitle", "variantGrid",
@@ -172,6 +172,7 @@
   let activeLineageRootId = 0;
   let variantExitTimer;
   let toastTimer;
+  let spriteModeTimer;
   let renderFrame;
   let lastCloudDescriptor = { status: "local" };
 
@@ -187,7 +188,8 @@
         language: preferredLanguage(),
         animations: true,
         confirmRemove: false,
-        cardSize: "normal"
+        cardSize: "normal",
+        spriteMode: "2d"
       }
     };
   }
@@ -222,6 +224,7 @@
     clean.preferences.cardSize = CARD_SIZE_LEVELS.some(level => level.id === raw.preferences?.cardSize)
       ? raw.preferences.cardSize
       : clean.preferences.cardSize;
+    clean.preferences.spriteMode = raw.preferences?.spriteMode === "3d" ? "3d" : "2d";
     return clean;
   }
 
@@ -299,6 +302,48 @@
     saveState();
     applyCardSize();
     render();
+  }
+
+  function spriteMode() {
+    return state.preferences.spriteMode === "3d" ? "3d" : "2d";
+  }
+
+  function applySpriteMode() {
+    const mode = spriteMode();
+    document.documentElement.dataset.spriteMode = mode;
+    elements.spriteModeButton.dataset.mode = mode;
+    elements.spriteModeButton.setAttribute("aria-pressed", String(mode === "3d"));
+    elements.spriteModeValue.textContent = mode === "3d" ? "3D HOME" : "2D PIXEL";
+    const label = t("spriteModeButton", {
+      mode: t(mode === "3d" ? "spriteMode3D" : "spriteMode2D")
+    });
+    elements.spriteModeButton.setAttribute("aria-label", label);
+    elements.spriteModeButton.setAttribute("title", label);
+  }
+
+  function toggleSpriteMode() {
+    const previous = spriteMode();
+    const next = previous === "2d" ? "3d" : "2d";
+    clearTimeout(spriteModeTimer);
+    elements.spriteModeButton.classList.remove("is-switching");
+    elements.spriteModeButton.dataset.direction = `${previous}-to-${next}`;
+    if (state.preferences.animations) {
+      void elements.spriteModeButton.offsetWidth;
+      elements.spriteModeButton.classList.add("is-switching");
+      spriteModeTimer = setTimeout(() => {
+        elements.spriteModeButton.classList.remove("is-switching");
+      }, 720);
+    }
+    state.preferences.spriteMode = next;
+    saveState();
+    applySpriteMode();
+    render();
+    renderEvolutionSuggestions();
+    if (activeDialogSpecies && elements.variantDialog.hasAttribute("open")) {
+      const group = groupsBySpecies.get(activeDialogSpecies);
+      if (group) renderVariantDialog(group);
+    }
+    if (next === "3d") preloadShinySheets(true);
   }
 
   function normalizeAvailabilityName(value) {
@@ -605,20 +650,40 @@
   }
 
   function spriteStyle(sprite, entry, shiny, explicitSize = 0) {
-    const column = entry.slot % DATA.atlasColumns;
-    const row = Math.floor(entry.slot / DATA.atlasColumns);
-    const sheets = shiny ? DATA.shinySheets : DATA.normalSheets;
+    const useHome = spriteMode() === "3d"
+      && Number.isInteger(entry.homeSheet)
+      && Number.isInteger(entry.homeSlot)
+      && DATA.homeNormalSheets?.length
+      && DATA.homeShinySheets?.length;
+    const cellSize = useHome ? DATA.homeCellSize : DATA.cellSize;
+    const atlasColumns = useHome ? DATA.homeAtlasColumns : DATA.atlasColumns;
+    const atlasSize = useHome ? DATA.homeAtlasSize : DATA.atlasSize;
+    const slot = useHome ? entry.homeSlot : entry.slot;
+    const sheet = useHome ? entry.homeSheet : entry.sheet;
+    const column = slot % atlasColumns;
+    const row = Math.floor(slot / atlasColumns);
+    const sheets = useHome
+      ? (shiny ? DATA.homeShinySheets : DATA.homeNormalSheets)
+      : (shiny ? DATA.shinySheets : DATA.normalSheets);
     const displaySize = explicitSize || (sprite.closest(".pokemon-card")
       ? currentCardSize().spriteSize
-      : DATA.cellSize);
-    const scale = displaySize / DATA.cellSize;
-    sprite.style.backgroundImage = `url("${sheets[entry.sheet]}")`;
-    sprite.style.backgroundPosition = `${-column * DATA.cellSize * scale}px ${-row * DATA.cellSize * scale}px`;
-    sprite.style.backgroundSize = `${DATA.atlasSize * scale}px ${DATA.atlasSize * scale}px`;
+      : cellSize);
+    const scale = displaySize / cellSize;
+    sprite.style.backgroundImage = `url("${sheets[sheet]}")`;
+    sprite.style.backgroundPosition = `${-column * cellSize * scale}px ${-row * cellSize * scale}px`;
+    sprite.style.backgroundSize = `${atlasSize * scale}px ${atlasSize * scale}px`;
+    sprite.style.imageRendering = useHome ? "auto" : "pixelated";
+    sprite.dataset.spriteMode = useHome ? "3d" : "2d";
     sprite.setAttribute(
       "aria-label",
       `${localizedName(entry)}, ${variantLabel(entry, { alwaysGender: true }) || t("defaultForm")}${shiny ? " ✦" : ""}`
     );
+  }
+
+  function hasPlaceholderSprite(entry) {
+    return spriteMode() === "3d"
+      ? Boolean(entry.homeSpriteFallback)
+      : Boolean(entry.spritePlaceholder);
   }
 
   function renderTypes(container, types) {
@@ -697,6 +762,7 @@
   const quantityInput = card.querySelector(".quantity__input");
   const unavailableBadge = card.querySelector(".unobtainable-badge");
   const placeholderBadge = card.querySelector(".sprite-placeholder-badge");
+  const placeholderSprite = hasPlaceholderSprite(entry);
 
   card.dataset.key = entry.key;
   card.classList.toggle("has-variants", multiple);
@@ -708,6 +774,7 @@
   card.classList.toggle("is-unobtainable", currentUnavailable);
   card.classList.toggle("is-fully-unobtainable", groupUnavailable);
   card.classList.toggle("has-exceptional-form", Boolean(entry.exceptional));
+  card.classList.toggle("has-placeholder-sprite", placeholderSprite);
   applyCardAchievements(group, card, entry);
   card.title = currentUnavailable ? t("unobtainableDescription") : "";
   toggle.disabled = !multiple && currentUnavailable;
@@ -742,7 +809,7 @@
   badge.setAttribute("title", t("variantBadge", { count: group.visuals.length }));
   badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.visuals.length })}`);
 
-  placeholderBadge.hidden = !entry.spritePlaceholder;
+  placeholderBadge.hidden = !placeholderSprite;
   placeholderBadge.textContent = t("placeholderSprite");
   placeholderBadge.setAttribute("title", t("placeholderSpriteDescription"));
 
@@ -1469,6 +1536,7 @@
     elements.confirmSetting.checked = state.preferences.confirmRemove;
     elements.languageSelect.value = language();
     applyCardSize();
+    applySpriteMode();
   }
 
   function showToast(message) {
@@ -1623,7 +1691,8 @@
     card.classList.toggle("is-unobtainable", unavailable);
     card.classList.toggle("is-exceptional-form", Boolean(entry.exceptional));
     card.classList.toggle("is-form-complete", isFormShinyComplete(group, entry));
-    card.classList.toggle("has-placeholder-sprite", Boolean(entry.spritePlaceholder));
+    const placeholderSprite = hasPlaceholderSprite(entry);
+    card.classList.toggle("has-placeholder-sprite", placeholderSprite);
     card.title = unavailable
       ? t("unobtainableDescription")
       : entry.exceptional
@@ -1641,7 +1710,7 @@
     const sprite = item.querySelector(".variant-option__sprite");
     const placeholderBadge = item.querySelector(".sprite-placeholder-badge");
     spriteStyle(sprite, entry, owned);
-    placeholderBadge.hidden = !entry.spritePlaceholder;
+    placeholderBadge.hidden = !placeholderSprite;
     placeholderBadge.textContent = t("placeholderSprite");
     placeholderBadge.setAttribute("title", t("placeholderSpriteDescription"));
     card.addEventListener("pointerenter", event => {
@@ -1853,8 +1922,9 @@
     count: formatNumber(unavailableSpeciesIds.size)
   })}`;
 }
-  function preloadShinySheets() {
+  function preloadShinySheets(includeHome = spriteMode() === "3d") {
     const queue = [...DATA.shinySheets];
+    if (includeHome) queue.push(...(DATA.homeNormalSheets || []), ...(DATA.homeShinySheets || []));
     const loadNext = deadline => {
       while (queue.length && (!deadline || deadline.timeRemaining() > 4)) {
         const image = new Image();
@@ -1949,6 +2019,7 @@
     if (card) openEvolutionDialog(card.dataset.sourceKey);
   });
   elements.cardSizeButton.addEventListener("click", cycleCardSize);
+  elements.spriteModeButton.addEventListener("click", toggleSpriteMode);
   elements.settingsButton.addEventListener("click", () => showDialog(elements.settingsDialog));
   elements.accountButton.addEventListener("click", () => showDialog(elements.authDialog));
   elements.closeAuthButton.addEventListener("click", () => closeDialog(elements.authDialog));

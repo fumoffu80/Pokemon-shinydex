@@ -147,6 +147,14 @@ check(data?.visualCount < data?.appearanceCount, "Les sprites identiques des deu
 check(new Set(data?.entries?.map(entry => entry.key)).size === data?.entries?.length, "Des identifiants de variante sont dupliqués.");
 check(data?.normalSheets?.length === data?.shinySheets?.length, "Les planches normales et shiny ne correspondent pas.");
 check(data?.normalSheets?.length > 0, "Aucune planche de sprites.");
+check(data?.homeNormalSheets?.length === data?.homeShinySheets?.length,
+  "Les planches Pokémon HOME normales et shiny ne correspondent pas.");
+check(data?.homeNormalSheets?.length > 0 && data?.homeVisualCount > 0,
+  "Les rendus 3D Pokémon HOME sont absents.");
+check(data?.homeCellSize === 128 && data?.homeAtlasColumns === 15 && data?.homeAtlasSize === 1920,
+  "La géométrie des planches Pokémon HOME est inattendue.");
+check(updateDataSource.includes("/other/home") && updateDataSource.includes("function buildHomeAtlas"),
+  "La reconstruction ne télécharge pas les rendus Pokémon HOME officiels.");
 check(
   updateDataSource.includes("pichu-spiky-eared-normal.png")
     && updateDataSource.includes("pichu-spiky-eared-shiny.png"),
@@ -219,7 +227,9 @@ check(formPairingErrors.length === 0,
 const zygarde = data?.entries?.filter(entry => entry.speciesId === 718) || [];
 check(zygarde.filter(entry => entry.formNames.fr === "Forme 10 %").length === 1,
   "Zygarde contient encore plusieurs Formes 10 %." );
-check(zygarde.some(entry => entry.formNames.fr === "Méga-Zygarde" && entry.spritePlaceholder),
+check(zygarde.some(entry => entry.formNames.fr === "Méga-Zygarde"
+  && entry.spritePlaceholder
+  && !entry.homeSpriteFallback),
   "La fiche provisoire de Méga-Zygarde est absente.");
 const poltchageistForms = data?.entries?.filter(entry => entry.speciesId === 1012) || [];
 check(
@@ -245,7 +255,9 @@ const ogerponTerastallized = data?.entries?.filter(
 ) || [];
 check(
   ogerponTerastallized.length === 4
-    && ogerponTerastallized.every(entry => entry.exceptional && entry.spritePlaceholder)
+    && ogerponTerastallized.every(entry => entry.exceptional
+      && entry.spritePlaceholder
+      && entry.homeSpriteFallback)
     && Math.min(...ogerponTerastallized.map(entry => entry.formOrder)) > 1433,
   "Les quatre fiches Téracristallisation d’Ogerpon doivent suivre les masques avec un sprite provisoire."
 );
@@ -277,9 +289,12 @@ check(data?.entries?.every(entry =>
   && typeof entry.formKey === "string"
   && typeof entry.displayKey === "string"
   && typeof entry.spritePlaceholder === "boolean"
+  && typeof entry.homeSpriteFallback === "boolean"
   && (!entry.exceptional || ["mega", "gigamax", "fusion", "item", "temporary", "battle"].includes(entry.exceptionReason))
   && Number.isInteger(entry.visualVariantCount)
   && Number.isInteger(entry.sheet)
+  && Number.isInteger(entry.homeSheet)
+  && Number.isInteger(entry.homeSlot)
 ), "Une variante Pokémon est invalide ou mal traduite.");
 check(Array.isArray(data?.evolutions) && data.evolutions.length >= 480,
   "Le graphe local des évolutions est absent ou incomplet.");
@@ -307,6 +322,32 @@ for (const file of [...(data?.normalSheets || []), ...(data?.shinySheets || [])]
   } catch (error) {
     errors.push(`${file} est introuvable ou invalide : ${error.message}`);
   }
+}
+
+for (const file of [...(data?.homeNormalSheets || []), ...(data?.homeShinySheets || [])]) {
+  const path = resolve(root, file);
+  try {
+    await access(path);
+    const metadata = await sharp(path).metadata();
+    check(metadata.format === "webp", `${file} n’est pas un fichier WebP.`);
+    check(metadata.width === data.homeAtlasSize && metadata.height === data.homeAtlasSize,
+      `${file} a une taille HOME inattendue.`);
+  } catch (error) {
+    errors.push(`${file} est introuvable ou invalide : ${error.message}`);
+  }
+}
+
+try {
+  const [ditto2d, ditto3d] = await Promise.all([
+    sharp(resolve(root, "assets/ditto-2d.webp")).metadata(),
+    sharp(resolve(root, "assets/ditto-3d.webp")).metadata()
+  ]);
+  check(ditto2d.format === "webp" && ditto2d.width === 96 && ditto2d.height === 96 && ditto2d.hasAlpha,
+    "Le Métamorph 2D du bouton est invalide.");
+  check(ditto3d.format === "webp" && ditto3d.width === 96 && ditto3d.height === 96 && ditto3d.hasAlpha,
+    "Le Métamorph 3D du bouton est invalide.");
+} catch (error) {
+  errors.push(`Les deux états du bouton Métamorph sont absents : ${error.message}`);
 }
 
 try {
@@ -373,7 +414,7 @@ for (const id of [
   "evolutionDialog", "evolutionDialogTitle", "evolutionDialogIntro", "evolutionDialogSource",
   "evolutionDialogGrid", "closeEvolutionButton", "lineageButton",
   "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
-  "syncNowButton", "signOutButton"
+  "syncNowButton", "signOutButton", "spriteModeButton", "spriteModeValue"
 ]) {
   check(html.includes(`id="${id}"`), `Élément #${id} absent.`);
 }
@@ -434,6 +475,16 @@ check(app.includes('cardSize: "normal"') && app.includes("function cycleCardSize
   "La préférence de taille des fiches n’est pas enregistrée.");
 check(css.includes('[data-card-size="large"]') && css.includes('[data-card-size="xlarge"]'),
   "Les deux niveaux d’agrandissement des fiches sont absents.");
+check(html.includes('class="ditto-sprite ditto-sprite--2d"')
+  && html.includes('class="ditto-sprite ditto-sprite--3d"')
+  && app.includes('spriteMode: "2d"')
+  && app.includes("function toggleSpriteMode")
+  && app.includes("DATA.homeNormalSheets"),
+  "Le bouton Métamorph 2D / 3D ou sa préférence persistante est incomplet.");
+check(css.includes("@keyframes dittoEvolutionOut")
+  && css.includes("@keyframes dittoEvolutionIn")
+  && css.includes("@keyframes dittoEvolutionFlash"),
+  "La transformation animée de Métamorph est absente.");
 check(css.includes("100vw - clamp(64px, 6vw, 220px)"), "La mise en page n’exploite pas les écrans ultralarges.");
 check(css.includes("grid-auto-rows: var(--variant-card-height)"), "Les lignes du sélecteur peuvent encore comprimer les variantes.");
 check(css.includes("min-height: var(--variant-card-height)"), "La hauteur minimale des cartes de variante n’est pas verrouillée.");
@@ -479,7 +530,10 @@ check(css.includes(".pokemon-card.is-current-owned")
 check(html.includes('class="pokemon-sprite-frame"')
   && html.includes('class="variant-option__sprite-frame"')
   && /\.sprite-placeholder-badge\s*\{[^}]*position:\s*absolute[^}]*background:\s*rgba\(174, 19, 36/s.test(css)
-  && css.includes("rotate(-13deg)"),
+  && css.includes("rotate(-7deg)")
+  && css.includes("white-space: nowrap")
+  && css.includes(".pokemon-card__toggle > .sprite-placeholder-badge")
+  && css.includes(".variant-option__toggle > .sprite-placeholder-badge"),
   "Le bandeau rouge diagonal des sprites provisoires est absent.");
 check(/\.pokemon-card\.is-unobtainable\s*\{[^}]*border-color:\s*rgba\(218, 226, 237/s.test(css)
   && !css.includes("filter: saturate(0.58)"),
@@ -520,8 +574,13 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v15"), "Le cache PWA n’a pas été renouvelé.");
-check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
+check(serviceWorker.includes("pokemon-shinydex-v16"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("i18n.js")
+  && serviceWorker.includes("gender-differences.js")
+  && serviceWorker.includes("shiny-pokeball.svg")
+  && serviceWorker.includes("ditto-2d.webp")
+  && serviceWorker.includes("ditto-3d.webp"),
+"Les nouvelles ressources ne sont pas mises en cache.");
 check(
   serviceWorker.includes("shiny-availability.js")
     && serviceWorker.includes("distribution-source-locales.js")
@@ -567,8 +626,46 @@ try {
   dom.window.eval(app);
   await new Promise(resolveDelay => setTimeout(resolveDelay, 80));
 
+  const pokemonTemplate = dom.window.document.getElementById("pokemonCardTemplate");
+  const variantTemplate = dom.window.document.getElementById("variantCardTemplate");
+  check(!pokemonTemplate.content.querySelector(".pokemon-sprite-frame > .sprite-placeholder-badge")
+    && pokemonTemplate.content.querySelector(".pokemon-card__toggle > .sprite-placeholder-badge"),
+  "Le bandeau provisoire de l’accueil reste tronqué dans le cadre du sprite.");
+  check(!variantTemplate.content.querySelector(".variant-option__sprite-frame > .sprite-placeholder-badge")
+    && variantTemplate.content.querySelector(".variant-option__toggle > .sprite-placeholder-badge"),
+  "Le bandeau provisoire des variantes reste tronqué dans le cadre du sprite.");
+
   const cards = dom.window.document.querySelectorAll(".pokemon-card");
   check(cards.length === data.speciesCount, `Le rendu affiche ${cards.length} fiches au lieu d’une par espèce.`);
+  const spriteModeButton = dom.window.document.getElementById("spriteModeButton");
+  const initialModeSprite = dom.window.document.querySelector(".pokemon-card .pokemon-sprite");
+  check(spriteModeButton.dataset.mode === "2d"
+    && spriteModeButton.getAttribute("aria-pressed") === "false"
+    && initialModeSprite?.dataset.spriteMode === "2d"
+    && initialModeSprite?.style.backgroundImage.includes("sprites-normal-"),
+  "Le site ne démarre pas correctement en mode 2D pixel.");
+  spriteModeButton.click();
+  const homeModeSprite = dom.window.document.querySelector(".pokemon-card .pokemon-sprite");
+  check(dom.window.SHINYDEX_APP.getState().preferences.spriteMode === "3d"
+    && dom.window.document.documentElement.dataset.spriteMode === "3d"
+    && spriteModeButton.dataset.mode === "3d"
+    && spriteModeButton.getAttribute("aria-pressed") === "true"
+    && dom.window.document.getElementById("spriteModeValue").textContent.includes("HOME")
+    && homeModeSprite?.dataset.spriteMode === "3d"
+    && homeModeSprite?.style.backgroundImage.includes("sprites-home-normal-"),
+  "Le bouton ne bascule pas toutes les fiches vers les rendus 3D Pokémon HOME.");
+  homeModeSprite?.closest(".pokemon-card")?.dispatchEvent(new dom.window.Event("pointerenter"));
+  check(homeModeSprite?.style.backgroundImage.includes("sprites-home-shiny-"),
+    "Le survol en mode 3D n’affiche pas le rendu HOME shiny.");
+  homeModeSprite?.closest(".pokemon-card")?.dispatchEvent(new dom.window.Event("pointerleave"));
+  check(spriteModeButton.classList.contains("is-switching")
+    && spriteModeButton.dataset.direction === "2d-to-3d",
+  "Métamorph ne joue pas sa transformation 2D vers 3D.");
+  spriteModeButton.click();
+  check(dom.window.SHINYDEX_APP.getState().preferences.spriteMode === "2d"
+    && dom.window.document.querySelector(".pokemon-card .pokemon-sprite")?.dataset.spriteMode === "2d"
+    && spriteModeButton.dataset.direction === "3d-to-2d",
+  "Le bouton ne restaure pas le mode 2D ni l’animation inverse.");
   const cardSizeButton = dom.window.document.getElementById("cardSizeButton");
   const initialSpriteBackgroundSize = dom.window.document.querySelector(".pokemon-card .pokemon-sprite")?.style.backgroundSize;
   cardSizeButton.click();
@@ -980,6 +1077,24 @@ try {
     "Les vraies fiches provisoires d’Ogerpon n’affichent pas toutes leur bandeau rouge.");
   dom.window.document.getElementById("variantDialog").close();
 
+  search.value = "Zygarde";
+  search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
+  dom.window.document.querySelector(".pokemon-card__toggle")?.click();
+  let megaZygardeVariant = [...dom.window.document.querySelectorAll("#variantGrid .variant-option")]
+    .find(card => card.querySelector(".variant-option__form")?.textContent === "Méga-Zygarde");
+  check(megaZygardeVariant && !megaZygardeVariant.querySelector(".sprite-placeholder-badge")?.hidden,
+    "Le bandeau provisoire de Méga-Zygarde est absent en mode 2D.");
+  dom.window.document.getElementById("variantDialog").close();
+  spriteModeButton.click();
+  dom.window.document.querySelector(".pokemon-card__toggle")?.click();
+  megaZygardeVariant = [...dom.window.document.querySelectorAll("#variantGrid .variant-option")]
+    .find(card => card.querySelector(".variant-option__form")?.textContent === "Méga-Zygarde");
+  check(megaZygardeVariant?.querySelector(".sprite-placeholder-badge")?.hidden,
+    "Le bandeau 2D reste affiché alors que le rendu HOME exact de Méga-Zygarde est disponible.");
+  dom.window.document.getElementById("variantDialog").close();
+  spriteModeButton.click();
+
   search.value = "Zarbi";
   search.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   await new Promise(resolveDelay => setTimeout(resolveDelay, 60));
@@ -1032,5 +1147,6 @@ if (errors.length) {
 
 console.log(
   `Validation réussie : ${data.speciesCount} fiches d’espèce, ${data.appearanceCount} variantes forme/sexe, `
-  + `${languages.length} langues, ${data.normalSheets.length * 2} planches locales, Firebase et PWA autonomes.`
+  + `${languages.length} langues, `
+  + `${(data.normalSheets.length + data.homeNormalSheets.length) * 2} planches locales, Firebase et PWA autonomes.`
 );

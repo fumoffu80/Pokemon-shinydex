@@ -1,4 +1,4 @@
-const CACHE_NAME = "pokemon-shinydex-v15";
+const CACHE_NAME = "pokemon-shinydex-v16";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -15,6 +15,8 @@ const APP_SHELL = [
   "./assets/shiny-pokeball.svg",
   "./assets/shiny-pokeball-192.png",
   "./assets/shiny-pokeball-512.png",
+  "./assets/ditto-2d.webp",
+  "./assets/ditto-3d.webp",
   "./assets/flags/fr.svg",
   "./assets/flags/en.svg",
   "./assets/flags/es.svg",

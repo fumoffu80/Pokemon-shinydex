@@ -90,14 +90,27 @@
         </div>
       </article>
       <article class="progress-card">
-        <div class="progress-card__heading">
-          <span data-i18n="completion">Complétion</span>
-          <strong id="progressPercent">0 %</strong>
+        <div class="progress-card__body">
+          <div class="progress-card__heading">
+            <span data-i18n="completion">Complétion</span>
+            <strong id="progressPercent">0 %</strong>
+          </div>
+          <div class="progress-track" role="progressbar" data-i18n-aria="completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span id="progressBar"></span>
+          </div>
+          <p id="progressMessage" data-i18n="progressStart">Votre aventure chromatique commence ici.</p>
         </div>
-        <div class="progress-track" role="progressbar" data-i18n-aria="completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <span id="progressBar"></span>
-        </div>
-        <p id="progressMessage" data-i18n="progressStart">Votre aventure chromatique commence ici.</p>
+        <button class="sprite-mode-button" id="spriteModeButton" type="button" aria-pressed="false">
+          <span class="ditto-evolution" aria-hidden="true">
+            <span class="ditto-sprite ditto-sprite--2d"></span>
+            <span class="ditto-sprite ditto-sprite--3d"></span>
+            <span class="ditto-evolution__flash"></span>
+          </span>
+          <span class="sprite-mode-button__text">
+            <strong>2D / 3D</strong>
+            <small id="spriteModeValue">2D</small>
+          </span>
+        </button>
       </article>
     </section>
 
@@ -258,8 +271,8 @@
         </span>
         <span class="pokemon-sprite-frame">
           <span class="pokemon-sprite" role="img"></span>
-          <span class="sprite-placeholder-badge" hidden data-i18n="placeholderSprite">Sprite provisoire</span>
         </span>
+        <span class="sprite-placeholder-badge" hidden data-i18n="placeholderSprite">Sprite provisoire</span>
         <span class="pokemon-card__identity">
           <strong class="pokemon-card__name"></strong>
           <span class="pokemon-card__form"></span>
@@ -295,8 +308,8 @@
         </span>
         <span class="variant-option__sprite-frame">
           <span class="variant-option__sprite" role="img"></span>
-          <span class="sprite-placeholder-badge" hidden data-i18n="placeholderSprite">Sprite provisoire</span>
         </span>
+        <span class="sprite-placeholder-badge" hidden data-i18n="placeholderSprite">Sprite provisoire</span>
         <span class="variant-option__identity">
           <strong class="variant-option__form"></strong>
           <span class="variant-option__gender"></span>
