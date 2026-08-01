@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-30T06:42:17.527Z",
+  "updatedAt": "2026-08-01T06:41:28.414Z",
   "sources": {
     "shiny-legality": {
       "label": "Légalité des Pokémon shiny",
@@ -26,9 +26,9 @@
     "event-database": {
       "label": "Base mondiale des événements",
       "url": "https://www.serebii.net/events/2026.shtml",
-      "fingerprint": "6e7f81dd867a7a6e9d1c3d93d8e734bb82c36f30c2cdef16e43f0419b13278dc",
-      "detail": "10445 caractères normalisés",
-      "observedAt": "2026-07-30T06:42:17.527Z"
+      "fingerprint": "770e196719bc271346a923935d9535e5a6d11b53a3510251282c896a2382b865",
+      "detail": "10472 caractères normalisés",
+      "observedAt": "2026-08-01T06:41:28.414Z"
     }
   }
 }
