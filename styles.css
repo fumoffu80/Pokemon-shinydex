@@ -517,9 +517,15 @@ main {
 }
 
 .progress-card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 15px;
   justify-content: center;
+}
+
+.progress-card__body {
+  min-width: 0;
 }
 
 .progress-card__heading {
@@ -557,6 +563,129 @@ main {
   margin: 9px 0 0;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.sprite-mode-button {
+  position: relative;
+  display: grid;
+  align-items: center;
+  grid-template-columns: 47px auto;
+  min-width: 112px;
+  min-height: 68px;
+  padding: 6px 9px 6px 6px;
+  overflow: hidden;
+  gap: 5px;
+  color: var(--text);
+  border: 1px solid rgba(142, 200, 255, 0.3);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 25% 50%, rgba(182, 156, 246, 0.18), transparent 48%),
+    linear-gradient(145deg, rgba(29, 43, 68, 0.98), rgba(18, 29, 49, 0.98));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06), 0 7px 18px rgba(2, 8, 20, 0.2);
+  text-align: left;
+}
+
+.sprite-mode-button:hover,
+.sprite-mode-button:focus-visible {
+  border-color: rgba(245, 201, 93, 0.62);
+  box-shadow: 0 0 0 3px rgba(245, 201, 93, 0.1), 0 8px 20px rgba(2, 8, 20, 0.28);
+}
+
+.ditto-evolution {
+  position: relative;
+  display: block;
+  width: 47px;
+  height: 52px;
+}
+
+.ditto-sprite {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 4px 5px rgba(2, 8, 20, 0.42));
+  transform-origin: 50% 75%;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.ditto-sprite--2d {
+  background-image: url("assets/ditto-2d.webp");
+  image-rendering: pixelated;
+}
+
+.ditto-sprite--3d {
+  background-image: url("assets/ditto-3d.webp");
+  opacity: 0;
+}
+
+.sprite-mode-button[data-mode="3d"] .ditto-sprite--2d {
+  opacity: 0;
+}
+
+.sprite-mode-button[data-mode="3d"] .ditto-sprite--3d {
+  opacity: 1;
+}
+
+.ditto-evolution__flash {
+  position: absolute;
+  z-index: 3;
+  inset: 5px 2px;
+  opacity: 0;
+  border: 2px solid rgba(255, 242, 166, 0.94);
+  border-radius: 50%;
+  box-shadow: 0 0 11px #fff2a6, inset 0 0 10px rgba(255, 255, 255, 0.82);
+  pointer-events: none;
+}
+
+.sprite-mode-button.is-switching .ditto-evolution__flash {
+  animation: dittoEvolutionFlash 680ms ease-out both;
+}
+
+.sprite-mode-button.is-switching[data-direction="2d-to-3d"] .ditto-sprite--2d,
+.sprite-mode-button.is-switching[data-direction="3d-to-2d"] .ditto-sprite--3d {
+  animation: dittoEvolutionOut 680ms ease-in-out both;
+}
+
+.sprite-mode-button.is-switching[data-direction="2d-to-3d"] .ditto-sprite--3d,
+.sprite-mode-button.is-switching[data-direction="3d-to-2d"] .ditto-sprite--2d {
+  animation: dittoEvolutionIn 680ms ease-in-out both;
+}
+
+.sprite-mode-button__text {
+  display: grid;
+  gap: 3px;
+}
+
+.sprite-mode-button__text strong {
+  font-size: 0.72rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sprite-mode-button__text small {
+  color: #a9ccee;
+  font-size: 0.61rem;
+  font-weight: 850;
+}
+
+@keyframes dittoEvolutionOut {
+  0% { opacity: 1; filter: brightness(1) blur(0); transform: scale(1) translateY(0); }
+  42% { opacity: 1; filter: brightness(2.4) blur(1px); transform: scale(1.12) translateY(-2px); }
+  100% { opacity: 0; filter: brightness(3) blur(4px); transform: scale(0.55) translateY(-5px); }
+}
+
+@keyframes dittoEvolutionIn {
+  0%, 38% { opacity: 0; filter: brightness(3) blur(4px); transform: scale(0.55) translateY(5px); }
+  72% { opacity: 1; filter: brightness(1.7) blur(0); transform: scale(1.13) translateY(-2px); }
+  100% { opacity: 1; filter: brightness(1) blur(0); transform: scale(1) translateY(0); }
+}
+
+@keyframes dittoEvolutionFlash {
+  0%, 20% { opacity: 0; transform: scale(0.35); }
+  45% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(1.48); }
 }
 
 .collection-panel {
@@ -1190,25 +1319,36 @@ main {
 
 .sprite-placeholder-badge {
   position: absolute;
-  z-index: 3;
-  top: 68%;
+  z-index: 5;
   left: 50%;
   display: block;
-  width: 128%;
-  padding: 4px 7px;
+  padding: 4px 8px;
+  overflow: visible;
   color: #fff;
   border-top: 1px solid rgba(255, 211, 216, 0.72);
   border-bottom: 1px solid rgba(91, 0, 9, 0.72);
   background: rgba(174, 19, 36, 0.92);
   box-shadow: 0 3px 9px rgba(30, 0, 4, 0.4);
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   font-weight: 950;
   line-height: 1.1;
   letter-spacing: 0.08em;
   text-align: center;
   text-transform: uppercase;
   text-shadow: 0 1px 2px rgba(50, 0, 4, 0.8);
-  transform: translate(-50%, -50%) rotate(-13deg);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-7deg);
+}
+
+.pokemon-card__toggle > .sprite-placeholder-badge {
+  top: calc(20px + var(--sprite-size) * 0.64);
+  width: calc(100% + 18px);
+}
+
+.variant-option__toggle > .sprite-placeholder-badge {
+  top: 72px;
+  width: calc(100% + 14px);
 }
 
 .sprite-placeholder-badge[hidden] {

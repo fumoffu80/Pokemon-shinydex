@@ -12,12 +12,18 @@ const CACHE_DIR = resolve(ROOT, ".cache/sprites");
 const SOURCE_OVERRIDE_DIR = resolve(ROOT, "tools/source-overrides");
 const CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv";
 const SPRITE_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
+const HOME_SPRITE_BASE = `${SPRITE_BASE}/other/home`;
 const LANGUAGES = { fr: 5, en: 9, es: 7, de: 6, it: 8, ja: 1 };
 const CELL_SIZE = 96;
 const ATLAS_COLUMNS = 20;
 const ATLAS_ROWS = 20;
 const ATLAS_CAPACITY = ATLAS_COLUMNS * ATLAS_ROWS;
 const ATLAS_SIZE = CELL_SIZE * ATLAS_COLUMNS;
+const HOME_CELL_SIZE = 128;
+const HOME_ATLAS_COLUMNS = 15;
+const HOME_ATLAS_ROWS = 15;
+const HOME_ATLAS_CAPACITY = HOME_ATLAS_COLUMNS * HOME_ATLAS_ROWS;
+const HOME_ATLAS_SIZE = HOME_CELL_SIZE * HOME_ATLAS_COLUMNS;
 // PokéAPI rattache les motifs de Prismillon à Lépidonille et Pérégrain alors
 // que ces deux stades n'ont qu'une seule forme visible et collectionnable.
 // On garde toutes les lignes source afin de créer des alias de migration vers
@@ -240,23 +246,38 @@ function cachePath(url) {
   return resolve(CACHE_DIR, parsed.pathname.replace(/^.*\/sprites\/pokemon\//, ""));
 }
 
-async function downloadSprite(url) {
-  const target = cachePath(url);
-  try {
-    return await readFile(target);
-  } catch {
-    // Le cache est facultatif.
-  }
+const activeSpriteDownloads = new Map();
 
+async function downloadSprite(url) {
+  if (activeSpriteDownloads.has(url)) return activeSpriteDownloads.get(url);
+  const operation = (async () => {
+    const target = cachePath(url);
+    try {
+      const cached = await readFile(target);
+      if (cached.length > 8 && cached.subarray(0, 8).toString("hex") === "89504e470d0a1a0a") {
+        return cached;
+      }
+      await rm(target, { force: true });
+    } catch {
+      // Le cache est facultatif.
+    }
+
+    try {
+      const response = await fetchWithRetry(url, 3);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length <= 8 || buffer.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") return null;
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, buffer);
+      return buffer;
+    } catch {
+      return null;
+    }
+  })();
+  activeSpriteDownloads.set(url, operation);
   try {
-    const response = await fetchWithRetry(url, 3);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") return null;
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, buffer);
-    return buffer;
-  } catch {
-    return null;
+    return await operation;
+  } finally {
+    activeSpriteDownloads.delete(url);
   }
 }
 
@@ -284,6 +305,18 @@ async function spriteBuffer(candidate, kind) {
   return fallback
     ? { ...fallback, placeholder: candidate.fallbackSpritePlaceholder !== false }
     : null;
+}
+
+async function homeSpriteBuffer(candidate, kind, pixelBuffer) {
+  const primary = await downloadFirst(
+    kind === "normal" ? candidate.homeNormalUrls : candidate.homeShinyUrls
+  );
+  if (primary) return { ...primary, fallback: false };
+  const fallback = await downloadFirst(
+    kind === "normal" ? candidate.fallbackHomeNormalUrls : candidate.fallbackHomeShinyUrls
+  );
+  if (fallback) return { ...fallback, fallback: true };
+  return { buffer: pixelBuffer, fallback: true };
 }
 
 function spriteStems(form) {
@@ -350,6 +383,13 @@ function spriteUrlsForPokemonId(pokemonId, shiny) {
   return [`${root}/${pokemonId}.png`];
 }
 
+function homeSpriteUrlsForPokemonId(pokemonId, shiny, female = false) {
+  const root = shiny ? `${HOME_SPRITE_BASE}/shiny` : HOME_SPRITE_BASE;
+  return female
+    ? [`${root}/female/${pokemonId}.png`, `${root}/${pokemonId}.png`]
+    : [`${root}/${pokemonId}.png`];
+}
+
 function localizedValues(map, id, fallback = "") {
   const en = map.get(`${id}:${LANGUAGES.en}`) || fallback;
   return Object.fromEntries(
@@ -407,11 +447,23 @@ function spriteUrls(form, species, gender, shiny) {
   );
 }
 
+function homeSpriteUrls(form, species, gender, shiny) {
+  const canUseFemaleSprite =
+    gender === "female"
+    && species.hasGenderDifferences
+    && form.is_default === "1"
+    && !explicitGender(form);
+  return homeSpriteUrlsForPokemonId(Number(form.pokemon_id), shiny, canUseFemaleSprite);
+}
+
 async function buildAtlas(visuals, kind, atlasIndex) {
   const start = atlasIndex * ATLAS_CAPACITY;
   const slice = visuals.slice(start, start + ATLAS_CAPACITY);
   const composites = await Promise.all(slice.map(async (visual, index) => {
     const buffer = kind === "normal" ? visual.normalBuffer : visual.shinyBuffer;
+    if (!buffer?.length) {
+      throw new Error(`Sprite 2D ${kind} vide à l’index ${start + index}.`);
+    }
     const prepared = await sharp(buffer)
       .resize(CELL_SIZE, CELL_SIZE, { fit: "contain", kernel: "nearest" })
       .png()
@@ -435,6 +487,53 @@ async function buildAtlas(visuals, kind, atlasIndex) {
     .composite(composites)
     .webp({ lossless: true, effort: 4 })
     .toFile(output);
+}
+
+async function buildHomeAtlas(visuals, kind, atlasIndex) {
+  const start = atlasIndex * HOME_ATLAS_CAPACITY;
+  const slice = visuals.slice(start, start + HOME_ATLAS_CAPACITY);
+  const composites = await Promise.all(slice.map(async (visual, index) => {
+    const buffer = kind === "normal" ? visual.normalBuffer : visual.shinyBuffer;
+    if (!buffer?.length) {
+      throw new Error(`Sprite HOME ${kind} vide à l’index ${start + index}.`);
+    }
+    const prepared = await sharp(buffer)
+      .resize(HOME_CELL_SIZE, HOME_CELL_SIZE, { fit: "contain", kernel: "lanczos3" })
+      .png()
+      .toBuffer();
+    return {
+      input: prepared,
+      left: (index % HOME_ATLAS_COLUMNS) * HOME_CELL_SIZE,
+      top: Math.floor(index / HOME_ATLAS_COLUMNS) * HOME_CELL_SIZE
+    };
+  }));
+
+  const output = resolve(ASSET_DIR, `sprites-home-${kind}-${atlasIndex}.webp`);
+  await sharp({
+    create: {
+      width: HOME_ATLAS_SIZE,
+      height: HOME_ATLAS_SIZE,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    }
+  })
+    .composite(composites)
+    .webp({ quality: 86, alphaQuality: 100, effort: 4, smartSubsample: true })
+    .toFile(output);
+}
+
+async function buildDittoModeAssets(ditto) {
+  if (!ditto) return;
+  await Promise.all([
+    sharp(ditto.normalBuffer)
+      .resize(96, 96, { fit: "contain", kernel: "nearest" })
+      .webp({ lossless: true, effort: 4 })
+      .toFile(resolve(ASSET_DIR, "ditto-2d.webp")),
+    sharp(ditto.homeNormalBuffer)
+      .resize(96, 96, { fit: "contain", kernel: "lanczos3" })
+      .webp({ quality: 90, alphaQuality: 100, effort: 4 })
+      .toFile(resolve(ASSET_DIR, "ditto-3d.webp"))
+  ]);
 }
 
 await mkdir(ASSET_DIR, { recursive: true });
@@ -559,11 +658,19 @@ for (const form of eligibleForms) {
       shinyUrls: baseSpriteSuffix
         ? primaryShinyUrls.filter(url => !url.endsWith(baseSpriteSuffix))
         : primaryShinyUrls,
+      homeNormalUrls: homeSpriteUrls(form, species, gender, false),
+      homeShinyUrls: homeSpriteUrls(form, species, gender, true),
       fallbackNormalUrls: fallbackPokemonId
         ? spriteUrlsForPokemonId(fallbackPokemonId, false)
         : [],
       fallbackShinyUrls: fallbackPokemonId
         ? spriteUrlsForPokemonId(fallbackPokemonId, true)
+        : [],
+      fallbackHomeNormalUrls: fallbackPokemonId
+        ? homeSpriteUrlsForPokemonId(fallbackPokemonId, false)
+        : [],
+      fallbackHomeShinyUrls: fallbackPokemonId
+        ? homeSpriteUrlsForPokemonId(fallbackPokemonId, true)
         : [],
       fallbackSpritePlaceholder: fallbackForm?.placeholder ?? true
     });
@@ -594,8 +701,12 @@ for (const custom of CUSTOM_FORMS) {
     types: custom.types,
     normalUrls: [],
     shinyUrls: [],
+    homeNormalUrls: [],
+    homeShinyUrls: [],
     fallbackNormalUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, false),
     fallbackShinyUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, true),
+    fallbackHomeNormalUrls: homeSpriteUrlsForPokemonId(custom.sourcePokemonId, false),
+    fallbackHomeShinyUrls: homeSpriteUrlsForPokemonId(custom.sourcePokemonId, true),
     fallbackSpritePlaceholder: true
   });
 }
@@ -607,17 +718,28 @@ const downloaded = await mapLimit(candidates, 36, async candidate => {
     spriteBuffer(candidate, "normal"),
     spriteBuffer(candidate, "shiny")
   ]);
+  if (!normalResult?.buffer || !shinyResult?.buffer) return null;
+  const [homeNormalResult, homeShinyResult] = await Promise.all([
+    homeSpriteBuffer(candidate, "normal", normalResult.buffer),
+    homeSpriteBuffer(candidate, "shiny", shinyResult.buffer)
+  ]);
+  if (!homeNormalResult?.buffer?.length || !homeShinyResult?.buffer?.length) {
+    throw new Error(`Sprites HOME vides pour ${candidate.key}.`);
+  }
   completed += 1;
   if (completed % 100 === 0 || completed === candidates.length) {
     process.stdout.write(`\r${completed}/${candidates.length}`);
   }
-  if (!normalResult?.buffer || !shinyResult?.buffer) return null;
   return {
     ...candidate,
     normalBuffer: normalResult.buffer,
     shinyBuffer: shinyResult.buffer,
+    homeNormalBuffer: homeNormalResult.buffer,
+    homeShinyBuffer: homeShinyResult.buffer,
+    homeSpriteFallback: homeNormalResult.fallback || homeShinyResult.fallback,
     spritePlaceholder: normalResult.placeholder || shinyResult.placeholder,
-    visualHash: hashPair(normalResult.buffer, shinyResult.buffer)
+    visualHash: hashPair(normalResult.buffer, shinyResult.buffer),
+    homeVisualHash: hashPair(homeNormalResult.buffer, homeShinyResult.buffer)
   };
 });
 process.stdout.write("\n");
@@ -671,8 +793,21 @@ for (const appearance of appearances) {
   }
 }
 
+const homeVisuals = [];
+const homeVisualIndexByHash = new Map();
+for (const appearance of appearances) {
+  if (!homeVisualIndexByHash.has(appearance.homeVisualHash)) {
+    homeVisualIndexByHash.set(appearance.homeVisualHash, homeVisuals.length);
+    homeVisuals.push({
+      normalBuffer: appearance.homeNormalBuffer,
+      shinyBuffer: appearance.homeShinyBuffer
+    });
+  }
+}
+
 for (const file of await readdir(ASSET_DIR)) {
-  if (/^sprites-(normal|shiny)-\d+\.webp$/.test(file)) {
+  if (/^sprites-(normal|shiny)-\d+\.webp$/.test(file)
+    || /^sprites-home-(normal|shiny)-\d+\.webp$/.test(file)) {
     await rm(resolve(ASSET_DIR, file));
   }
 }
@@ -686,6 +821,16 @@ for (let atlasIndex = 0; atlasIndex < atlasCount; atlasIndex += 1) {
   ]);
 }
 
+const homeAtlasCount = Math.ceil(homeVisuals.length / HOME_ATLAS_CAPACITY);
+console.log(`Création de ${homeAtlasCount * 2} planches Pokémon HOME WebP…`);
+for (let atlasIndex = 0; atlasIndex < homeAtlasCount; atlasIndex += 1) {
+  await Promise.all([
+    buildHomeAtlas(homeVisuals, "normal", atlasIndex),
+    buildHomeAtlas(homeVisuals, "shiny", atlasIndex)
+  ]);
+}
+await buildDittoModeAssets(appearances.find(entry => entry.speciesId === 132 && entry.isDefault));
+
 const displayKeysBySpecies = new Map();
 for (const entry of appearances) {
   entry.displayKey = `${entry.formKey}:${entry.visualHash}`;
@@ -696,6 +841,7 @@ for (const entry of appearances) {
 
 const entries = appearances.map(entry => {
   const visualIndex = visualIndexByHash.get(entry.visualHash);
+  const homeVisualIndex = homeVisualIndexByHash.get(entry.homeVisualHash);
   return {
     key: entry.key,
     speciesId: entry.speciesId,
@@ -713,13 +859,16 @@ const entries = appearances.map(entry => {
     exceptional: entry.exceptional,
     exceptionReason: entry.exceptionReason,
     spritePlaceholder: Boolean(entry.spritePlaceholder),
+    homeSpriteFallback: Boolean(entry.homeSpriteFallback),
     formNames: entry.formNames,
     label: entry.formNames.fr,
     types: entry.types,
     variant: displayKeysBySpecies.get(entry.speciesId).size > 1,
     visualVariantCount: displayKeysBySpecies.get(entry.speciesId).size,
     sheet: Math.floor(visualIndex / ATLAS_CAPACITY),
-    slot: visualIndex % ATLAS_CAPACITY
+    slot: visualIndex % ATLAS_CAPACITY,
+    homeSheet: Math.floor(homeVisualIndex / HOME_ATLAS_CAPACITY),
+    homeSlot: homeVisualIndex % HOME_ATLAS_CAPACITY
   };
 });
 
@@ -748,11 +897,23 @@ const payload = {
   speciesCount: speciesRows.length,
   appearanceCount: entries.length,
   visualCount: visuals.length,
+  homeVisualCount: homeVisuals.length,
   cellSize: CELL_SIZE,
   atlasColumns: ATLAS_COLUMNS,
   atlasSize: ATLAS_SIZE,
+  homeCellSize: HOME_CELL_SIZE,
+  homeAtlasColumns: HOME_ATLAS_COLUMNS,
+  homeAtlasSize: HOME_ATLAS_SIZE,
   normalSheets: Array.from({ length: atlasCount }, (_, index) => `assets/sprites-normal-${index}.webp`),
   shinySheets: Array.from({ length: atlasCount }, (_, index) => `assets/sprites-shiny-${index}.webp`),
+  homeNormalSheets: Array.from(
+    { length: homeAtlasCount },
+    (_, index) => `assets/sprites-home-normal-${index}.webp`
+  ),
+  homeShinySheets: Array.from(
+    { length: homeAtlasCount },
+    (_, index) => `assets/sprites-home-shiny-${index}.webp`
+  ),
   generations,
   types: usedTypes,
   typeNames,
@@ -766,5 +927,6 @@ await writeFile(DATA_FILE, javascript);
 
 console.log(
   `Base générée : ${payload.speciesCount} espèces, ${payload.appearanceCount} combinaisons, `
-  + `${payload.visualCount} couples de sprites, ${atlasCount} planches normales + ${atlasCount} shiny.`
+  + `${payload.visualCount} couples 2D, ${payload.homeVisualCount} couples HOME, `
+  + `${atlasCount * 2 + homeAtlasCount * 2} planches au total.`
 );
