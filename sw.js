@@ -1,3 +1,4 @@
+// Cache précédent conservé comme référence de migration : pokemon-shinydex-v14
 const CACHE_NAME = "pokemon-shinydex-v15";
 const APP_SHELL = [
   "./",
