@@ -158,7 +158,9 @@ const florizarre = data?.entries?.filter(entry => entry.speciesId === 3 && !entr
 const megaEntries = data?.entries?.filter(entry => entry.exceptionReason === "mega") || [];
 const gigamaxEntries = data?.entries?.filter(entry => entry.exceptionReason === "gigamax") || [];
 const visualCount = speciesId => new Set(
-  data?.entries?.filter(entry => entry.speciesId === speciesId).map(entry => `${entry.sheet}:${entry.slot}`)
+  data?.entries?.filter(entry => entry.speciesId === speciesId).map(
+    entry => entry.displayKey || `${entry.sheet}:${entry.slot}`
+  )
 ).size;
 check(florizarre.length === 2, "Florizarre doit proposer exactement un mâle et une femelle.");
 check(new Set(florizarre.map(entry => entry.gender)).size === 2, "Les deux sexes de Florizarre sont incomplets.");
@@ -181,6 +183,72 @@ check(data?.entries?.filter(entry => entry.speciesId === 646 && entry.formNames.
 ), "Les fusions de Kyurem ne sont pas classées en exception.");
 check(data?.entries?.find(entry => entry.speciesId === 648 && entry.formNames.fr === "Forme Danse")?.exceptional,
   "La Forme Danse de Meloetta doit être une exception.");
+const nemelios = data?.entries?.filter(entry => entry.speciesId === 668) || [];
+check(
+  nemelios.length === 4
+    && nemelios.map(entry => entry.gender).join(",") === "male,female,male,female"
+    && !nemelios[0]?.exceptional
+    && !nemelios[1]?.exceptional
+    && nemelios[2]?.formNames?.fr === "Méga-Némélios"
+    && nemelios[3]?.formNames?.fr === "Méga-Némélios",
+  "Némélios doit être rangé mâle, femelle, Méga mâle, Méga femelle."
+);
+const formPairingErrors = [];
+for (const speciesId of new Set(data?.entries?.map(entry => entry.speciesId) || [])) {
+  const entries = data.entries.filter(entry => entry.speciesId === speciesId);
+  const closedForms = new Set();
+  let activeForm = "";
+  for (const entry of entries) {
+    if (entry.formKey !== activeForm) {
+      if (closedForms.has(entry.formKey)) formPairingErrors.push(speciesId);
+      if (activeForm) closedForms.add(activeForm);
+      activeForm = entry.formKey;
+    }
+  }
+  for (const formKey of new Set(entries.map(entry => entry.formKey))) {
+    const genders = entries.filter(entry => entry.formKey === formKey).map(entry => entry.gender);
+    if (
+      genders.includes("male")
+      && genders.includes("female")
+      && genders.indexOf("male") > genders.indexOf("female")
+    ) formPairingErrors.push(speciesId);
+  }
+}
+check(formPairingErrors.length === 0,
+  `Les formes/sexe ne restent pas toujours groupées par couple : ${[...new Set(formPairingErrors)].join(", ")}`);
+const zygarde = data?.entries?.filter(entry => entry.speciesId === 718) || [];
+check(zygarde.filter(entry => entry.formNames.fr === "Forme 10 %").length === 1,
+  "Zygarde contient encore plusieurs Formes 10 %." );
+check(zygarde.some(entry => entry.formNames.fr === "Méga-Zygarde" && entry.spritePlaceholder),
+  "La fiche provisoire de Méga-Zygarde est absente.");
+const poltchageistForms = data?.entries?.filter(entry => entry.speciesId === 1012) || [];
+check(
+  poltchageistForms.length === 2
+    && poltchageistForms.some(entry => entry.formNames.fr === "Forme Imitation")
+    && poltchageistForms.some(entry => entry.formNames.fr === "Forme Onéreuse" && entry.spritePlaceholder),
+  "Les formes Imitation et Onéreuse de Poltchageist sont incomplètes."
+);
+const theffroyableForms = data?.entries?.filter(entry => entry.speciesId === 1013) || [];
+check(
+  theffroyableForms.length === 2
+    && theffroyableForms.some(entry => entry.formNames.fr === "Forme Médiocre")
+    && theffroyableForms.some(entry => entry.formNames.fr === "Forme Exceptionnelle" && entry.spritePlaceholder),
+  "Les formes Médiocre et Exceptionnelle de Théffroyable sont incomplètes."
+);
+const miniorMeteor = data?.entries?.filter(
+  entry => entry.speciesId === 774 && entry.formNames.fr === "Forme Météore"
+) || [];
+check(miniorMeteor.length === 1 && miniorMeteor[0].exceptional,
+  "Météno doit avoir une seule Forme Météore, classée en exception.");
+const ogerponTerastallized = data?.entries?.filter(
+  entry => entry.speciesId === 1017 && entry.formNames.fr.startsWith("Téracristallisation")
+) || [];
+check(
+  ogerponTerastallized.length === 4
+    && ogerponTerastallized.every(entry => entry.exceptional && entry.spritePlaceholder)
+    && Math.min(...ogerponTerastallized.map(entry => entry.formOrder)) > 1433,
+  "Les quatre fiches Téracristallisation d’Ogerpon doivent suivre les masques avec un sprite provisoire."
+);
 check(data?.entries?.find(entry => entry.speciesId === 888 && entry.formNames.fr === "Épée Suprême")?.exceptional,
   "La forme couronnée de Zacian doit être une exception.");
 check(data?.entries?.filter(entry => entry.speciesId === 29).every(entry => entry.gender === "female"), "Nidoran♀ ne doit pas proposer de mâle.");
@@ -196,10 +264,19 @@ check(data?.entries?.every(entry =>
   && ["male", "female", "genderless"].includes(entry.gender)
   && typeof entry.exceptional === "boolean"
   && typeof entry.exceptionReason === "string"
+  && Number.isInteger(entry.formOrder)
+  && typeof entry.formKey === "string"
+  && typeof entry.displayKey === "string"
+  && typeof entry.spritePlaceholder === "boolean"
   && (!entry.exceptional || ["mega", "gigamax", "fusion", "item", "temporary", "battle"].includes(entry.exceptionReason))
   && Number.isInteger(entry.visualVariantCount)
   && Number.isInteger(entry.sheet)
 ), "Une variante Pokémon est invalide ou mal traduite.");
+check(Array.isArray(data?.evolutions) && data.evolutions.length >= 480,
+  "Le graphe local des évolutions est absent ou incomplet.");
+check(data?.evolutions?.some(edge => edge.from === 63 && edge.to === 64)
+  && data?.evolutions?.some(edge => edge.from === 64 && edge.to === 65),
+  "La lignée évolutive d’Abra est absente.");
 check(data?.types?.every(type =>
   languages.every(language => data.typeNames?.[type]?.[language])
 ), "Les noms de types ne sont pas disponibles dans les six langues.");
@@ -283,6 +360,7 @@ for (const id of [
   "resetDialog", "importInput", "accountButton",
   "informationPanel", "informationTitle", "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount",
   "distributionTicker",
+  "evolutionTitle", "evolutionCount", "evolutionSuggestions", "evolutionEmpty",
   "authDialog", "authEmail", "authPassword", "signInButton", "createAccountButton",
   "syncNowButton", "signOutButton"
 ]) {
@@ -351,6 +429,25 @@ check(css.includes("min-height: var(--variant-card-height)"), "La hauteur minima
 check(css.includes("align-content: start"), "La grille de variantes étire encore ses lignes pour remplir la fenêtre.");
 check(css.includes("scrollbar-gutter: stable"), "Le défilement des nombreuses variantes n’est pas stabilisé.");
 check(html.includes('class="stat-spark"'), "L’icône du total de shiny n’a pas été remplacée.");
+check(html.includes('class="pokemon-card__trophy"')
+  && html.includes('class="status-pokeball"')
+  && html.includes('class="pokemon-card__counts"'),
+  "Les trophées, la Poké Ball de complétion ou les compteurs des fiches sont absents.");
+check(html.includes('class="evolution-panel"') && html.indexOf('class="evolution-panel"') > collectionPosition,
+  "Les suggestions d’évolution doivent être placées à la fin du site, après la collection.");
+check(app.includes("function speciesAchievement")
+  && app.includes("function isFormShinyComplete")
+  && app.includes("function renderCardQuantities"),
+  "La complétion par forme, les trophées ou les compteurs d’accueil ne sont pas calculés.");
+check(app.includes("function evolutionRecommendations")
+  && app.includes("quantityFor(entry.key) > 1")
+  && app.includes("function renderEvolutionSuggestions"),
+  "Les suggestions d’évolution ne protègent pas le dernier exemplaire de chaque variante.");
+check(css.includes(".is-form-complete .status-check")
+  && css.includes(".pokemon-card__trophy.is-silver")
+  && css.includes(".pokemon-card__trophy.is-gold")
+  && css.includes("@keyframes statusPokeballSparkle"),
+  "Les nouveaux indicateurs de collection ne sont pas entièrement stylés.");
 check(app.includes("ENABLE_VARIANT_HOVER_OPEN = false"), "L’ouverture au survol des fiches n’est pas désactivée.");
 check(app.includes("ENABLE_VARIANT_EXIT_CLOSE = false"), "La fermeture automatique hors du sélecteur n’est pas désactivée.");
 check(app.includes("HOVER_DELAY = 2000"), "Le délai de survol n’est plus conservé dans le code.");
@@ -387,7 +484,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v13"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-v14"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js") && serviceWorker.includes("gender-differences.js") && serviceWorker.includes("shiny-pokeball.svg"), "Les nouvelles ressources ne sont pas mises en cache.");
 check(
   serviceWorker.includes("shiny-availability.js")
@@ -600,6 +697,90 @@ try {
   check(dom.window.document.getElementById("variantDialog").hasAttribute("open"),
     "Le sélecteur se ferme encore après deux secondes passées à l’extérieur.");
   dom.window.document.getElementById("variantDialog").close();
+
+  const synchronizedPreferences = {
+    ...dom.window.SHINYDEX_APP.getState().preferences,
+    language: "fr"
+  };
+  const bulbizarreMale = data.entries.find(entry =>
+    entry.speciesId === 1 && entry.gender === "male" && !entry.exceptional
+  );
+  const bulbizarreFemale = data.entries.find(entry =>
+    entry.speciesId === 1 && entry.gender === "female" && !entry.exceptional
+  );
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [bulbizarreMale.key]: 2 },
+    preferences: synchronizedPreferences
+  });
+  const bulbizarreOwnedCard = cardFor(1);
+  check(bulbizarreOwnedCard?.querySelector(".pokemon-card__counts")?.textContent.includes("♂ 2"),
+    "La fiche d’accueil n’affiche pas le compteur du sprite mâle courant.");
+  check(bulbizarreOwnedCard?.querySelectorAll(".pokemon-card__counts > span").length === 1,
+    "Une fiche ne doit afficher que les compteurs possédés de l’image courante.");
+  check(bulbizarreOwnedCard?.querySelector(".pokemon-card__trophy")?.classList.contains("is-silver"),
+    "Le trophée argent n’apparaît pas lorsqu’au moins un sexe de chaque forme est possédé.");
+  check(!bulbizarreOwnedCard?.classList.contains("is-form-complete"),
+    "La Poké Ball apparaît avant que les deux sexes d’une forme soient possédés.");
+
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [bulbizarreMale.key]: 2, [bulbizarreFemale.key]: 1 },
+    preferences: synchronizedPreferences
+  });
+  const completeBulbizarreCard = cardFor(1);
+  check(completeBulbizarreCard?.classList.contains("is-form-complete"),
+    "La Poké Ball n’apparaît pas lorsque les deux sexes de la forme sont possédés.");
+  check(completeBulbizarreCard?.querySelector(".pokemon-card__trophy")?.classList.contains("is-gold"),
+    "Le trophée or n’apparaît pas lorsque toutes les formes et tous les sexes sont possédés.");
+  check(completeBulbizarreCard?.querySelectorAll(".pokemon-card__counts > span").length === 2,
+    "Les deux compteurs mâle et femelle ne sont pas affichés ensemble.");
+
+  const abraMale = data.entries.find(entry =>
+    entry.speciesId === 63 && entry.gender === "male" && !entry.exceptional
+  );
+  const kadabraMale = data.entries.find(entry =>
+    entry.speciesId === 64 && entry.gender === "male" && !entry.exceptional
+  );
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [abraMale.key]: 2 },
+    preferences: synchronizedPreferences
+  });
+  let evolutionTargets = [...dom.window.document.querySelectorAll(
+    ".evolution-card__pokemon--target strong"
+  )].map(node => node.textContent);
+  check(evolutionTargets.includes("Kadabra") && evolutionTargets.includes("Alakazam"),
+    "Deux Abra mâles ne proposent pas Kadabra ou Alakazam manquants.");
+  check(dom.window.document.querySelector(".evolution-card__count")?.textContent.includes("1"),
+    "La suggestion n’indique pas qu’un Abra restera dans la collection.");
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [abraMale.key]: 2, [kadabraMale.key]: 1 },
+    preferences: synchronizedPreferences
+  });
+  evolutionTargets = [...dom.window.document.querySelectorAll(
+    ".evolution-card__pokemon--target strong"
+  )].map(node => node.textContent);
+  check(!evolutionTargets.includes("Kadabra") && evolutionTargets.includes("Alakazam"),
+    "Kadabra déjà possédé doit disparaître des propositions tandis qu’Alakazam reste proposé.");
+
+  const paldeanWooperMale = data.entries.find(entry =>
+    entry.speciesId === 194
+      && entry.gender === "male"
+      && entry.formNames.en.toLowerCase().includes("paldea")
+      && !entry.exceptional
+  );
+  dom.window.SHINYDEX_APP.applySyncedState({
+    schemaVersion: 2,
+    collection: { [paldeanWooperMale.key]: 2 },
+    preferences: synchronizedPreferences
+  });
+  evolutionTargets = [...dom.window.document.querySelectorAll(
+    ".evolution-card__pokemon--target strong"
+  )].map(node => node.textContent);
+  check(evolutionTargets.includes("Terraiste") && !evolutionTargets.includes("Maraiste"),
+    "Axoloto de Paldea doit proposer Terraiste sans proposer Maraiste.");
 
   const search = dom.window.document.getElementById("searchInput");
   search.value = "Zarbi";

@@ -22,6 +22,33 @@
   const HOVER_DELAY = 2000;
   const DIALOG_EXIT_DELAY = 2000;
   const SPINDA_ID = 327;
+  const GENDER_ORDER = Object.freeze({ male: 0, female: 1, genderless: 2 });
+  const EVOLUTION_SOURCE_FORM_REQUIREMENTS = new Map([
+    ["52:863", "galar"],
+    ["83:865", "galar"],
+    ["122:866", "galar"],
+    ["194:980", "paldea"],
+    ["211:904", "hisui"],
+    ["215:903", "hisui"],
+    ["222:864", "galar"],
+    ["263:862", "galar"],
+    ["264:862", "galar"],
+    ["550:902", "white striped"],
+    ["562:867", "galar"]
+  ]);
+  const EVOLUTION_SOURCE_FORM_EXCLUSIONS = new Map([
+    ["194:195", "paldea"], // Axoloto de Paldea ne devient pas Maraiste
+    ["215:461", "hisui"], // Farfuret de Hisui ne devient pas Dimoret
+    ["562:563", "galar"] // Tutafeh de Galar ne devient pas Tutankafer
+  ]);
+  const EVOLUTION_MATCH_FORM_EDGES = new Set([
+    "412:413", // Cheniti → Cheniselle (cape conservée)
+    "422:423", // Sancoki → Tritosor (mer conservée)
+    "585:586", // Vivaldaim → Haydaim (saison conservée)
+    "669:670", "670:671", // Flabébé → Floette → Florges (couleur conservée)
+    "710:711", // Pitrouille → Banshitrouye (taille conservée)
+    "854:855" // Théffroi → Polthégeist (authenticité conservée)
+  ]);
   const CARD_SIZE_LEVELS = Object.freeze([
     { id: "normal", percent: 100, spriteSize: 96, labelKey: "cardSizeNormal" },
     { id: "large", percent: 125, spriteSize: 120, labelKey: "cardSizeLarge" },
@@ -63,7 +90,8 @@
     "accountButton", "accountLabel", "cloudStatusLabel", "cloudDot", "authDialog",
     "closeAuthButton", "signedOutPanel", "signedInPanel", "accountEmail", "cloudStatusText",
     "cloudStatusDetail", "dialogCloudDot", "authPassword", "togglePasswordButton",
-    "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount", "distributionTicker"
+    "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount", "distributionTicker",
+    "evolutionSuggestions", "evolutionEmpty", "evolutionCount"
   ].map(id => [id, document.getElementById(id)]));
 
   const validKeys = new Set(DATA.entries.map(entry => entry.key));
@@ -88,18 +116,39 @@
   }
   const speciesGroups = [...groupsBySpecies.values()].sort((a, b) => a.speciesId - b.speciesId);
   for (const group of speciesGroups) {
+    group.entries.sort((a, b) =>
+      (a.formOrder ?? Number.MAX_SAFE_INTEGER) - (b.formOrder ?? Number.MAX_SAFE_INTEGER)
+      || String(a.formKey || a.formId).localeCompare(String(b.formKey || b.formId), "en")
+      || (GENDER_ORDER[a.gender] ?? 9) - (GENDER_ORDER[b.gender] ?? 9)
+      || a.formId - b.formId
+    );
     const visualsBySprite = new Map();
     for (const entry of group.entries) {
-      const visualKey = `${entry.sheet}:${entry.slot}`;
+      const visualKey = entry.displayKey || `${entry.formKey || entry.formId}:${entry.sheet}:${entry.slot}`;
       const visual = visualsBySprite.get(visualKey) || { key: visualKey, entry, entries: [] };
       visual.entries.push(entry);
       visualsBySprite.set(visualKey, visual);
     }
     group.visuals = [...visualsBySprite.values()];
+    const forms = new Map();
+    for (const entry of group.entries) {
+      const formKey = entry.formKey || String(entry.formId);
+      const form = forms.get(formKey) || { key: formKey, entry, entries: [] };
+      form.entries.push(entry);
+      forms.set(formKey, form);
+    }
+    group.forms = [...forms.values()];
   }
   const groupByEntryKey = new Map(
     speciesGroups.flatMap(group => group.entries.map(entry => [entry.key, group]))
   );
+  const evolutionAdjacency = new Map();
+  for (const edge of DATA.evolutions || []) {
+    const targets = evolutionAdjacency.get(Number(edge.from)) || [];
+    targets.push(Number(edge.to));
+    evolutionAdjacency.set(Number(edge.from), targets);
+  }
+  const evolutionPathsCache = new Map();
 
   const cardNodes = new Map();
   const activeVariantIndex = new Map();
@@ -133,12 +182,17 @@
     const sanitized = {};
     if (!collection || typeof collection !== "object") return sanitized;
     for (const [key, rawQuantity] of Object.entries(collection)) {
-      if (validKeys.has(key) && rawQuantity === EXCEPTION_VALUE) {
-        sanitized[key] = EXCEPTION_VALUE;
+      const canonicalKey = DATA.keyAliases?.[key] || key;
+      if (!validKeys.has(canonicalKey)) continue;
+      if (rawQuantity === EXCEPTION_VALUE) {
+        if (!sanitized[canonicalKey]) sanitized[canonicalKey] = EXCEPTION_VALUE;
         continue;
       }
       const quantity = Math.min(MAX_QUANTITY, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
-      if (validKeys.has(key) && quantity > 0) sanitized[key] = quantity;
+      if (quantity > 0) {
+        const existing = sanitized[canonicalKey];
+        sanitized[canonicalKey] = Math.max(Number(existing) || 0, quantity);
+      }
     }
     return sanitized;
   }
@@ -341,6 +395,10 @@
     return collectionValueFor(key) === EXCEPTION_VALUE || quantityFor(key) > 0;
   }
 
+  function isShinyOwned(key) {
+    return quantityFor(key) > 0;
+  }
+
   function displayedQuantity(key) {
     return isException(key) ? t("exception") : String(quantityFor(key) || 1);
   }
@@ -355,6 +413,69 @@
     0
   );
 }
+
+  function formEntriesFor(group, entry) {
+    const formKey = entry.formKey || String(entry.formId);
+    return group.entries.filter(option =>
+      (option.formKey || String(option.formId)) === formKey
+    );
+  }
+
+  function isFormShinyComplete(group, entry) {
+    if (entry.exceptional) return false;
+    const required = formEntriesFor(group, entry).filter(option =>
+      !option.exceptional && isLegallyObtainable(option)
+    );
+    return required.length > 0 && required.every(option => isShinyOwned(option.key));
+  }
+
+  function speciesAchievement(group) {
+    const forms = group.forms
+      .map(form => form.entries.filter(entry => !entry.exceptional && isLegallyObtainable(entry)))
+      .filter(entries => entries.length > 0);
+    if (!forms.length) return "";
+    if (forms.every(entries => entries.every(entry => isShinyOwned(entry.key)))) return "gold";
+    if (forms.every(entries => entries.some(entry => isShinyOwned(entry.key)))) return "silver";
+    return "";
+  }
+
+  function renderCardQuantities(container, visual) {
+    container.replaceChildren();
+    const entries = visual.entries.filter(entry =>
+      !entry.exceptional && isLegallyObtainable(entry) && isShinyOwned(entry.key)
+    );
+    container.hidden = entries.length === 0;
+    if (!entries.length) return;
+    const labels = [];
+    for (const entry of entries) {
+      const count = quantityFor(entry.key);
+      const badge = document.createElement("span");
+      const symbol = { male: "♂", female: "♀", genderless: "×" }[entry.gender] || "×";
+      badge.textContent = entry.gender === "genderless" ? `×${count}` : `${symbol} ${count}`;
+      badge.title = t("ownedCopies", { gender: genderText(entry), count: formatNumber(count) });
+      labels.push(badge.title);
+      container.append(badge);
+    }
+    container.setAttribute("aria-label", labels.join(" · "));
+  }
+
+  function applyCardAchievements(group, card, entry) {
+    card.classList.toggle("is-form-complete", isFormShinyComplete(group, entry));
+    const achievement = speciesAchievement(group);
+    const trophy = card.querySelector(".pokemon-card__trophy");
+    trophy.hidden = !achievement;
+    trophy.classList.toggle("is-silver", achievement === "silver");
+    trophy.classList.toggle("is-gold", achievement === "gold");
+    trophy.setAttribute("aria-hidden", String(!achievement));
+    if (achievement) {
+      const label = t(achievement === "gold" ? "goldTrophy" : "silverTrophy");
+      trophy.setAttribute("aria-label", label);
+      trophy.setAttribute("title", label);
+    } else {
+      trophy.removeAttribute("aria-label");
+      trophy.removeAttribute("title");
+    }
+  }
   function formatNumber(value) {
     return Number(value).toLocaleString(locale());
   }
@@ -561,6 +682,7 @@
   const progress = card.querySelector(".pokemon-card__progress");
   const quantityInput = card.querySelector(".quantity__input");
   const unavailableBadge = card.querySelector(".unobtainable-badge");
+  const placeholderBadge = card.querySelector(".sprite-placeholder-badge");
 
   card.dataset.key = entry.key;
   card.classList.toggle("has-variants", multiple);
@@ -572,6 +694,7 @@
   card.classList.toggle("is-unobtainable", currentUnavailable);
   card.classList.toggle("is-fully-unobtainable", groupUnavailable);
   card.classList.toggle("has-exceptional-form", Boolean(entry.exceptional));
+  applyCardAchievements(group, card, entry);
   card.title = currentUnavailable ? t("unobtainableDescription") : "";
   toggle.disabled = !multiple && currentUnavailable;
   toggle.setAttribute("aria-pressed", String(multiple ? complete : currentOwned));
@@ -605,6 +728,10 @@
   badge.setAttribute("title", t("variantBadge", { count: group.visuals.length }));
   badge.setAttribute("aria-label", `${localizedName(entry)} · ${t("variantBadge", { count: group.visuals.length })}`);
 
+  placeholderBadge.hidden = !entry.spritePlaceholder;
+  placeholderBadge.textContent = t("placeholderSprite");
+  placeholderBadge.setAttribute("title", t("placeholderSpriteDescription"));
+
   quantityInput.value = currentUnavailable ? "—" : displayedQuantity(entry.key);
   quantityInput.classList.toggle("is-exception", !currentUnavailable && isException(entry.key));
   quantityInput.setAttribute("aria-label", currentUnavailable
@@ -623,6 +750,7 @@
     `${localizedName(entry)}, ${label || t("defaultForm")}${currentUnavailable ? ` · ${t("unobtainableShort")}` : currentOwned ? " ✦" : ""}`
   );
   renderTypes(card.querySelector(".pokemon-card__types"), entry.types);
+  renderCardQuantities(card.querySelector(".pokemon-card__counts"), visual);
 }
   function createCard(group) {
     const fragment = elements.pokemonCardTemplate.content.cloneNode(true);
@@ -714,6 +842,204 @@
   }
   return list;
 }
+
+  function evolutionFormName(entry) {
+    return normalizeAvailabilityName(entry.formNames?.en || entry.formNames?.fr || entry.label || "");
+  }
+
+  function evolutionRegion(entry) {
+    const form = evolutionFormName(entry);
+    return ["alola", "galar", "hisui", "paldea"].find(region => form.includes(region)) || "";
+  }
+
+  function genderCanEvolveTo(source, target) {
+    if (target.gender === "genderless") return true;
+    if (source.gender === "genderless") return target.gender === "genderless";
+    return source.gender === target.gender;
+  }
+
+  function sourceCanFollowPath(source, path) {
+    if (path.length < 2) return false;
+    const firstEdge = `${path[0]}:${path[1]}`;
+    const finalEdge = `${path[0]}:${path[path.length - 1]}`;
+    const form = evolutionFormName(source);
+    const requirement = EVOLUTION_SOURCE_FORM_REQUIREMENTS.get(finalEdge)
+      || EVOLUTION_SOURCE_FORM_REQUIREMENTS.get(firstEdge);
+    const exclusion = EVOLUTION_SOURCE_FORM_EXCLUSIONS.get(finalEdge)
+      || EVOLUTION_SOURCE_FORM_EXCLUSIONS.get(firstEdge);
+    return (!requirement || form.includes(requirement))
+      && (!exclusion || !form.includes(exclusion));
+  }
+
+  function targetEntriesForEvolution(source, targetGroup, path) {
+    let candidates = targetGroup.entries.filter(entry =>
+      !entry.exceptional
+      && isLegallyObtainable(entry)
+      && genderCanEvolveTo(source, entry)
+    );
+    if (!candidates.length || !sourceCanFollowPath(source, path)) return [];
+
+    const directEdge = `${path[0]}:${path[1]}`;
+    const sourceForm = evolutionFormName(source);
+
+    if (directEdge === "1012:1013") {
+      const expected = sourceForm.includes("artisan") || sourceForm.includes("onereuse")
+        ? ["masterpiece", "exceptionnelle"]
+        : ["unremarkable", "mediocre"];
+      candidates = candidates.filter(entry =>
+        expected.some(token => evolutionFormName(entry).includes(token))
+      );
+    } else if (EVOLUTION_MATCH_FORM_EDGES.has(directEdge) && sourceForm) {
+      const ignored = new Set(["form", "forme", "cloak", "core"]);
+      const sourceTokens = sourceForm.split(" ").filter(token => token.length > 2 && !ignored.has(token));
+      const matching = candidates.filter(entry => {
+        const targetForm = evolutionFormName(entry);
+        return sourceTokens.some(token => targetForm.includes(token));
+      });
+      if (matching.length) candidates = matching;
+    }
+
+    const region = evolutionRegion(source);
+    const sourceGroup = groupsBySpecies.get(source.speciesId);
+    const sourceHasRegionalForms = sourceGroup?.entries.some(entry => evolutionRegion(entry));
+    const targetHasRegionalForms = candidates.some(entry => evolutionRegion(entry));
+    if (sourceHasRegionalForms && targetHasRegionalForms) {
+      candidates = candidates.filter(entry => evolutionRegion(entry) === region);
+    }
+    return candidates;
+  }
+
+  function evolutionPathsFrom(speciesId) {
+    if (evolutionPathsCache.has(speciesId)) return evolutionPathsCache.get(speciesId);
+    const paths = [];
+    const queue = [[speciesId]];
+    while (queue.length) {
+      const path = queue.shift();
+      const current = path[path.length - 1];
+      for (const target of evolutionAdjacency.get(current) || []) {
+        if (path.includes(target) || path.length > 6) continue;
+        const nextPath = [...path, target];
+        paths.push(nextPath);
+        queue.push(nextPath);
+      }
+    }
+    evolutionPathsCache.set(speciesId, paths);
+    return paths;
+  }
+
+  function evolutionRecommendations() {
+    const bestByTarget = new Map();
+    const sources = DATA.entries.filter(entry =>
+      !entry.exceptional
+      && isLegallyObtainable(entry)
+      && quantityFor(entry.key) > 1
+    );
+
+    for (const source of sources) {
+      const sourceQuantity = quantityFor(source.key);
+      for (const path of evolutionPathsFrom(source.speciesId)) {
+        const targetGroup = groupsBySpecies.get(path[path.length - 1]);
+        if (!targetGroup) continue;
+        for (const target of targetEntriesForEvolution(source, targetGroup, path)) {
+          if (isShinyOwned(target.key)) continue;
+          const recommendation = {
+            source,
+            sourceQuantity,
+            target,
+            path,
+            steps: path.length - 1
+          };
+          const existing = bestByTarget.get(target.key);
+          if (
+            !existing
+            || recommendation.steps < existing.steps
+            || (
+              recommendation.steps === existing.steps
+              && recommendation.sourceQuantity > existing.sourceQuantity
+            )
+          ) {
+            bestByTarget.set(target.key, recommendation);
+          }
+        }
+      }
+    }
+
+    return [...bestByTarget.values()].sort((a, b) =>
+      a.source.speciesId - b.source.speciesId
+      || a.target.speciesId - b.target.speciesId
+      || (a.target.formOrder ?? 0) - (b.target.formOrder ?? 0)
+      || (GENDER_ORDER[a.target.gender] ?? 9) - (GENDER_ORDER[b.target.gender] ?? 9)
+    );
+  }
+
+  function renderEvolutionSuggestions() {
+    if (!elements.evolutionSuggestions) return;
+    const recommendations = evolutionRecommendations();
+    elements.evolutionCount.textContent = t(
+      recommendations.length === 1 ? "evolutionCountOne" : "evolutionCount",
+      { count: formatNumber(recommendations.length) }
+    );
+    elements.evolutionEmpty.hidden = recommendations.length > 0;
+    const fragment = document.createDocumentFragment();
+
+    for (const recommendation of recommendations) {
+      const card = document.createElement("article");
+      card.className = "evolution-card";
+
+      const source = document.createElement("div");
+      source.className = "evolution-card__pokemon";
+      const sourceSprite = document.createElement("span");
+      sourceSprite.className = "evolution-card__sprite";
+      spriteStyle(sourceSprite, recommendation.source, true);
+      const sourceName = document.createElement("strong");
+      sourceName.textContent = localizedName(recommendation.source);
+      const sourceVariant = document.createElement("small");
+      sourceVariant.textContent = variantLabel(recommendation.source, { alwaysGender: true }) || t("defaultForm");
+      const sourceCount = document.createElement("span");
+      sourceCount.className = "evolution-card__count";
+      sourceCount.textContent = t("evolutionCopies", {
+        count: formatNumber(recommendation.sourceQuantity),
+        remaining: formatNumber(recommendation.sourceQuantity - 1)
+      });
+      source.append(sourceSprite, sourceName, sourceVariant, sourceCount);
+
+      const arrow = document.createElement("span");
+      arrow.className = "evolution-card__arrow";
+      arrow.setAttribute("aria-hidden", "true");
+      arrow.textContent = "→";
+
+      const target = document.createElement("div");
+      target.className = "evolution-card__pokemon evolution-card__pokemon--target";
+      const targetSprite = document.createElement("span");
+      targetSprite.className = "evolution-card__sprite";
+      spriteStyle(targetSprite, recommendation.target, true);
+      const targetName = document.createElement("strong");
+      targetName.textContent = localizedName(recommendation.target);
+      const targetVariant = document.createElement("small");
+      targetVariant.textContent = variantLabel(recommendation.target, { alwaysGender: true }) || t("defaultForm");
+      const targetStatus = document.createElement("span");
+      targetStatus.className = "evolution-card__target-status";
+      targetStatus.textContent = t("evolutionMissingTarget");
+      target.append(targetSprite, targetName, targetVariant, targetStatus);
+
+      const path = document.createElement("p");
+      path.className = "evolution-card__path";
+      path.textContent = t("evolutionPath", {
+        path: recommendation.path.map(speciesId => {
+          const group = groupsBySpecies.get(speciesId);
+          return group ? localizedName(group.entries[0]) : `#${speciesId}`;
+        }).join(" → ")
+      });
+
+      const body = document.createElement("div");
+      body.className = "evolution-card__body";
+      body.append(source, arrow, target);
+      card.append(body, path);
+      fragment.append(card);
+    }
+
+    elements.evolutionSuggestions.replaceChildren(fragment);
+  }
   function observeCard(card, speciesId) {
     if (!cardObserver) {
       visibleSpecies.add(speciesId);
@@ -837,6 +1163,7 @@
   else delete state.collection[key];
   saveState();
   updateStats();
+  renderEvolutionSuggestions();
 
   const group = groupByEntryKey.get(key);
   const filters = currentFilters();
@@ -976,6 +1303,7 @@
     else {
       updateStats();
       render();
+      renderEvolutionSuggestions();
       if (activeDialogSpecies) {
         const group = groupsBySpecies.get(activeDialogSpecies);
         if (group) renderVariantDialog(group);
@@ -1097,6 +1425,8 @@
     card.classList.toggle("is-exception", exception);
     card.classList.toggle("is-unobtainable", unavailable);
     card.classList.toggle("is-exceptional-form", Boolean(entry.exceptional));
+    card.classList.toggle("is-form-complete", isFormShinyComplete(group, entry));
+    card.classList.toggle("has-placeholder-sprite", Boolean(entry.spritePlaceholder));
     card.title = unavailable
       ? t("unobtainableDescription")
       : entry.exceptional
@@ -1125,7 +1455,7 @@
     item.querySelector(".variant-option__form").textContent =
       localizedForm(entry) || t("defaultForm");
     item.querySelector(".variant-option__gender").textContent = genderText(entry);
-    item.querySelector(".variant-option__status").textContent = unavailable
+    const variantStatus = unavailable
       ? t("unobtainableDescription")
       : exception
         ? t("exception")
@@ -1134,6 +1464,9 @@
           : entry.exceptional
             ? t("exceptionSuggested", { reason: exceptionReasonText(entry) })
             : t("missing");
+    item.querySelector(".variant-option__status").textContent = entry.spritePlaceholder
+      ? `${t("placeholderSprite")} · ${variantStatus}`
+      : variantStatus;
     renderTypes(item.querySelector(".variant-option__types"), entry.types);
     const input = item.querySelector(".quantity__input");
     input.value = unavailable ? "—" : displayedQuantity(entry.key);
@@ -1294,6 +1627,7 @@
     syncPreferences();
     updateStats();
     render();
+    renderEvolutionSuggestions();
     renderCloudStatus();
     renderDistributions();
     updateDataVersion();
