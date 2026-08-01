@@ -113,7 +113,7 @@ window.SHINYDEX_AVAILABILITY = Object.freeze({
     };
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
+  if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", () => {
     if (!document.querySelector('link[href="shinydex-enhancements.css"]')) {
       const style = document.createElement("link");
       style.rel = "stylesheet";
