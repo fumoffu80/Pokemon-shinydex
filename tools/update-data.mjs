@@ -24,6 +24,76 @@ const SPRITE_SOURCE_OVERRIDES = new Map([
     shiny: "pichu-spiky-eared-shiny.png"
   }]
 ]);
+const SPRITE_FALLBACK_POKEMON_IDS = new Map([
+  // Ces formes sont bien référencées par PokéAPI, mais leurs sprites pixel ne
+  // sont pas encore publiés. La fiche reste disponible avec un visuel
+  // provisoire issu de la forme la plus proche.
+  [10447, 1012], // Poltchageist — Forme Onéreuse
+  [10448, 1013], // Théffroyable — Forme Exceptionnelle
+  [10526, 10120] // Méga-Zygarde → Zygarde Forme Parfaite
+]);
+const CUSTOM_FORMS = [
+  {
+    speciesId: 1017,
+    formId: 201701,
+    formOrder: 1434,
+    sourcePokemonId: 1017,
+    formNames: {
+      fr: "Téracristallisation — Masque Turquoise",
+      en: "Terastallized — Teal Mask",
+      es: "Teracristalización — Máscara Turquesa",
+      de: "Terakristallisierung — Türkisgrüne Maske",
+      it: "Teracristallizzazione — Maschera Turchese",
+      ja: "テラスタル — みどりのめん"
+    },
+    types: ["grass"]
+  },
+  {
+    speciesId: 1017,
+    formId: 201702,
+    formOrder: 1435,
+    sourcePokemonId: 10273,
+    formNames: {
+      fr: "Téracristallisation — Masque du Puits",
+      en: "Terastallized — Wellspring Mask",
+      es: "Teracristalización — Máscara Fuente",
+      de: "Terakristallisierung — Brunnenmaske",
+      it: "Teracristallizzazione — Maschera Pozzo",
+      ja: "テラスタル — いどのめん"
+    },
+    types: ["grass", "water"]
+  },
+  {
+    speciesId: 1017,
+    formId: 201703,
+    formOrder: 1436,
+    sourcePokemonId: 10274,
+    formNames: {
+      fr: "Téracristallisation — Masque du Fourneau",
+      en: "Terastallized — Hearthflame Mask",
+      es: "Teracristalización — Máscara Horno",
+      de: "Terakristallisierung — Ofenmaske",
+      it: "Teracristallizzazione — Maschera Focolare",
+      ja: "テラスタル — かまどのめん"
+    },
+    types: ["grass", "fire"]
+  },
+  {
+    speciesId: 1017,
+    formId: 201704,
+    formOrder: 1437,
+    sourcePokemonId: 10275,
+    formNames: {
+      fr: "Téracristallisation — Masque de la Pierre",
+      en: "Terastallized — Cornerstone Mask",
+      es: "Teracristalización — Máscara Cimiento",
+      de: "Terakristallisierung — Fundamentmaske",
+      it: "Teracristallizzazione — Maschera Fondamenta",
+      ja: "テラスタル — いしずえのめん"
+    },
+    types: ["grass", "rock"]
+  }
+];
 const EXCEPTIONAL_FUSION_FORMS = new Map([
   [646, new Set(["black", "white"])],
   [800, new Set(["dusk", "dawn"])],
@@ -187,7 +257,7 @@ async function downloadSprite(url) {
 async function downloadFirst(urls) {
   for (const url of [...new Set(urls.filter(Boolean))]) {
     const sprite = await downloadSprite(url);
-    if (sprite) return sprite;
+    if (sprite) return { buffer: sprite, url };
   }
   return null;
 }
@@ -195,9 +265,17 @@ async function downloadFirst(urls) {
 async function spriteBuffer(candidate, kind) {
   const override = SPRITE_SOURCE_OVERRIDES.get(candidate.formId)?.[kind];
   if (override) {
-    return readFile(resolve(SOURCE_OVERRIDE_DIR, override));
+    return {
+      buffer: await readFile(resolve(SOURCE_OVERRIDE_DIR, override)),
+      placeholder: false
+    };
   }
-  return downloadFirst(kind === "normal" ? candidate.normalUrls : candidate.shinyUrls);
+  const primary = await downloadFirst(kind === "normal" ? candidate.normalUrls : candidate.shinyUrls);
+  if (primary) return { ...primary, placeholder: false };
+  const fallback = await downloadFirst(
+    kind === "normal" ? candidate.fallbackNormalUrls : candidate.fallbackShinyUrls
+  );
+  return fallback ? { ...fallback, placeholder: true } : null;
 }
 
 function spriteStems(form) {
@@ -228,11 +306,40 @@ function exceptionalReason(species, form) {
   const tokens = identifier.split("-");
   if (form.is_mega === "1") return "mega";
   if (tokens.includes("gmax")) return "gigamax";
+  if (species.id === 774 && tokens.includes("meteor")) return "battle";
   if (EXCEPTIONAL_FUSION_FORMS.get(species.id)?.has(identifier)) return "fusion";
   if (EXCEPTIONAL_ITEM_FORMS.get(species.id)?.has(identifier)) return "item";
   if (EXCEPTIONAL_TEMPORARY_FORMS.get(species.id)?.has(identifier)) return "temporary";
   if (form.is_battle_only === "1") return "battle";
   return "";
+}
+
+function normalizeFormKey(value) {
+  return String(value || "default")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "default";
+}
+
+function semanticFormKey(candidate) {
+  const formName = candidate.formNames?.en || candidate.formNames?.fr || "default";
+  const normalizedName = normalizeFormKey(formName);
+  const semanticName = normalizedName === "default" && !candidate.explicitGender
+    ? normalizeFormKey(candidate.formIdentifier)
+    : normalizedName;
+  return [
+    candidate.speciesId,
+    semanticName,
+    candidate.types.join("-"),
+    candidate.exceptionReason || "standard"
+  ].join(":");
+}
+
+function spriteUrlsForPokemonId(pokemonId, shiny) {
+  const root = shiny ? `${SPRITE_BASE}/shiny` : SPRITE_BASE;
+  return [`${root}/${pokemonId}.png`];
 }
 
 function localizedValues(map, id, fallback = "") {
@@ -337,6 +444,7 @@ const speciesRows = tables["pokemon_species.csv"].map(row => ({
   ...row,
   id: Number(row.id),
   generationId: Number(row.generation_id),
+  evolvesFromSpeciesId: Number(row.evolves_from_species_id) || 0,
   genderRate: Number(row.gender_rate),
   hasGenderDifferences: row.has_gender_differences === "1"
 }));
@@ -411,6 +519,12 @@ for (const form of eligibleForms) {
     .map(type => type.identifier);
 
   for (const gender of gendersForForm(species, form, explicitBySpecies)) {
+    const fallbackPokemonId = SPRITE_FALLBACK_POKEMON_IDS.get(Number(form.id));
+    const primaryNormalUrls = spriteUrls(form, species, gender, false);
+    const primaryShinyUrls = spriteUrls(form, species, gender, true);
+    const baseSpriteSuffix = fallbackPokemonId === Number(form.pokemon_id)
+      ? `/${form.pokemon_id}.png`
+      : "";
     candidates.push({
       key: candidateKey(species, form, gender),
       speciesId: species.id,
@@ -421,22 +535,63 @@ for (const form of eligibleForms) {
       genderAvailability: speciesGender(species),
       pokemonId: Number(form.pokemon_id),
       formId: Number(form.id),
+      formIdentifier: form.form_identifier,
+      explicitGender: explicitGender(form),
       formOrder: Number(form.order),
       isDefault: form.is_default === "1",
       exceptional: Boolean(exceptionalReason(species, form)),
       exceptionReason: exceptionalReason(species, form),
       formNames,
       types,
-      normalUrls: spriteUrls(form, species, gender, false),
-      shinyUrls: spriteUrls(form, species, gender, true)
+      normalUrls: baseSpriteSuffix
+        ? primaryNormalUrls.filter(url => !url.endsWith(baseSpriteSuffix))
+        : primaryNormalUrls,
+      shinyUrls: baseSpriteSuffix
+        ? primaryShinyUrls.filter(url => !url.endsWith(baseSpriteSuffix))
+        : primaryShinyUrls,
+      fallbackNormalUrls: fallbackPokemonId
+        ? spriteUrlsForPokemonId(fallbackPokemonId, false)
+        : [],
+      fallbackShinyUrls: fallbackPokemonId
+        ? spriteUrlsForPokemonId(fallbackPokemonId, true)
+        : []
     });
   }
+}
+
+for (const custom of CUSTOM_FORMS) {
+  const species = speciesById.get(custom.speciesId);
+  if (!species) continue;
+  const names = localizedValues(speciesNames, species.id, titleCase(species.identifier));
+  candidates.push({
+    key: `${species.id}:${custom.formId}:default`,
+    speciesId: species.id,
+    slug: species.identifier,
+    names,
+    generation: species.generationId,
+    gender: speciesGender(species),
+    genderAvailability: speciesGender(species),
+    pokemonId: custom.sourcePokemonId,
+    formId: custom.formId,
+    formIdentifier: `terastallized-${custom.formId}`,
+    explicitGender: "",
+    formOrder: custom.formOrder,
+    isDefault: false,
+    exceptional: true,
+    exceptionReason: "battle",
+    formNames: custom.formNames,
+    types: custom.types,
+    normalUrls: [],
+    shinyUrls: [],
+    fallbackNormalUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, false),
+    fallbackShinyUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, true)
+  });
 }
 
 console.log(`Téléchargement de ${candidates.length} combinaisons forme/sexe…`);
 let completed = 0;
 const downloaded = await mapLimit(candidates, 36, async candidate => {
-  const [normalBuffer, shinyBuffer] = await Promise.all([
+  const [normalResult, shinyResult] = await Promise.all([
     spriteBuffer(candidate, "normal"),
     spriteBuffer(candidate, "shiny")
   ]);
@@ -444,23 +599,51 @@ const downloaded = await mapLimit(candidates, 36, async candidate => {
   if (completed % 100 === 0 || completed === candidates.length) {
     process.stdout.write(`\r${completed}/${candidates.length}`);
   }
-  if (!normalBuffer || !shinyBuffer) return null;
-  return { ...candidate, normalBuffer, shinyBuffer, visualHash: hashPair(normalBuffer, shinyBuffer) };
+  if (!normalResult?.buffer || !shinyResult?.buffer) return null;
+  return {
+    ...candidate,
+    normalBuffer: normalResult.buffer,
+    shinyBuffer: shinyResult.buffer,
+    spritePlaceholder: normalResult.placeholder || shinyResult.placeholder,
+    visualHash: hashPair(normalResult.buffer, shinyResult.buffer)
+  };
 });
 process.stdout.write("\n");
 
-// Deux sexes identiques restent deux entrées de collection, mais deux formes
-// strictement identiques pour un même sexe ne sont pas proposées deux fois.
+// Deux sexes identiques restent deux entrées de collection. Les doublons
+// techniques (notamment les variantes de talent de Zygarde) sont regroupés
+// selon leur forme sémantique, même si PokéAPI publie plusieurs fichiers.
 const appearances = [];
-const seenBySpeciesAndGender = new Map();
+const appearanceBySemanticKey = new Map();
+const keyAliases = {};
 for (const candidate of downloaded.filter(Boolean)) {
-  const identity = `${candidate.speciesId}:${candidate.gender}`;
-  const seen = seenBySpeciesAndGender.get(identity) || new Set();
-  if (seen.has(candidate.visualHash)) continue;
-  seen.add(candidate.visualHash);
-  seenBySpeciesAndGender.set(identity, seen);
+  candidate.formKey = semanticFormKey(candidate);
+  const identity = `${candidate.formKey}:${candidate.gender}`;
+  const existing = appearanceBySemanticKey.get(identity);
+  if (existing) {
+    keyAliases[candidate.key] = existing.key;
+    continue;
+  }
+  appearanceBySemanticKey.set(identity, candidate);
   appearances.push(candidate);
 }
+
+const formOrderByKey = new Map();
+for (const appearance of appearances) {
+  formOrderByKey.set(
+    appearance.formKey,
+    Math.min(formOrderByKey.get(appearance.formKey) ?? Number.POSITIVE_INFINITY, appearance.formOrder)
+  );
+}
+const genderOrder = { male: 0, female: 1, genderless: 2 };
+appearances.sort((a, b) =>
+  a.speciesId - b.speciesId
+  || formOrderByKey.get(a.formKey) - formOrderByKey.get(b.formKey)
+  || a.formKey.localeCompare(b.formKey, "en")
+  || genderOrder[a.gender] - genderOrder[b.gender]
+  || a.formOrder - b.formOrder
+  || a.formId - b.formId
+);
 
 // Les sprites identiques sont stockés une seule fois dans les planches, même si
 // les deux sexes doivent pouvoir être enregistrés séparément.
@@ -491,11 +674,12 @@ for (let atlasIndex = 0; atlasIndex < atlasCount; atlasIndex += 1) {
   ]);
 }
 
-const visualHashesBySpecies = new Map();
+const displayKeysBySpecies = new Map();
 for (const entry of appearances) {
-  const hashes = visualHashesBySpecies.get(entry.speciesId) || new Set();
-  hashes.add(entry.visualHash);
-  visualHashesBySpecies.set(entry.speciesId, hashes);
+  entry.displayKey = `${entry.formKey}:${entry.visualHash}`;
+  const displayKeys = displayKeysBySpecies.get(entry.speciesId) || new Set();
+  displayKeys.add(entry.displayKey);
+  displayKeysBySpecies.set(entry.speciesId, displayKeys);
 }
 
 const entries = appearances.map(entry => {
@@ -510,14 +694,18 @@ const entries = appearances.map(entry => {
     gender: entry.gender,
     genderAvailability: entry.genderAvailability,
     formId: entry.formId,
+    formOrder: formOrderByKey.get(entry.formKey),
+    formKey: entry.formKey,
+    displayKey: entry.displayKey,
     isDefault: entry.isDefault,
     exceptional: entry.exceptional,
     exceptionReason: entry.exceptionReason,
+    spritePlaceholder: Boolean(entry.spritePlaceholder),
     formNames: entry.formNames,
     label: entry.formNames.fr,
     types: entry.types,
-    variant: visualHashesBySpecies.get(entry.speciesId).size > 1,
-    visualVariantCount: visualHashesBySpecies.get(entry.speciesId).size,
+    variant: displayKeysBySpecies.get(entry.speciesId).size > 1,
+    visualVariantCount: displayKeysBySpecies.get(entry.speciesId).size,
     sheet: Math.floor(visualIndex / ATLAS_CAPACITY),
     slot: visualIndex % ATLAS_CAPACITY
   };
@@ -538,6 +726,9 @@ const typeNames = Object.fromEntries(usedTypes.map(identifier => {
 }));
 
 const generations = [...new Set(speciesRows.map(species => species.generationId))].sort((a, b) => a - b);
+const evolutions = speciesRows
+  .filter(species => species.evolvesFromSpeciesId)
+  .map(species => ({ from: species.evolvesFromSpeciesId, to: species.id }));
 const payload = {
   schemaVersion: 2,
   generatedAt: new Date().toISOString(),
@@ -553,6 +744,8 @@ const payload = {
   generations,
   types: usedTypes,
   typeNames,
+  evolutions,
+  keyAliases,
   entries
 };
 

@@ -213,7 +213,24 @@
       </div>
     </section>
 
-
+    <section class="evolution-panel" aria-labelledby="evolutionTitle">
+      <div class="evolution-heading">
+        <div>
+          <p class="eyebrow" data-i18n="evolutionEyebrow">Progression de la collection</p>
+          <h2 id="evolutionTitle" data-i18n="evolutionTitle">Évolutions possibles</h2>
+          <p data-i18n="evolutionIntro">Suggestions calculées à partir de vos exemplaires en double. Chaque proposition conserve au moins un Pokémon de la forme et du sexe d’origine.</p>
+        </div>
+        <span class="evolution-count" id="evolutionCount">0 suggestion</span>
+      </div>
+      <div class="evolution-grid" id="evolutionSuggestions" aria-live="polite"></div>
+      <div class="evolution-empty" id="evolutionEmpty">
+        <span aria-hidden="true">↗</span>
+        <div>
+          <strong data-i18n="evolutionEmptyTitle">Aucune évolution conseillée actuellement</strong>
+          <p data-i18n="evolutionEmptyText">Ajoutez au moins deux exemplaires d’une même forme et d’un même sexe pour faire apparaître des possibilités.</p>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer>
@@ -229,8 +246,15 @@
       </button>
       <button class="pokemon-card__toggle" type="button">
         <span class="pokemon-card__number"></span>
+        <span class="pokemon-card__trophy" aria-hidden="true" hidden>
+          <svg viewBox="0 0 24 24"><path d="M7 4h10v3c0 4-2 7-5 8-3-1-5-4-5-8V4Z"/><path d="M7 6H4v2c0 2 1.5 4 4 4M17 6h3v2c0 2-1.5 4-4 4M12 15v4M8 20h8"/></svg>
+        </span>
         <span class="pokemon-card__check" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="m6 12 4 4 8-9"/></svg>
+          <svg class="status-check" viewBox="0 0 24 24"><path d="m6 12 4 4 8-9"/></svg>
+          <span class="status-pokeball">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/><circle cx="12" cy="12" r="2.5"/></svg>
+            <i></i><i></i><i></i>
+          </span>
         </span>
         <span class="pokemon-sprite" role="img"></span>
         <span class="pokemon-card__identity">
@@ -238,6 +262,8 @@
           <span class="pokemon-card__form"></span>
         </span>
         <span class="pokemon-card__types"></span>
+        <span class="pokemon-card__counts"></span>
+        <span class="sprite-placeholder-badge" hidden data-i18n="placeholderSprite">Sprite provisoire</span>
         <span class="pokemon-card__progress"></span>
         <span class="unobtainable-badge" hidden>
           <span aria-hidden="true">◇</span>
@@ -258,7 +284,13 @@
   <template id="variantCardTemplate">
     <article class="variant-option">
       <button class="variant-option__toggle" type="button">
-        <span class="variant-option__check" aria-hidden="true">✓</span>
+        <span class="variant-option__check" aria-hidden="true">
+          <span class="status-check">✓</span>
+          <span class="status-pokeball">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/><circle cx="12" cy="12" r="2.5"/></svg>
+            <i></i><i></i><i></i>
+          </span>
+        </span>
         <span class="variant-option__sprite" role="img"></span>
         <span class="variant-option__identity">
           <strong class="variant-option__form"></strong>

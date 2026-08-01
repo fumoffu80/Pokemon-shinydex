@@ -837,15 +837,15 @@ main {
 }
 
 .pokemon-card.is-current-exception {
-  border-color: rgba(182, 156, 246, 0.74);
+  border-color: rgba(245, 201, 93, 0.62);
   background:
-    radial-gradient(circle at 50% 30%, rgba(182, 156, 246, 0.16), transparent 52%),
-    linear-gradient(155deg, #30364a, #222d43);
+    radial-gradient(circle at 50% 30%, rgba(255, 224, 122, 0.13), transparent 50%),
+    linear-gradient(155deg, #3b3541, #232d42);
 }
 
 .pokemon-card.is-current-exception .pokemon-card__check {
-  color: #f2edff;
-  background: linear-gradient(135deg, #9f86e8, #6c5bb6);
+  color: #17223a;
+  background: linear-gradient(135deg, #ffe599, #e9b23f);
 }
 
 .pokemon-card.has-exceptional-form:not(.is-current-owned) .pokemon-card__form {
@@ -944,8 +944,52 @@ main {
   transition: opacity 160ms ease, transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.pokemon-card__trophy {
+  position: absolute;
+  z-index: 4;
+  top: 9px;
+  right: 39px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.3);
+  place-items: center;
+}
+
+.pokemon-card__trophy[hidden] {
+  display: none;
+}
+
+.pokemon-card__trophy.is-silver {
+  color: #354155;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: linear-gradient(135deg, #f4f7fb, #9eabba 66%, #748397);
+}
+
+.pokemon-card__trophy.is-gold {
+  color: #4b3310;
+  border: 1px solid rgba(255, 238, 158, 0.9);
+  background: linear-gradient(135deg, #fff0a6, #e6ad2f 66%, #b87412);
+  box-shadow: 0 0 10px rgba(245, 201, 93, 0.32), 0 3px 9px rgba(0, 0, 0, 0.3);
+}
+
+.pokemon-card__trophy svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.35;
+}
+
 .has-visual-variants .pokemon-card__check {
   right: 55px;
+}
+
+.has-visual-variants .pokemon-card__trophy {
+  right: 85px;
 }
 
 .pokemon-card__check svg {
@@ -956,6 +1000,67 @@ main {
   stroke-width: 2.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.status-pokeball {
+  position: relative;
+  display: none;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+}
+
+.status-pokeball > svg {
+  width: 22px;
+  height: 22px;
+  overflow: visible;
+  fill: rgba(255, 255, 255, 0.88);
+  stroke: #17223a;
+  stroke-width: 1.8;
+}
+
+.status-pokeball > svg circle:last-child {
+  fill: #f7cf58;
+}
+
+.status-pokeball i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff4ad;
+  box-shadow: 0 0 5px #fff085;
+  animation: statusPokeballSparkle 1.8s ease-in-out infinite;
+}
+
+.status-pokeball i:nth-of-type(1) {
+  top: -1px;
+  right: 1px;
+}
+
+.status-pokeball i:nth-of-type(2) {
+  right: -1px;
+  bottom: 3px;
+  animation-delay: -0.65s;
+}
+
+.status-pokeball i:nth-of-type(3) {
+  bottom: 0;
+  left: 1px;
+  animation-delay: -1.2s;
+}
+
+.is-form-complete .status-check {
+  display: none;
+}
+
+.is-form-complete .status-pokeball {
+  display: grid;
+}
+
+@keyframes statusPokeballSparkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.55) rotate(0deg); }
+  45% { opacity: 1; transform: scale(1.35) rotate(90deg); }
 }
 
 .is-current-owned .pokemon-card__check {
@@ -1014,6 +1119,46 @@ main {
   min-height: 20px;
   margin-top: 7px;
   gap: 4px;
+}
+
+.pokemon-card__counts {
+  display: flex;
+  justify-content: center;
+  min-height: 20px;
+  margin-top: 6px;
+  gap: 5px;
+}
+
+.pokemon-card__counts[hidden] {
+  display: none;
+}
+
+.pokemon-card__counts > span {
+  min-width: 31px;
+  padding: 3px 7px;
+  color: #fff2b7;
+  border: 1px solid rgba(245, 201, 93, 0.38);
+  border-radius: 999px;
+  background: rgba(66, 51, 28, 0.72);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.1);
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.sprite-placeholder-badge {
+  margin-top: 5px;
+  padding: 3px 7px;
+  color: #b9c7da;
+  border: 1px dashed rgba(185, 199, 218, 0.38);
+  border-radius: 999px;
+  background: rgba(17, 29, 49, 0.58);
+  font-size: 0.54rem;
+  font-weight: 800;
+}
+
+.sprite-placeholder-badge[hidden] {
+  display: none;
 }
 
 .type-pill {
@@ -1129,6 +1274,191 @@ main {
 
 .empty-state p {
   margin-bottom: 20px;
+}
+
+.evolution-panel {
+  margin-top: 26px;
+  padding: clamp(20px, 2.3vw, 32px);
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(245, 201, 93, 0.1), transparent 34%),
+    linear-gradient(150deg, rgba(27, 42, 68, 0.96), rgba(19, 31, 52, 0.96));
+  box-shadow: var(--shadow);
+}
+
+.evolution-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.evolution-heading h2 {
+  margin: 2px 0 7px;
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
+}
+
+.evolution-heading p:not(.eyebrow) {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.evolution-count {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  padding: 7px 11px;
+  color: #f7daa0;
+  border: 1px solid rgba(245, 201, 93, 0.3);
+  border-radius: 999px;
+  background: rgba(245, 201, 93, 0.08);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.evolution-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  margin-top: 20px;
+  gap: 12px;
+}
+
+.evolution-card {
+  overflow: hidden;
+  border: 1px solid rgba(116, 143, 181, 0.28);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 75% 30%, rgba(245, 201, 93, 0.09), transparent 42%),
+    rgba(16, 28, 48, 0.76);
+}
+
+.evolution-card__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 190px;
+  padding: 13px 12px 8px;
+  gap: 8px;
+}
+
+.evolution-card__pokemon {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  min-width: 0;
+  text-align: center;
+}
+
+.evolution-card__sprite {
+  display: block;
+  width: 96px;
+  height: 96px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 7px 7px rgba(3, 8, 18, 0.3));
+}
+
+.evolution-card__pokemon strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evolution-card__pokemon small {
+  max-width: 100%;
+  min-height: 1.2em;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evolution-card__count,
+.evolution-card__target-status {
+  margin-top: 7px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.57rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.evolution-card__count {
+  color: #bcd7ee;
+  border: 1px solid rgba(99, 179, 237, 0.28);
+  background: rgba(99, 179, 237, 0.08);
+}
+
+.evolution-card__target-status {
+  color: #ffe49a;
+  border: 1px solid rgba(245, 201, 93, 0.3);
+  background: rgba(245, 201, 93, 0.1);
+}
+
+.evolution-card__arrow {
+  color: var(--gold);
+  font-size: 1.55rem;
+  font-weight: 900;
+  filter: drop-shadow(0 0 8px rgba(245, 201, 93, 0.28));
+}
+
+.evolution-card__path {
+  margin: 0;
+  padding: 9px 12px 11px;
+  color: #99abc4;
+  border-top: 1px solid rgba(116, 143, 181, 0.18);
+  font-size: 0.61rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.evolution-empty {
+  display: flex;
+  align-items: center;
+  margin-top: 18px;
+  padding: 16px 18px;
+  gap: 12px;
+  color: var(--muted-strong);
+  border: 1px dashed rgba(116, 143, 181, 0.34);
+  border-radius: 15px;
+  background: rgba(13, 24, 42, 0.48);
+}
+
+.evolution-empty[hidden] {
+  display: none;
+}
+
+.evolution-empty > span {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  color: var(--gold);
+  border-radius: 50%;
+  background: rgba(245, 201, 93, 0.1);
+  place-items: center;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.evolution-empty strong {
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+.evolution-empty p {
+  margin: 3px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
 }
 
 footer {
@@ -1264,15 +1594,15 @@ footer p {
 }
 
 .variant-option.is-exception {
-  border-color: rgba(182, 156, 246, 0.7);
+  border-color: rgba(245, 201, 93, 0.62);
   background:
-    radial-gradient(circle at 50% 28%, rgba(182, 156, 246, 0.18), transparent 52%),
-    linear-gradient(155deg, #30344b, #202c42);
+    radial-gradient(circle at 50% 28%, rgba(255, 224, 122, 0.16), transparent 50%),
+    linear-gradient(155deg, #3a3340, #202c42);
 }
 
 .variant-option.is-exception .variant-option__check {
-  color: #f4f0ff;
-  background: linear-gradient(135deg, #a88fee, #725fc0);
+  color: #17223a;
+  background: linear-gradient(135deg, #ffe599, #e9b23f);
 }
 
 .variant-option.is-exceptional-form:not(.is-owned) {
@@ -1315,9 +1645,25 @@ footer p {
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
+.variant-option__check .status-check {
+  display: block;
+}
+
+.variant-option.is-form-complete .variant-option__check .status-check {
+  display: none;
+}
+
+.variant-option.is-form-complete .variant-option__check .status-pokeball {
+  display: grid;
+}
+
 .variant-option.is-owned .variant-option__check {
   opacity: 1;
   transform: scale(1);
+}
+
+.variant-option.has-placeholder-sprite .variant-option__status {
+  color: #aebed4;
 }
 
 .variant-option__sprite {
@@ -2484,6 +2830,30 @@ input[role="switch"]:checked::after {
 }
 
 @media (max-width: 760px) {
+  .evolution-panel {
+    margin-top: 18px;
+    padding: 18px;
+    border-radius: 17px;
+  }
+
+  .evolution-heading {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .evolution-count {
+    margin-top: 0;
+  }
+
+  .evolution-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .evolution-card__body {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
   .information-panel {
     margin-top: 14px;
     border-radius: 17px;
@@ -2536,6 +2906,11 @@ input[role="switch"]:checked::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .status-pokeball i {
+    animation: none;
+    opacity: 0.85;
+  }
+
   .information-ticker {
     overflow-x: auto;
     -webkit-mask-image: none;
