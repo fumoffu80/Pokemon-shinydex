@@ -18,19 +18,25 @@ const ATLAS_COLUMNS = 20;
 const ATLAS_ROWS = 20;
 const ATLAS_CAPACITY = ATLAS_COLUMNS * ATLAS_ROWS;
 const ATLAS_SIZE = CELL_SIZE * ATLAS_COLUMNS;
+// PokéAPI rattache les motifs de Prismillon à Lépidonille et Pérégrain alors
+// que ces deux stades n'ont qu'une seule forme visible et collectionnable.
+// On garde toutes les lignes source afin de créer des alias de migration vers
+// leur unique forme, sans perdre les quantités déjà enregistrées.
+const SINGLE_FORM_PRE_EVOLUTION_SPECIES = new Set([664, 665]);
 const SPRITE_SOURCE_OVERRIDES = new Map([
   [10065, {
     normal: "pichu-spiky-eared-normal.png",
     shiny: "pichu-spiky-eared-shiny.png"
   }]
 ]);
-const SPRITE_FALLBACK_POKEMON_IDS = new Map([
+const SPRITE_FALLBACK_FORMS = new Map([
   // Ces formes sont bien référencées par PokéAPI, mais leurs sprites pixel ne
-  // sont pas encore publiés. La fiche reste disponible avec un visuel
-  // provisoire issu de la forme la plus proche.
-  [10447, 1012], // Poltchageist — Forme Onéreuse
-  [10448, 1013], // Théffroyable — Forme Exceptionnelle
-  [10526, 10120] // Méga-Zygarde → Zygarde Forme Parfaite
+  // sont pas toujours publiés séparément. Poltchageist et Théffroyable
+  // utilisent légitimement le même sprite pixel pour leurs deux formes ;
+  // seule Méga-Zygarde conserve donc l'indication « provisoire ».
+  [10447, { pokemonId: 1012, placeholder: false }], // Poltchageist — Forme Onéreuse
+  [10448, { pokemonId: 1013, placeholder: false }], // Théffroyable — Forme Exceptionnelle
+  [10526, { pokemonId: 10120, placeholder: true }] // Méga-Zygarde → Zygarde Forme Parfaite
 ]);
 const CUSTOM_FORMS = [
   {
@@ -275,7 +281,9 @@ async function spriteBuffer(candidate, kind) {
   const fallback = await downloadFirst(
     kind === "normal" ? candidate.fallbackNormalUrls : candidate.fallbackShinyUrls
   );
-  return fallback ? { ...fallback, placeholder: true } : null;
+  return fallback
+    ? { ...fallback, placeholder: candidate.fallbackSpritePlaceholder !== false }
+    : null;
 }
 
 function spriteStems(form) {
@@ -511,7 +519,8 @@ for (const form of eligibleForms) {
   if (!spriteStems(form).length) continue;
 
   const names = localizedValues(speciesNames, species.id, titleCase(species.identifier));
-  const formNames = explicitGender(form)
+  const singleFormPreEvolution = SINGLE_FORM_PRE_EVOLUTION_SPECIES.has(species.id);
+  const formNames = explicitGender(form) || singleFormPreEvolution
     ? Object.fromEntries(Object.keys(LANGUAGES).map(language => [language, ""]))
     : localizedFormNames(form, namesByForm);
   const types = (typesByPokemon.get(Number(form.pokemon_id)) || [])
@@ -519,7 +528,8 @@ for (const form of eligibleForms) {
     .map(type => type.identifier);
 
   for (const gender of gendersForForm(species, form, explicitBySpecies)) {
-    const fallbackPokemonId = SPRITE_FALLBACK_POKEMON_IDS.get(Number(form.id));
+    const fallbackForm = SPRITE_FALLBACK_FORMS.get(Number(form.id));
+    const fallbackPokemonId = fallbackForm?.pokemonId;
     const primaryNormalUrls = spriteUrls(form, species, gender, false);
     const primaryShinyUrls = spriteUrls(form, species, gender, true);
     const baseSpriteSuffix = fallbackPokemonId === Number(form.pokemon_id)
@@ -535,7 +545,7 @@ for (const form of eligibleForms) {
       genderAvailability: speciesGender(species),
       pokemonId: Number(form.pokemon_id),
       formId: Number(form.id),
-      formIdentifier: form.form_identifier,
+      formIdentifier: singleFormPreEvolution ? "" : form.form_identifier,
       explicitGender: explicitGender(form),
       formOrder: Number(form.order),
       isDefault: form.is_default === "1",
@@ -554,7 +564,8 @@ for (const form of eligibleForms) {
         : [],
       fallbackShinyUrls: fallbackPokemonId
         ? spriteUrlsForPokemonId(fallbackPokemonId, true)
-        : []
+        : [],
+      fallbackSpritePlaceholder: fallbackForm?.placeholder ?? true
     });
   }
 }
@@ -584,7 +595,8 @@ for (const custom of CUSTOM_FORMS) {
     normalUrls: [],
     shinyUrls: [],
     fallbackNormalUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, false),
-    fallbackShinyUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, true)
+    fallbackShinyUrls: spriteUrlsForPokemonId(custom.sourcePokemonId, true),
+    fallbackSpritePlaceholder: true
   });
 }
 
