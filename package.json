@@ -6,6 +6,7 @@
   "scripts": {
     "update-data": "node tools/update-data.mjs && node tools/update-pokemon-details.mjs",
     "update-details": "node tools/update-pokemon-details.mjs",
+    "update-game-assets": "node tools/update-game-assets.mjs",
     "monitor-live-data": "node tools/monitor-live-data.mjs",
     "localize-distribution-sources": "node tools/localize-distribution-sources.mjs",
     "bundle-firebase": "esbuild firebase-sync.source.js --bundle --format=iife --minify --target=es2020 --outfile=firebase-sync.js",

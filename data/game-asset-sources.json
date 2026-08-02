@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "source": "Bulbagarden Archives",
+  "sourceUrl": "https://archives.bulbagarden.net/",
+  "covers": {
+    "1": {
+      "filename": "Red EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/8/80/Red_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Red_EN_boxart.png"
+    },
+    "2": {
+      "filename": "Blue EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/5/5a/Blue_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Blue_EN_boxart.png"
+    },
+    "3": {
+      "filename": "Yellow EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/9/95/Yellow_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Yellow_EN_boxart.png"
+    },
+    "4": {
+      "filename": "Gold EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/c/c7/Gold_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Gold_EN_boxart.png"
+    },
+    "5": {
+      "filename": "Silver EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/f/f5/Silver_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Silver_EN_boxart.png"
+    },
+    "6": {
+      "filename": "Crystal EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/6/60/Crystal_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Crystal_EN_boxart.png"
+    },
+    "7": {
+      "filename": "Ruby EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/5/5f/Ruby_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Ruby_EN_boxart.png"
+    },
+    "8": {
+      "filename": "Sapphire EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/6/62/Sapphire_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Sapphire_EN_boxart.png"
+    },
+    "9": {
+      "filename": "Emerald EN boxart.jpg",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/6/65/Emerald_EN_boxart.jpg",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Emerald_EN_boxart.jpg"
+    },
+    "10": {
+      "filename": "FireRed EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/4/43/FireRed_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:FireRed_EN_boxart.png"
+    },
+    "11": {
+      "filename": "LeafGreen EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/d/d7/LeafGreen_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:LeafGreen_EN_boxart.png"
+    },
+    "12": {
+      "filename": "Diamond EN boxart.jpg",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/6/69/Diamond_EN_boxart.jpg",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Diamond_EN_boxart.jpg"
+    },
+    "13": {
+      "filename": "Pearl EN boxart.jpg",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/a/af/Pearl_EN_boxart.jpg",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Pearl_EN_boxart.jpg"
+    },
+    "14": {
+      "filename": "Platinum EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/8/83/Platinum_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Platinum_EN_boxart.png"
+    },
+    "15": {
+      "filename": "HeartGold EN boxart.jpg",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/6/6e/HeartGold_EN_boxart.jpg",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:HeartGold_EN_boxart.jpg"
+    },
+    "16": {
+      "filename": "SoulSilver EN boxart.jpg",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/5/5c/SoulSilver_EN_boxart.jpg",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:SoulSilver_EN_boxart.jpg"
+    },
+    "17": {
+      "filename": "Black EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/d/dc/Black_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Black_EN_boxart.png"
+    },
+    "18": {
+      "filename": "White EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/0/08/White_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:White_EN_boxart.png"
+    },
+    "21": {
+      "filename": "Black 2 EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/3/34/Black_2_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Black_2_EN_boxart.png"
+    },
+    "22": {
+      "filename": "White 2 EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/1/14/White_2_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:White_2_EN_boxart.png"
+    },
+    "23": {
+      "filename": "X EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/2/27/X_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:X_EN_boxart.png"
+    },
+    "24": {
+      "filename": "Y EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/4/41/Y_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Y_EN_boxart.png"
+    },
+    "25": {
+      "filename": "Omega Ruby EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/5/5b/Omega_Ruby_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Omega_Ruby_EN_boxart.png"
+    },
+    "26": {
+      "filename": "Alpha Sapphire EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/f/f2/Alpha_Sapphire_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Alpha_Sapphire_EN_boxart.png"
+    },
+    "27": {
+      "filename": "Sun EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/0/06/Sun_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Sun_EN_boxart.png"
+    },
+    "28": {
+      "filename": "Moon EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/3/38/Moon_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Moon_EN_boxart.png"
+    },
+    "29": {
+      "filename": "Ultra Sun EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/d/de/Ultra_Sun_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Ultra_Sun_EN_boxart.png"
+    },
+    "30": {
+      "filename": "Ultra Moon EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/8/86/Ultra_Moon_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Ultra_Moon_EN_boxart.png"
+    },
+    "31": {
+      "filename": "Lets Go Pikachu EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/a/ae/Lets_Go_Pikachu_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Lets_Go_Pikachu_EN_boxart.png"
+    },
+    "32": {
+      "filename": "Lets Go Eevee EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/1/1e/Lets_Go_Eevee_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Lets_Go_Eevee_EN_boxart.png"
+    },
+    "33": {
+      "filename": "Sword EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/4/47/Sword_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Sword_EN_boxart.png"
+    },
+    "34": {
+      "filename": "Shield EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/8/8d/Shield_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Shield_EN_boxart.png"
+    },
+    "37": {
+      "filename": "Brilliant Diamond EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/3/33/Brilliant_Diamond_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Brilliant_Diamond_EN_boxart.png"
+    },
+    "38": {
+      "filename": "Shining Pearl EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/f/fa/Shining_Pearl_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Shining_Pearl_EN_boxart.png"
+    },
+    "39": {
+      "filename": "Legends Arceus EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/3/3a/Legends_Arceus_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Legends_Arceus_EN_boxart.png"
+    },
+    "40": {
+      "filename": "Scarlet EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/5/5f/Scarlet_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Scarlet_EN_boxart.png"
+    },
+    "41": {
+      "filename": "Violet EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/1/13/Violet_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Violet_EN_boxart.png"
+    },
+    "44": {
+      "filename": "Red JP boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/a/a8/Red_JP_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Red_JP_boxart.png"
+    },
+    "45": {
+      "filename": "Green JP boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/2/21/Green_JP_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Green_JP_boxart.png"
+    },
+    "46": {
+      "filename": "Blue JP boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/b/b5/Blue_JP_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Blue_JP_boxart.png"
+    },
+    "47": {
+      "filename": "Legends Z-A EN boxart.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/7/7a/Legends_Z-A_EN_boxart.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:Legends_Z-A_EN_boxart.png"
+    }
+  },
+  "moveCategories": {
+    "physical": {
+      "filename": "PhysicalIC.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/5/54/PhysicalIC.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:PhysicalIC.png"
+    },
+    "special": {
+      "filename": "SpecialIC.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/6/6b/SpecialIC.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:SpecialIC.png"
+    },
+    "status": {
+      "filename": "StatusIC.png",
+      "originalUrl": "https://archives.bulbagarden.net/media/upload/a/a7/StatusIC.png",
+      "pageUrl": "https://archives.bulbagarden.net/wiki/File:StatusIC.png"
+    }
+  }
+}

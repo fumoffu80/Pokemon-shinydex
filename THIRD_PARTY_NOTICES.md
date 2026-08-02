@@ -47,3 +47,12 @@ Les cinq capacités Torque de Pokémon Écarlate et Violet ne disposent pas de
 texte descriptif dans les tables PokéAPI utilisées. Leurs résumés factuels
 locaux ont été vérifiés dans l’AttackDex de Serebii :
 https://www.serebii.net/attackdex-sv/
+
+## Jaquettes de jeux et icônes de catégories de capacités
+
+Les jaquettes des jeux et les icônes historiques « Physique », « Spéciale » et
+« Statut » proviennent de Bulbagarden Archives. Les fichiers sources exacts et
+leurs pages descriptives sont consignés dans `data/game-asset-sources.json`.
+Pokémon, les jaquettes, les logos et les éléments graphiques des jeux sont la
+propriété de Nintendo, Creatures et GAME FREAK. Ils sont reproduits ici à titre
+informatif et d’identification des jeux et mécaniques correspondants.

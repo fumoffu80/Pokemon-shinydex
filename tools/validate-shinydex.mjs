@@ -13,6 +13,7 @@ import {
 const root = resolve(import.meta.dirname, "..");
 const errors = [];
 const languages = ["fr", "en", "es", "de", "it", "ja"];
+const gameEditionIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 44, 45, 46, 47];
 
 function check(condition, message) {
   if (!condition) errors.push(message);
@@ -29,6 +30,7 @@ const [
   dataSource,
   detailsSource,
   technicalEffectsSource,
+  gameAssetSourcesText,
   availabilitySource,
   sourceLocalesSource,
   distributionsSource,
@@ -47,6 +49,7 @@ const [
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
   readFile(resolve(root, "data/pokemon-details.js"), "utf8"),
   readFile(resolve(root, "data/technical-effects.js"), "utf8"),
+  readFile(resolve(root, "data/game-asset-sources.json"), "utf8"),
   readFile(resolve(root, "data/shiny-availability.js"), "utf8"),
   readFile(resolve(root, "data/distribution-source-locales.js"), "utf8"),
   readFile(resolve(root, "data/distributions.js"), "utf8"),
@@ -117,6 +120,13 @@ try {
   manifest = JSON.parse(manifestSource);
 } catch (error) {
   errors.push(`Manifest invalide : ${error.message}`);
+}
+
+let gameAssetSources;
+try {
+  gameAssetSources = JSON.parse(gameAssetSourcesText);
+} catch (error) {
+  errors.push(`Manifeste des jaquettes invalide : ${error.message}`);
 }
 
 check(data?.schemaVersion === 2, "Version de schéma inattendue.");
@@ -384,6 +394,33 @@ for (const file of [...(data?.homeNormalSheets || []), ...(data?.homeShinySheets
   }
 }
 
+check(gameAssetSources?.schemaVersion === 1
+  && Object.keys(gameAssetSources?.covers || {}).length === gameEditionIds.length
+  && Object.keys(gameAssetSources?.moveCategories || {}).length === 3,
+"Les sources des jaquettes ou des icônes de capacités sont incomplètes.");
+
+for (const id of gameEditionIds) {
+  const file = resolve(root, `assets/game-covers/${id}.webp`);
+  try {
+    const metadata = await sharp(file).metadata();
+    check(metadata.format === "webp" && metadata.width <= 280 && metadata.height <= 360,
+      `La jaquette du jeu ${id} est invalide.`);
+  } catch (error) {
+    errors.push(`La jaquette du jeu ${id} est absente : ${error.message}`);
+  }
+}
+
+for (const category of ["physical", "special", "status"]) {
+  const file = resolve(root, `assets/move-categories/${category}.png`);
+  try {
+    const metadata = await sharp(file).metadata();
+    check(metadata.format === "png" && metadata.width >= 28 && metadata.height >= 14,
+      `L’icône ${category} est invalide.`);
+  } catch (error) {
+    errors.push(`L’icône ${category} est absente : ${error.message}`);
+  }
+}
+
 try {
   const [ditto2d, ditto3d] = await Promise.all([
     sharp(resolve(root, "assets/ditto-2d.webp")).metadata(),
@@ -628,13 +665,18 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-experimental-v19"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-experimental-v20"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js")
   && serviceWorker.includes("gender-differences.js")
   && serviceWorker.includes("shiny-pokeball.svg")
   && serviceWorker.includes("ditto-2d.webp")
   && serviceWorker.includes("ditto-3d.webp"),
 "Les nouvelles ressources ne sont pas mises en cache.");
+check(serviceWorker.includes("GAME_COVER_IDS")
+  && serviceWorker.includes("assets/game-covers/${id}.webp")
+  && serviceWorker.includes("47")
+  && ["physical", "special", "status"].every(category => serviceWorker.includes(`assets/move-categories/${category}.png`)),
+"Les jaquettes ou les icônes de capacités ne sont pas disponibles hors ligne.");
 check(
   serviceWorker.includes("shiny-availability.js")
     && serviceWorker.includes("pokemon-details.js")
@@ -717,8 +759,33 @@ try {
   check(gameCards.length === 41
     && gameCards.some(card => card.textContent.includes("Vert (Japon)"))
     && gameCards.every(card => !card.textContent.includes("Pokémon HOME"))
+    && gameCards.every(card => card.querySelector(':scope > img.game-card__cover[src^="assets/game-covers/"]'))
+    && !gameCards.some(card => card.querySelector(".game-card__sprite"))
     && dom.window.document.getElementById("researchDialogBody").textContent.includes("Pokémon HOME est exclu"),
-  "Le catalogue n’affiche pas les 41 éditions principales, dont Pokémon Vert, ou conserve Pokémon HOME comme jeu.");
+  "Le catalogue n’affiche pas les 41 jaquettes des éditions principales, dont Pokémon Vert, ou conserve Pokémon HOME comme jeu.");
+  dom.window.document.getElementById("researchDialog").close();
+  dom.window.document.getElementById("explorerButton").click();
+  dom.window.document.querySelector('#explorerDialog [data-tool="rankings"]')?.click();
+  check(dom.window.document.querySelectorAll("#researchDialogBody .ranking-table > button").length === data.speciesCount,
+    "Le classement des statistiques reste limité et n’affiche pas toutes les espèces.");
+  dom.window.document.getElementById("researchDialog").close();
+  dom.window.document.getElementById("explorerButton").click();
+  dom.window.document.querySelector('#explorerDialog [data-tool="moves"]')?.click();
+  const moveRows = [...dom.window.document.querySelectorAll("#researchDialogBody .catalogue-table article")];
+  check(moveRows.length === 937
+    && moveRows.every(row => row.querySelector("img.move-category-icon"))
+    && moveRows.every(row => row.querySelectorAll(".move-stat strong").length === 3),
+  "Le catalogue des capacités n’affiche pas ses 937 lignes, les grandes valeurs ou les icônes de catégorie.");
+  dom.window.document.getElementById("researchDialog").close();
+  dom.window.document.getElementById("explorerButton").click();
+  dom.window.document.querySelector('#explorerDialog [data-tool="abilities"]')?.click();
+  const firstCompatibleAbility = dom.window.document.querySelector("#researchDialogBody .catalogue-compatible");
+  firstCompatibleAbility.open = true;
+  firstCompatibleAbility.dispatchEvent(new dom.window.Event("toggle"));
+  check(dom.window.document.querySelectorAll("#researchDialogBody .catalogue-card").length === 373
+    && firstCompatibleAbility.querySelector(".catalogue-pokemon-card .catalogue-pokemon-card__sprite")
+    && firstCompatibleAbility.querySelector(".catalogue-pokemon-card strong"),
+  "Le catalogue des talents n’affiche pas les fiches illustrées des Pokémon compatibles.");
   dom.window.document.getElementById("researchDialog").close();
   dom.window.document.getElementById("explorerButton").click();
   dom.window.document.querySelector('#explorerDialog [data-tool="types"]')?.click();

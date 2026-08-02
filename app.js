@@ -433,6 +433,38 @@
     return String(value).replaceAll("$effect_chance", String(item?.effectChance || "—"));
   }
 
+  function createMoveCategoryIcon(move) {
+    const icon = document.createElement("img");
+    icon.className = "move-category-icon";
+    icon.src = `assets/move-categories/${move?.damageClass || "status"}.png`;
+    icon.alt = t(move?.damageClass || "status");
+    icon.title = icon.alt;
+    icon.width = 50;
+    icon.height = 20;
+    return icon;
+  }
+
+  function createMoveStat(labelKey, value, suffix = "") {
+    const stat = makeElement("span", "move-stat");
+    stat.append(
+      makeElement("small", "", t(labelKey)),
+      makeElement("strong", "", value ? `${value}${suffix}` : "—")
+    );
+    return stat;
+  }
+
+  function createGameCover(game, eager = false) {
+    const cover = document.createElement("img");
+    cover.className = "game-card__cover";
+    cover.src = `assets/game-covers/${game.id}.webp`;
+    cover.alt = `${localizedVersionName(game.id)} — ${t("gameVersion")}`;
+    cover.loading = eager ? "eager" : "lazy";
+    cover.decoding = "async";
+    cover.width = 280;
+    cover.height = 360;
+    return cover;
+  }
+
   function localizedVersionName(versionId) {
     const version = DETAILS.versions?.[versionId];
     const name = localizedDetailName(version) || version?.identifier || `Version ${versionId}`;
@@ -2363,10 +2395,16 @@
             type.style.setProperty("--type-color", TYPE_COLORS[move.type] || "#64748b");
             typeContainerTextColor(type, move.type);
             const methodText = [localizedDetailName(method) || method?.identifier, row.level ? t("levelShort", { level: row.level }) : "", row.mastery ? t("masteryLevel", { level: row.mastery }) : ""].filter(Boolean).join(" · ");
+            const metrics = makeElement("span", "move-metrics");
+            metrics.append(
+              createMoveStat("movePower", move.power),
+              createMoveStat("moveAccuracy", move.accuracy, "%"),
+              createMoveStat("movePp", move.pp)
+            );
             summary.append(
               makeElement("strong", "", localizedDetailName(move)), type,
-              makeElement("span", "", `${move.power || "—"} / ${move.accuracy || "—"} / ${move.pp || "—"}`),
-              makeElement("small", "", methodText)
+              createMoveCategoryIcon(move), metrics,
+              makeElement("small", "move-method", methodText)
             );
             item.append(summary, makeElement("p", "", localizedTechnicalText(move) || t("descriptionUnavailable")));
             table.append(item);
@@ -2744,16 +2782,14 @@
       back.addEventListener("click", () => renderResearchTool("games"));
       const hero = makeElement("section", "game-detail-hero");
       hero.style.setProperty("--game-color", selected.color);
-      const mascot = primaryEntryBySpecies.get(selected.mascotSpeciesId);
-      const sprite = makeElement("span", "game-card__sprite");
-      if (mascot) spriteStyle(sprite, mascot, false, 128);
+      const cover = createGameCover(selected, true);
       const identity = makeElement("div");
       identity.append(
         makeElement("p", "eyebrow", t("generationShort", { generation: gameGeneration(selected) })),
         makeElement("h3", "", localizedVersionName(selected.id)),
         makeElement("p", "", `${selected.year} · ${selected.platform} · ${selected.region}`)
       );
-      hero.append(sprite, identity);
+      hero.append(cover, identity);
       const facts = makeElement("div", "game-fact-grid");
       for (const [label, value] of [
         [t("pokemonPresent"), gameSpeciesCount(selected).toLocaleString(locale())],
@@ -2804,16 +2840,14 @@
       const button = makeElement("button", "game-card");
       button.type = "button";
       button.style.setProperty("--game-color", game.color);
-      const mascot = primaryEntryBySpecies.get(game.mascotSpeciesId);
-      const sprite = makeElement("span", "game-card__sprite");
-      if (mascot) spriteStyle(sprite, mascot, false, 96);
+      const cover = createGameCover(game);
       const body = makeElement("span", "game-card__body");
       body.append(
         makeElement("small", "", `${t("generationShort", { generation: gameGeneration(game) })} · ${game.year}`),
         makeElement("strong", "", localizedVersionName(game.id)),
         makeElement("span", "", `${game.platform} · ${game.region}`)
       );
-      button.append(sprite, body);
+      button.append(cover, body);
       button.addEventListener("click", () => renderResearchTool("games", { gameId: game.id }));
       grid.append(button);
     }
@@ -2879,17 +2913,30 @@
       const compatible = makeElement("details", "catalogue-compatible");
       compatible.append(makeElement("summary", "", t("pokemonCount", { count: ability.speciesIds.length.toLocaleString(locale()) })));
       const pokemonGrid = makeElement("div", "catalogue-pokemon-list");
-      for (const speciesId of ability.speciesIds) {
-        const entry = primaryEntryBySpecies.get(speciesId);
-        if (!entry) continue;
-        const button = makeElement("button", "", localizedName(entry));
-        button.type = "button";
-        button.addEventListener("click", () => {
-          closeDialog(elements.researchDialog);
-          openPokemonInfo(entry.key);
-        });
-        pokemonGrid.append(button);
-      }
+      const populatePokemonGrid = () => {
+        if (pokemonGrid.childElementCount) return;
+        for (const speciesId of ability.speciesIds) {
+          const entry = primaryEntryBySpecies.get(speciesId);
+          if (!entry) continue;
+          const button = makeElement("button", "catalogue-pokemon-card");
+          button.type = "button";
+          const sprite = makeElement("span", "catalogue-pokemon-card__sprite");
+          spriteStyle(sprite, entry, isShinyOwned(entry.key), 56);
+          button.append(
+            sprite,
+            makeElement("strong", "", localizedName(entry)),
+            makeElement("small", "", `#${String(speciesId).padStart(4, "0")}`)
+          );
+          button.addEventListener("click", () => {
+            closeDialog(elements.researchDialog);
+            openPokemonInfo(entry.key);
+          });
+          pokemonGrid.append(button);
+        }
+      };
+      compatible.addEventListener("toggle", () => {
+        if (compatible.open) populatePokemonGrid();
+      });
       compatible.append(pokemonGrid);
       card.append(compatible);
       grid.append(card);
@@ -2934,11 +2981,11 @@
       typePill.style.setProperty("--type-color", TYPE_COLORS[move.type] || "#64748b");
       typeContainerTextColor(typePill, move.type);
       row.append(
-        makeElement("strong", "", move.label), typePill,
-        makeElement("span", "", `${t("movePower")} ${move.power || "—"}`),
-        makeElement("span", "", `${t("moveAccuracy")} ${move.accuracy ? `${move.accuracy} %` : "—"}`),
-        makeElement("span", "", `${t("movePp")} ${move.pp || "—"}`),
-        makeElement("small", "", `${t(move.damageClass)} · ${t("generationShort", { generation: move.generation })}`),
+        makeElement("strong", "", move.label), typePill, createMoveCategoryIcon(move),
+        createMoveStat("movePower", move.power),
+        createMoveStat("moveAccuracy", move.accuracy, "%"),
+        createMoveStat("movePp", move.pp),
+        makeElement("small", "catalogue-move-generation", t("generationShort", { generation: move.generation })),
         makeElement("p", "catalogue-move-effect", localizedTechnicalText(move) || t("descriptionUnavailable"))
       );
       table.append(row);
@@ -2983,7 +3030,7 @@
     field.append(select);
     controls.append(field);
     const ranked = primaryEntries().map(entry => ({ entry, value: Number(detailForEntry(entry).pokemon?.stats?.[select.value]) || 0 }))
-      .sort((a, b) => b.value - a.value || a.entry.speciesId - b.entry.speciesId).slice(0, 50);
+      .sort((a, b) => b.value - a.value || a.entry.speciesId - b.entry.speciesId);
     const table = makeElement("div", "ranking-table");
     ranked.forEach((item, index) => {
       const row = makeElement("button");
@@ -2995,7 +3042,11 @@
       table.append(row);
     });
     select.addEventListener("change", () => renderResearchTool("rankings", { stat: select.value }));
-    elements.researchDialogBody.replaceChildren(controls, table);
+    elements.researchDialogBody.replaceChildren(
+      controls,
+      makeElement("p", "research-note", t("resultCountExact", { count: ranked.length.toLocaleString(locale()) })),
+      table
+    );
   }
 
   function renderEggGroupsTool(groupId = "") {

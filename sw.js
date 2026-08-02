@@ -1,4 +1,5 @@
-const CACHE_NAME = "pokemon-shinydex-experimental-v19";
+const CACHE_NAME = "pokemon-shinydex-experimental-v20";
+const GAME_COVER_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 44, 45, 46, 47];
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -19,12 +20,16 @@ const APP_SHELL = [
   "./assets/shiny-pokeball-512.png",
   "./assets/ditto-2d.webp",
   "./assets/ditto-3d.webp",
+  "./assets/move-categories/physical.png",
+  "./assets/move-categories/special.png",
+  "./assets/move-categories/status.png",
   "./assets/flags/fr.svg",
   "./assets/flags/en.svg",
   "./assets/flags/es.svg",
   "./assets/flags/de.svg",
   "./assets/flags/it.svg",
-  "./assets/flags/ja.svg"
+  "./assets/flags/ja.svg",
+  ...GAME_COVER_IDS.map(id => `./assets/game-covers/${id}.webp`)
 ];
 
 self.addEventListener("install", event => {
