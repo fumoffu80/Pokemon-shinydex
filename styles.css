@@ -612,6 +612,7 @@ main {
 
 .ditto-sprite--2d {
   background-image: url("assets/ditto-2d.webp");
+  background-size: 215% auto;
   image-rendering: pixelated;
 }
 
@@ -2857,8 +2858,9 @@ input[role="switch"]:checked::after {
 }
 
 .pokemon-card__info {
-  top: 10px;
-  left: 10px;
+  top: 9px;
+  left: 50%;
+  translate: -50% 0;
 }
 
 .variant-option__info {
@@ -2971,7 +2973,6 @@ input[role="switch"]:checked::after {
 .research-actions,
 .hunt-toolbar,
 .pokemon-info__actions,
-.share-actions,
 .odds-presets {
   display: flex;
   flex-wrap: wrap;
@@ -3169,8 +3170,7 @@ input[role="switch"]:checked::after {
 .gallery-card,
 .method-card,
 .comparison-card,
-.odds-result,
-.share-card {
+.odds-result {
   padding: 14px;
   border: 1px solid rgba(116, 143, 181, 0.25);
   border-radius: 15px;
@@ -3257,7 +3257,6 @@ input[role="switch"]:checked::after {
 }
 
 .method-card p,
-.share-card p,
 .research-note {
   margin: 0;
   color: var(--muted);
@@ -3305,6 +3304,462 @@ input[role="switch"]:checked::after {
 
 .catalogue-card .is-negative {
   color: var(--danger);
+}
+
+.ability-summary-list {
+  display: grid;
+  margin-top: 14px;
+  gap: 7px;
+}
+
+.ability-summary-list h4,
+.stat-rank-title,
+.technical-subsection h4 {
+  margin: 0;
+  color: #dce8f7;
+  font-size: 0.68rem;
+}
+
+.ability-summary-list article {
+  padding: 9px 10px;
+  border: 1px solid rgba(116, 143, 181, 0.2);
+  border-radius: 10px;
+  background: rgba(31, 49, 78, 0.45);
+}
+
+.ability-summary-list strong,
+.ability-summary-list p {
+  display: block;
+  margin: 0;
+}
+
+.ability-summary-list strong {
+  font-size: 0.69rem;
+}
+
+.ability-summary-list p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+
+.stat-rank-title {
+  margin-top: 14px;
+}
+
+.stat-rank-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 7px;
+  gap: 6px;
+}
+
+.stat-rank-grid > div {
+  padding: 7px;
+  border-radius: 9px;
+  background: rgba(31, 49, 78, 0.52);
+}
+
+.stat-rank-grid small,
+.stat-rank-grid strong {
+  display: block;
+  font-size: 0.6rem;
+}
+
+.stat-rank-grid small {
+  color: var(--muted);
+}
+
+.stat-rank-grid strong {
+  margin-top: 2px;
+  color: var(--gold);
+}
+
+.pokemon-game-data {
+  margin-top: 12px;
+}
+
+.pokemon-game-data__controls {
+  max-width: 430px;
+  margin-bottom: 12px;
+}
+
+.pokemon-game-data__controls .auth-field {
+  margin: 0;
+}
+
+.pokemon-game-data__controls select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  color: var(--text);
+  border: 1px solid #405574;
+  border-radius: 10px;
+  background: #132039;
+}
+
+.availability-status {
+  display: grid;
+  padding: 10px 12px;
+  border: 1px solid rgba(99, 179, 237, 0.28);
+  border-radius: 11px;
+  background: rgba(99, 179, 237, 0.08);
+  gap: 3px;
+}
+
+.availability-status[data-status="direct"] {
+  border-color: rgba(92, 203, 137, 0.35);
+  background: rgba(92, 203, 137, 0.08);
+}
+
+.availability-status strong {
+  font-size: 0.7rem;
+}
+
+.availability-status span {
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+
+.technical-subsection {
+  margin-top: 14px;
+}
+
+.technical-subsection h4 {
+  margin-bottom: 7px;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.encounter-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 7px;
+}
+
+.encounter-list article {
+  display: grid;
+  padding: 9px;
+  border-radius: 10px;
+  background: rgba(31, 49, 78, 0.5);
+  gap: 3px;
+}
+
+.encounter-list strong,
+.encounter-list span,
+.encounter-list small {
+  font-size: 0.62rem;
+}
+
+.encounter-list span,
+.encounter-list small {
+  color: var(--muted);
+}
+
+.pokemon-move-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(116, 143, 181, 0.22);
+  border-radius: 12px;
+}
+
+.pokemon-move-table details + details {
+  border-top: 1px solid rgba(116, 143, 181, 0.15);
+}
+
+.pokemon-move-table details:nth-child(even) {
+  background: rgba(31, 49, 78, 0.25);
+}
+
+.pokemon-move-table summary {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 86px 110px minmax(130px, 1fr);
+  align-items: center;
+  min-height: 42px;
+  padding: 6px 10px;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.pokemon-move-table summary strong,
+.pokemon-move-table summary span,
+.pokemon-move-table summary small {
+  font-size: 0.62rem;
+}
+
+.pokemon-move-table summary > span:not(.type-pill),
+.pokemon-move-table summary small {
+  color: var(--muted);
+}
+
+.pokemon-move-table details > p {
+  margin: 0;
+  padding: 0 10px 10px;
+  color: var(--muted);
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+
+.catalogue-generation {
+  color: #a9ccee;
+  font-size: 0.59rem;
+  font-weight: 800;
+}
+
+.catalogue-card .catalogue-effect {
+  min-height: 3.6em;
+  font-weight: 600;
+}
+
+.catalogue-compatible {
+  margin-top: 9px;
+}
+
+.catalogue-compatible summary,
+.method-games summary {
+  color: #bcd7f2;
+  font-size: 0.63rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.catalogue-pokemon-list,
+.method-games > div {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 7px;
+  gap: 5px;
+}
+
+.catalogue-pokemon-list button,
+.method-games span {
+  padding: 4px 6px;
+  color: var(--muted-strong);
+  border: 1px solid rgba(99, 179, 237, 0.25);
+  border-radius: 999px;
+  background: rgba(99, 179, 237, 0.07);
+  font-size: 0.58rem;
+}
+
+.catalogue-move-effect {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 2px 0 5px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  line-height: 1.4;
+}
+
+.nature-matrix-scroll {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.nature-matrix {
+  display: grid;
+  grid-template-columns: 125px repeat(5, minmax(135px, 1fr));
+  min-width: 800px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 143, 181, 0.25);
+  border-radius: 14px;
+}
+
+.nature-matrix > * {
+  min-height: 64px;
+  padding: 9px;
+  border-right: 1px solid rgba(116, 143, 181, 0.15);
+  border-bottom: 1px solid rgba(116, 143, 181, 0.15);
+}
+
+.nature-matrix__corner,
+.nature-matrix__heading {
+  display: grid;
+  align-content: center;
+  color: #f5d887;
+  background: rgba(31, 49, 78, 0.7);
+  font-size: 0.63rem;
+}
+
+.nature-matrix__corner span + span {
+  margin-top: 4px;
+}
+
+.nature-matrix__cell {
+  background: rgba(13, 25, 44, 0.68);
+}
+
+.nature-matrix__cell.is-neutral {
+  background: rgba(99, 179, 237, 0.1);
+}
+
+.nature-matrix__cell strong,
+.nature-matrix__cell small {
+  display: block;
+}
+
+.nature-matrix__cell strong {
+  font-size: 0.72rem;
+}
+
+.nature-matrix__cell small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.58rem;
+}
+
+.method-tutorial,
+.game-guide ol {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--muted-strong);
+  font-size: 0.64rem;
+  line-height: 1.5;
+}
+
+.method-games {
+  margin-top: 10px;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 10px;
+}
+
+.game-card {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  align-items: center;
+  min-height: 116px;
+  padding: 9px;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, var(--game-color) 55%, #415574);
+  border-radius: 15px;
+  background: radial-gradient(circle at 18% 50%, color-mix(in srgb, var(--game-color) 30%, transparent), transparent 48%), rgba(13, 25, 44, 0.75);
+  text-align: left;
+}
+
+.game-card:hover {
+  border-color: var(--game-color);
+  transform: translateY(-2px);
+}
+
+.game-card__sprite {
+  display: block;
+  width: 96px;
+  height: 96px;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 8px 8px rgba(2, 8, 20, 0.35));
+}
+
+.game-card__body {
+  display: grid;
+  gap: 5px;
+}
+
+.game-card__body small,
+.game-card__body span {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.game-card__body strong {
+  font-size: 0.78rem;
+}
+
+.game-detail-hero {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--game-color) 55%, #415574);
+  border-radius: 17px;
+  background: radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--game-color) 35%, transparent), transparent 34%), rgba(13, 25, 44, 0.75);
+}
+
+.game-detail-hero .game-card__sprite {
+  width: 128px;
+  height: 128px;
+}
+
+.game-detail-hero h3 {
+  margin: 3px 0;
+  font-size: 1.3rem;
+}
+
+.game-detail-hero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.game-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.game-fact-grid > div {
+  padding: 11px;
+  border-radius: 11px;
+  background: rgba(31, 49, 78, 0.55);
+}
+
+.game-fact-grid small,
+.game-fact-grid strong {
+  display: block;
+}
+
+.game-fact-grid small {
+  color: var(--muted);
+  font-size: 0.61rem;
+}
+
+.game-fact-grid strong {
+  margin-top: 3px;
+  color: var(--gold);
+  font-size: 0.8rem;
+}
+
+.game-guide + .game-guide {
+  margin-top: 10px;
+}
+
+.game-guide > p,
+.game-method-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.game-method-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 7px;
+}
+
+.game-method-list article {
+  padding: 9px;
+  border-radius: 10px;
+  background: rgba(31, 49, 78, 0.5);
+}
+
+.game-method-list strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.67rem;
+}
+
+.hunt-availability-note {
+  min-height: 1.5em;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.45;
 }
 
 .catalogue-table {
@@ -4093,6 +4548,28 @@ input[role="switch"]:checked::after {
 }
 
 @media (max-width: 760px) {
+  .pokemon-move-table summary {
+    grid-template-columns: minmax(110px, 1fr) 78px;
+  }
+
+  .pokemon-move-table summary > span:not(.type-pill),
+  .pokemon-move-table summary > small {
+    grid-column: 1 / -1;
+  }
+
+  .game-card {
+    grid-template-columns: 100px minmax(0, 1fr);
+  }
+
+  .game-detail-hero {
+    grid-template-columns: 140px minmax(0, 1fr);
+  }
+
+  .game-fact-grid,
+  .stat-rank-grid {
+    grid-template-columns: 1fr;
+  }
+
   .evolution-panel {
     margin-top: 18px;
     padding: 18px;

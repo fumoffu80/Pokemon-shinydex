@@ -446,7 +446,6 @@
             <button type="button" data-tool="collection"><span>◉</span><strong data-i18n="collectionTitle">Ma collection</strong><small data-i18n="explorerCollectionDesc">Filtres et progression</small></button>
             <button type="button" data-tool="hunts"><span>◎</span><strong data-i18n="activeHunts">Chasses en cours</strong><small data-i18n="activeHuntsDesc">Compteurs et objectifs</small></button>
             <button type="button" data-tool="journal"><span>✦</span><strong data-i18n="captureJournal">Journal des captures</strong><small data-i18n="captureJournalDesc">Jeu, méthode, date et essais</small></button>
-            <button type="button" data-tool="share"><span>↗</span><strong data-i18n="shareCollection">Partager</strong><small data-i18n="shareCollectionDesc">Résumé ou sauvegarde</small></button>
           </div>
         </section>
         <section>
@@ -458,7 +457,6 @@
             <button type="button" data-tool="compare"><span>⇄</span><strong data-i18n="comparePokemon">Comparer</strong><small data-i18n="comparePokemonDesc">Statistiques côte à côte</small></button>
             <button type="button" data-tool="abilities"><span>✺</span><strong data-i18n="abilityDex">Talents</strong><small data-i18n="abilityDexDesc">Catalogue et Pokémon compatibles</small></button>
             <button type="button" data-tool="moves"><span>↯</span><strong data-i18n="moveDex">Capacités</strong><small data-i18n="moveDexDesc">Type, puissance, précision et PP</small></button>
-            <button type="button" data-tool="items"><span>◇</span><strong data-i18n="itemDex">Objets</strong><small data-i18n="itemDexDesc">Catalogue par catégorie</small></button>
             <button type="button" data-tool="natures"><span>↕</span><strong data-i18n="natureDex">Natures</strong><small data-i18n="natureDexDesc">Statistiques augmentées et réduites</small></button>
             <button type="button" data-tool="rankings"><span>≋</span><strong data-i18n="statRankings">Classement des stats</strong><small data-i18n="statRankingsDesc">Meilleures statistiques de base</small></button>
             <button type="button" data-tool="eggGroups"><span>◌</span><strong data-i18n="eggGroupDex">Groupes d’Œuf</strong><small data-i18n="eggGroupDexDesc">Compatibilités d’élevage</small></button>
@@ -470,6 +468,7 @@
             <button type="button" data-tool="types"><span>◆</span><strong data-i18n="typeChart">Table des types</strong><small data-i18n="typeChartDesc">Faiblesses et résistances</small></button>
             <button type="button" data-tool="odds"><span>%</span><strong data-i18n="shinyCalculator">Calculateur shiny</strong><small data-i18n="shinyCalculatorDesc">Probabilité par rencontre et cumulée</small></button>
             <button type="button" data-tool="methods"><span>⌕</span><strong data-i18n="huntingMethods">Méthodes de chasse</strong><small data-i18n="huntingMethodsDesc">Référentiel par mécanique</small></button>
+            <button type="button" data-tool="games"><span>▣</span><strong data-i18n="gameDex">Jeux</strong><small data-i18n="gameDexDesc">Guides de toutes les éditions principales</small></button>
             <button type="button" data-tool="distributions"><span>!</span><strong data-i18n="informationTitle">Informations & distributions</strong><small data-i18n="distributionsMenuDesc">Actualités mondiales suivies</small></button>
           </div>
         </section>
@@ -550,12 +549,13 @@
       <input id="huntRecordMode" type="hidden" value="active">
       <label class="auth-field"><span data-i18n="pokemon">Pokémon</span><select id="huntEntrySelect" required></select></label>
       <div class="hunt-form-grid">
-        <label class="auth-field"><span data-i18n="game">Jeu</span><input id="huntGame" type="text" list="huntGameOptions" maxlength="60" placeholder="Pokémon Écarlate"></label>
+        <label class="auth-field"><span data-i18n="game">Jeu</span><select id="huntGame" required></select></label>
         <label class="auth-field"><span data-i18n="method">Méthode</span><select id="huntMethod"></select></label>
         <label class="auth-field"><span data-i18n="attempts">Rencontres / essais</span><input id="huntAttempts" type="number" min="0" max="999999999" value="0"></label>
         <label class="auth-field"><span id="huntDateLabel" data-i18n="startDate">Date de début</span><input id="huntDate" type="date"></label>
         <label class="auth-field"><span data-i18n="nickname">Surnom</span><input id="huntNickname" type="text" maxlength="40"></label>
       </div>
+      <p class="hunt-availability-note" id="huntAvailabilityNote"></p>
       <label class="auth-field"><span data-i18n="notes">Notes</span><textarea id="huntNotes" rows="3" maxlength="600"></textarea></label>
       <div class="modal__actions">
         <button class="button button--ghost" id="cancelHuntEditorButton" type="button" data-i18n="cancel">Annuler</button>
@@ -563,12 +563,6 @@
       </div>
     </form>
   </dialog>
-
-  <datalist id="huntGameOptions">
-    <option value="Pokémon Écarlate"><option value="Pokémon Violet"><option value="Pokémon Légendes : Z-A">
-    <option value="Pokémon HOME"><option value="Pokémon GO"><option value="Pokémon Épée"><option value="Pokémon Bouclier">
-    <option value="Pokémon Diamant Étincelant"><option value="Pokémon Perle Scintillante"><option value="Légendes Pokémon : Arceus">
-  </datalist>
 
   <dialog class="modal auth-modal" id="authDialog">
     <div class="auth-panel">

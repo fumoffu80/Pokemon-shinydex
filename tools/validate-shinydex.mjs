@@ -116,12 +116,23 @@ try {
 }
 
 check(data?.schemaVersion === 2, "Version de schéma inattendue.");
-check(details?.schemaVersion === 1, "Version des données techniques inattendue.");
+check(details?.schemaVersion === 2, "Version des données techniques inattendue.");
 check(Object.keys(details?.species || {}).length === 1025, "Les données techniques des 1 025 espèces sont incomplètes.");
 check(Object.keys(details?.pokemon || {}).length >= 1350, "Les statistiques des formes Pokémon sont incomplètes.");
 check(Object.keys(details?.abilities || {}).length >= 370, "Le catalogue des talents est incomplet.");
 check(Object.keys(details?.moves || {}).length >= 930, "Le catalogue des capacités est incomplet.");
-check(Object.keys(details?.items || {}).length >= 2200, "Le catalogue des objets est incomplet.");
+check(Object.keys(details?.abilities || {}).length >= 370
+  && Object.values(details?.abilities || {}).every(ability => ability.shortEffects?.fr),
+"Le catalogue des talents et leurs descriptions sont incomplets.");
+check(Object.keys(details?.moves || {}).length >= 930
+  && Object.values(details?.moves || {}).every(move => move.shortEffects?.fr || move.effects?.fr),
+"Le catalogue des capacités et leurs descriptions est incomplet.");
+check(Object.keys(details?.versions || {}).length >= 50
+  && Object.keys(details?.locations || {}).length >= 1300,
+"Les versions ou lieux du Pokédex technique sont incomplets.");
+check(Object.values(details?.pokemon || {}).some(pokemon => Object.keys(pokemon.learnsets || {}).length >= 20)
+  && Object.values(details?.pokemon || {}).some(pokemon => Object.keys(pokemon.encounters || {}).length >= 10),
+"Les apprentissages ou rencontres par version sont absents.");
 check(Object.keys(details?.natures || {}).length === 25, "Les 25 natures ne sont pas toutes disponibles.");
 check(details?.pokemon?.[6]?.stats?.["special-attack"] === 109, "Les statistiques techniques de Dracaufeu sont erronées.");
 check(details?.formPokemonIds?.[201704] === 10275, "La forme Téracristallisée du Masque de la Pierre n’est pas reliée à ses données.");
@@ -497,6 +508,10 @@ check(css.includes("content-visibility: auto"), "Le rendu différé des cartes n
 check(css.includes("--type-color"), "Les couleurs propres aux types sont absentes.");
 check(/\.language-control select option\s*\{[^}]*background:\s*var\(--surface-raised\)/s.test(css), "Le menu des langues n’utilise pas les couleurs sombres du site.");
 check(css.includes("minmax(min(100%, var(--card-min-width)), 1fr)"), "La grille Pokémon n’est pas fluide sur toutes les largeurs.");
+check(css.includes(".ditto-sprite--2d") && css.includes("background-size: 215% auto"),
+  "Le Métamorph pixel reste visuellement trop petit face au rendu 3D.");
+check(css.includes(".pokemon-card__info") && css.includes("left: 50%") && css.includes("translate: -50% 0"),
+  "Le raccourci du Pokédex technique empiète encore sur le numéro de la fiche.");
 check(html.includes('id="cardSizeButton"'), "Le bouton d’agrandissement des fiches Pokémon est absent.");
 check(app.includes('cardSize: "normal"') && app.includes("function cycleCardSize"),
   "La préférence de taille des fiches n’est pas enregistrée.");
@@ -604,7 +619,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-experimental-v17"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-experimental-v18"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js")
   && serviceWorker.includes("gender-differences.js")
   && serviceWorker.includes("shiny-pokeball.svg")
@@ -673,14 +688,26 @@ try {
   charizardInfoButton?.click();
   check(dom.window.document.getElementById("pokemonInfoDialog").hasAttribute("open")
     && dom.window.document.getElementById("pokemonInfoBody").textContent.includes("109")
-    && dom.window.document.getElementById("pokemonInfoBody").textContent.includes("Brasier"),
-  "Le Pokédex technique n’affiche pas les statistiques et talents locaux de Dracaufeu.");
+    && dom.window.document.getElementById("pokemonInfoBody").textContent.includes("Brasier")
+    && dom.window.document.getElementById("pokemonInfoBody").textContent.includes("Renforce")
+    && dom.window.document.getElementById("pokemonInfoBody").textContent.includes("Jeux, lieux et capacités")
+    && dom.window.document.querySelector('[data-info-action="compare"]'),
+  "Le Pokédex technique n’affiche pas les descriptions, classements, jeux ou comparaison de Dracaufeu.");
   dom.window.document.getElementById("pokemonInfoDialog").close();
 
   dom.window.document.getElementById("explorerButton").click();
   check(dom.window.document.getElementById("explorerDialog").hasAttribute("open")
-    && dom.window.document.querySelectorAll("#explorerDialog [data-tool]").length >= 18,
+    && dom.window.document.querySelectorAll("#explorerDialog [data-tool]").length >= 17,
   "Le menu Explorer ne propose pas tous ses outils expérimentaux.");
+  check(!dom.window.document.querySelector('#explorerDialog [data-tool="share"], #explorerDialog [data-tool="items"]'),
+    "Partager ou Objets n’a pas été retiré du laboratoire expérimental.");
+  dom.window.document.querySelector('#explorerDialog [data-tool="games"]')?.click();
+  check(dom.window.document.querySelectorAll("#researchDialogBody .game-card").length === 41
+    && dom.window.document.getElementById("researchDialogBody").textContent.includes("Vert (Japon)")
+    && !dom.window.document.getElementById("researchDialogBody").textContent.includes("Pokémon HOME"),
+  "Le catalogue n’affiche pas les 41 éditions principales, dont Pokémon Vert, ou conserve Pokémon HOME comme jeu.");
+  dom.window.document.getElementById("researchDialog").close();
+  dom.window.document.getElementById("explorerButton").click();
   dom.window.document.querySelector('#explorerDialog [data-tool="types"]')?.click();
   check(dom.window.document.getElementById("researchDialog").hasAttribute("open")
     && dom.window.document.querySelectorAll("#researchDialogBody select").length === 2
@@ -692,6 +719,17 @@ try {
   dom.window.document.getElementById("newHuntButton").click();
   const huntSelect = dom.window.document.getElementById("huntEntrySelect");
   huntSelect.value = [...huntSelect.options].find(option => option.value)?.value || "";
+  huntSelect.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  const huntGame = dom.window.document.getElementById("huntGame");
+  check([...huntGame.options].some(option => option.value === "45" && option.textContent.includes("Vert"))
+    && [...huntGame.options].every(option => !option.textContent.includes("HOME")),
+  "Le carnet n’inclut pas Pokémon Vert et la génération I, ou propose encore Pokémon HOME.");
+  huntGame.value = "45";
+  huntGame.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  check([...dom.window.document.getElementById("huntMethod").options].some(option => option.value === "DvTransfer"),
+    "La méthode de chasse par DV et transfert n’est pas proposée en génération I.");
+  huntGame.value = [...huntGame.options].find(option => option.value)?.value || "";
+  huntGame.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   dom.window.document.getElementById("huntAttempts").value = "25";
   dom.window.document.getElementById("huntEditorForm").dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
   check(Object.values(dom.window.SHINYDEX_APP.getState().huntRecords).some(record => record.status === "active" && record.attempts === 25)

@@ -63,20 +63,31 @@ textes ni leur design :
 
 - menu central « Explorer » donnant accès au Pokédex technique, aux lignées,
   à la galerie 2D/3D, au comparateur de statistiques, à la table défensive des
-  types, au calculateur de probabilité shiny et au catalogue des méthodes ;
-- catalogues hors ligne des talents, capacités, objets, natures et groupes
-  d’Œuf, ainsi qu’un classement interactif des statistiques de base ;
-- carnet de chasse synchronisable avec compteurs `+1`/`+10`, jeu, méthode,
-  date, nombre d’essais, surnom et notes ;
+  types, au calculateur de probabilité shiny, aux guides de méthodes et aux
+  jeux principaux ;
+- Pokédex technique hors ligne avec effets des talents, rang de chaque
+  statistique, capacités apprises par version et méthode, présence dans les
+  jeux, lieux, niveaux et types de rencontres documentés ;
+- catalogues complets et filtrables des talents et capacités, descriptions,
+  Pokémon compatibles, classement multi-critères, tableau standard des natures
+  et groupes d’Œuf ;
+- guides illustrés de toutes les éditions principales déjà sorties depuis la
+  première génération, y compris Pokémon Vert japonais ; Pokémon HOME reste
+  exclu car il s’agit d’un service de stockage et non d’un jeu de capture ;
+- carnet de chasse synchronisable dont le choix du jeu dépend du Pokémon et
+  dont les méthodes sont limitées aux mécaniques de l’édition sélectionnée,
+  avec compteurs `+1`/`+10`, date, nombre d’essais, surnom et notes ;
 - journal détaillé des captures, une capture terminée mettant aussi à jour la
   quantité de la variante correspondante ;
 - préférence anti-divulgâchage qui empêche l’aperçu des couleurs shiny non
   encore obtenues, avec révélation temporaire volontaire dans la fiche ;
-- partage local d’un résumé et sauvegarde JSON complète, carnet inclus.
+- sauvegarde JSON complète, carnet inclus.
 
 Les données techniques factuelles sont générées dans
 `data/pokemon-details.js` par `tools/update-pokemon-details.mjs` à partir des
 tables CSV de PokéAPI. Elles restent entièrement locales pour les visiteurs.
+La licence et les avis de la source sont reproduits dans
+`THIRD_PARTY_NOTICES.md`.
 Les fonctions sociales publiques (amis, fil et notifications) ne sont pas
 activées : elles nécessitent d’abord un modèle de consentement et des règles
 Firebase publiques distinctes de la sauvegarde privée actuelle.

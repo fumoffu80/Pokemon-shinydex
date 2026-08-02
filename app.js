@@ -96,8 +96,59 @@
     fairy: { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 }
   });
   const HUNT_METHOD_KEYS = Object.freeze([
-    "Random", "Masuda", "Reset", "Radar", "Outbreak", "Sandwich", "Raid", "Fishing", "Sos", "Dynamax", "Distribution", "Other"
+    "DvTransfer", "Random", "Breeding", "Masuda", "Reset", "Radar", "Horde", "Fishing", "Sos", "Wormhole",
+    "CatchCombo", "Dynamax", "Underground", "Research", "Outbreak", "MassiveOutbreak", "Sandwich",
+    "Raid", "WildZone", "Distribution", "Other"
   ]);
+  const GAME_EDITION_DEFINITIONS = Object.freeze([
+    [1, 6, 1996, "Game Boy", "Kanto", "gen1", "#d95151", ["DvTransfer"]],
+    [2, 9, 1996, "Game Boy", "Kanto", "gen1", "#4b78c2", ["DvTransfer"]],
+    [3, 25, 1998, "Game Boy", "Kanto", "gen1", "#d6b72f", ["DvTransfer"]],
+    [4, 250, 1999, "Game Boy Color", "Johto", "gen2", "#d3a63b", ["Random", "Breeding", "Reset"]],
+    [5, 249, 1999, "Game Boy Color", "Johto", "gen2", "#aeb8c7", ["Random", "Breeding", "Reset"]],
+    [6, 245, 2000, "Game Boy Color", "Johto", "gen2", "#56b8c8", ["Random", "Breeding", "Reset"]],
+    [7, 383, 2002, "Game Boy Advance", "Hoenn", "gen3", "#bd4747", ["Random", "Breeding", "Reset"]],
+    [8, 382, 2002, "Game Boy Advance", "Hoenn", "gen3", "#416fc6", ["Random", "Breeding", "Reset"]],
+    [9, 384, 2004, "Game Boy Advance", "Hoenn", "gen3", "#3f9f70", ["Random", "Breeding", "Reset"]],
+    [10, 6, 2004, "Game Boy Advance", "Kanto", "gen3", "#d65e43", ["Random", "Breeding", "Reset"]],
+    [11, 3, 2004, "Game Boy Advance", "Kanto", "gen3", "#77a95b", ["Random", "Breeding", "Reset"]],
+    [12, 483, 2006, "Nintendo DS", "Sinnoh", "gen4Radar", "#65a6cf", ["Random", "Masuda", "Reset", "Radar"]],
+    [13, 484, 2006, "Nintendo DS", "Sinnoh", "gen4Radar", "#d783a9", ["Random", "Masuda", "Reset", "Radar"]],
+    [14, 487, 2008, "Nintendo DS", "Sinnoh", "gen4Radar", "#777586", ["Random", "Masuda", "Reset", "Radar"]],
+    [15, 250, 2009, "Nintendo DS", "Johto", "gen4", "#c59137", ["Random", "Masuda", "Reset"]],
+    [16, 249, 2009, "Nintendo DS", "Johto", "gen4", "#8ca8bd", ["Random", "Masuda", "Reset"]],
+    [17, 643, 2010, "Nintendo DS", "Unys", "gen5", "#e6e9ef", ["Random", "Masuda", "Reset"]],
+    [18, 644, 2010, "Nintendo DS", "Unys", "gen5", "#343948", ["Random", "Masuda", "Reset"]],
+    [21, 646, 2012, "Nintendo DS", "Unys", "gen5", "#4d5058", ["Random", "Masuda", "Reset"]],
+    [22, 646, 2012, "Nintendo DS", "Unys", "gen5", "#d6dbe5", ["Random", "Masuda", "Reset"]],
+    [23, 716, 2013, "Nintendo 3DS", "Kalos", "gen6Xy", "#5d8ed7", ["Random", "Masuda", "Reset", "Radar", "Horde", "Fishing"]],
+    [24, 717, 2013, "Nintendo 3DS", "Kalos", "gen6Xy", "#c84e57", ["Random", "Masuda", "Reset", "Radar", "Horde", "Fishing"]],
+    [25, 383, 2014, "Nintendo 3DS", "Hoenn", "gen6Oras", "#c45151", ["Random", "Masuda", "Reset", "Horde", "Fishing"]],
+    [26, 382, 2014, "Nintendo 3DS", "Hoenn", "gen6Oras", "#4a72bd", ["Random", "Masuda", "Reset", "Horde", "Fishing"]],
+    [27, 791, 2016, "Nintendo 3DS", "Alola", "alola", "#e67d38", ["Random", "Masuda", "Reset", "Sos"]],
+    [28, 792, 2016, "Nintendo 3DS", "Alola", "alola", "#665aae", ["Random", "Masuda", "Reset", "Sos"]],
+    [29, 800, 2017, "Nintendo 3DS", "Alola", "ultra", "#f09b36", ["Random", "Masuda", "Reset", "Sos", "Wormhole"]],
+    [30, 800, 2017, "Nintendo 3DS", "Alola", "ultra", "#785bb5", ["Random", "Masuda", "Reset", "Sos", "Wormhole"]],
+    [31, 25, 2018, "Nintendo Switch", "Kanto", "letsGo", "#e2bb35", ["Random", "CatchCombo"]],
+    [32, 133, 2018, "Nintendo Switch", "Kanto", "letsGo", "#b98a56", ["Random", "CatchCombo"]],
+    [33, 888, 2019, "Nintendo Switch", "Galar", "swsh", "#4f92d3", ["Random", "Masuda", "Reset", "Raid", "Dynamax"]],
+    [34, 889, 2019, "Nintendo Switch", "Galar", "swsh", "#d66b83", ["Random", "Masuda", "Reset", "Raid", "Dynamax"]],
+    [37, 483, 2021, "Nintendo Switch", "Sinnoh", "bdsp", "#78a6d0", ["Random", "Masuda", "Reset", "Radar", "Underground"]],
+    [38, 484, 2021, "Nintendo Switch", "Sinnoh", "bdsp", "#d98eae", ["Random", "Masuda", "Reset", "Radar", "Underground"]],
+    [39, 493, 2022, "Nintendo Switch", "Hisui", "arceus", "#83a79d", ["Random", "Research", "Outbreak", "MassiveOutbreak"]],
+    [40, 1007, 2022, "Nintendo Switch", "Paldea", "sv", "#c6534a", ["Random", "Masuda", "Reset", "Outbreak", "Sandwich", "Raid"]],
+    [41, 1008, 2022, "Nintendo Switch", "Paldea", "sv", "#7959b8", ["Random", "Masuda", "Reset", "Outbreak", "Sandwich", "Raid"]],
+    [44, 6, 1996, "Game Boy", "Kanto", "gen1", "#d95151", ["DvTransfer"]],
+    [45, 3, 1996, "Game Boy", "Kanto", "gen1", "#67a65d", ["DvTransfer"]],
+    [46, 9, 1996, "Game Boy", "Kanto", "gen1", "#4b78c2", ["DvTransfer"]],
+    [47, 718, 2025, "Nintendo Switch / Switch 2", "Illumis", "za", "#6d63bd", ["Random", "WildZone"]]
+  ].map(([id, mascotSpeciesId, year, platform, region, family, color, methods]) => Object.freeze({
+    id, mascotSpeciesId, year, platform, region, family, color, methods: Object.freeze(methods)
+  })));
+  const GAME_EDITION_BY_ID = new Map(GAME_EDITION_DEFINITIONS.map(game => [game.id, game]));
+  const GAME_VERSION_ALIASES = Object.freeze({
+    33: [33, 35, 36], 34: [34, 50, 51], 40: [40, 42, 43], 41: [41, 52, 53], 47: [47, 48]
+  });
   const STAT_ORDER = Object.freeze(["hp", "attack", "defense", "special-attack", "special-defense", "speed"]);
   const STAT_LABELS = Object.freeze({
     hp: "PV", attack: "Attaque", defense: "Défense", "special-attack": "Att. Spé.", "special-defense": "Déf. Spé.", speed: "Vitesse"
@@ -128,7 +179,7 @@
     "newCaptureButton", "activeHuntList", "activeHuntEmpty", "huntDialogActiveCount", "captureJournalList",
     "captureJournalEmpty", "captureJournalCount", "huntEditorDialog", "huntEditorForm", "huntEditorTitle",
     "closeHuntEditorButton", "cancelHuntEditorButton", "huntRecordId", "huntRecordMode", "huntEntrySelect",
-    "huntGame", "huntMethod", "huntAttempts", "huntDate", "huntDateLabel", "huntNickname", "huntNotes",
+    "huntGame", "huntMethod", "huntAvailabilityNote", "huntAttempts", "huntDate", "huntDateLabel", "huntNickname", "huntNotes",
     "spoilerSetting"
   ].map(id => [id, document.getElementById(id)]));
 
@@ -374,6 +425,58 @@
 
   function localizedDetailName(item) {
     return item?.names?.[language()] || item?.names?.fr || item?.names?.en || "";
+  }
+
+  function localizedTechnicalText(item, field = "shortEffects") {
+    const source = item?.[field];
+    const value = source?.[language()] || source?.fr || source?.en || "";
+    return String(value).replaceAll("$effect_chance", String(item?.effectChance || "—"));
+  }
+
+  function localizedVersionName(versionId) {
+    const version = DETAILS.versions?.[versionId];
+    const name = localizedDetailName(version) || version?.identifier || `Version ${versionId}`;
+    return [44, 45, 46].includes(Number(versionId)) ? `${name} (${t("japanEdition")})` : name;
+  }
+
+  function gameGeneration(game) {
+    return Number(DETAILS.versions?.[game?.id]?.generation) || 0;
+  }
+
+  function gameAliases(gameId) {
+    return GAME_VERSION_ALIASES[gameId] || [gameId];
+  }
+
+  function gameAvailabilityForEntry(entry) {
+    const detail = detailForEntry(entry).pokemon;
+    const present = new Set((detail?.gameVersionIds || []).map(Number));
+    const encountered = new Set(Object.keys(detail?.encounters || {}).map(Number));
+    return GAME_EDITION_DEFINITIONS.map(game => {
+      const aliases = gameAliases(game.id);
+      return {
+        ...game,
+        generation: gameGeneration(game),
+        present: aliases.some(versionId => present.has(versionId)),
+        direct: aliases.some(versionId => encountered.has(versionId))
+      };
+    }).filter(game => game.present || game.direct)
+      .sort((left, right) => left.year - right.year || left.generation - right.generation || left.id - right.id);
+  }
+
+  function targetCanHatch(details) {
+    const groups = details.species?.eggGroups || [];
+    return Boolean(details.species?.baby) || groups.some(group => Number(group.id) !== 15);
+  }
+
+  function huntMethodsFor(entry, game, mode = "active") {
+    const details = detailForEntry(entry);
+    let methods = [...(game?.methods || [])];
+    if (!targetCanHatch(details)) methods = methods.filter(method => !["Breeding", "Masuda"].includes(method));
+    if (!game?.direct && game?.generation > 0 && game.generation <= 7 && game.id <= 30) {
+      methods = methods.filter(method => !["Random", "Radar", "Horde", "Fishing", "Sos"].includes(method));
+    }
+    if (mode === "caught") methods.push("Distribution");
+    return [...new Set(methods)].filter(method => HUNT_METHOD_KEYS.includes(method));
   }
 
   function defenseMultipliers(types) {
@@ -2002,6 +2105,55 @@
     container.append(list);
   }
 
+  const statRankingCache = new Map();
+  function statRankFor(pokemonId, identifier) {
+    if (!statRankingCache.has(identifier)) {
+      const ranked = Object.entries(DETAILS.pokemon || {})
+        .map(([id, record]) => ({ id: Number(id), value: Number(record.stats?.[identifier]) || 0 }))
+        .sort((left, right) => right.value - left.value || left.id - right.id);
+      let previous = null;
+      let rank = 0;
+      const ranks = new Map();
+      ranked.forEach((item, index) => {
+        if (item.value !== previous) rank = index + 1;
+        ranks.set(item.id, { rank, total: ranked.length, value: item.value });
+        previous = item.value;
+      });
+      statRankingCache.set(identifier, ranks);
+    }
+    return statRankingCache.get(identifier)?.get(Number(pokemonId)) || { rank: 0, total: 0, value: 0 };
+  }
+
+  function gameLearnsetRows(details, game) {
+    const versionGroupIds = [...new Set(gameAliases(game.id)
+      .map(versionId => Number(DETAILS.versions?.[versionId]?.versionGroupId))
+      .filter(Boolean))];
+    const seen = new Set();
+    const rows = [];
+    for (const versionGroupId of versionGroupIds) {
+      for (const packed of details.pokemon?.learnsets?.[versionGroupId] || []) {
+        const [moveId, methodId, level, mastery] = packed.map(Number);
+        const key = `${moveId}:${methodId}:${level}:${mastery}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rows.push({ moveId, methodId, level, mastery, versionGroupId });
+      }
+    }
+    return rows.sort((left, right) => left.methodId - right.methodId || left.level - right.level
+      || localizedDetailName(DETAILS.moves?.[left.moveId]).localeCompare(localizedDetailName(DETAILS.moves?.[right.moveId]), locale()));
+  }
+
+  function gameEncounterRows(details, game) {
+    const rows = [];
+    for (const versionId of gameAliases(game.id)) {
+      for (const packed of details.pokemon?.encounters?.[versionId] || []) {
+        const [areaId, min, max, methods] = packed;
+        rows.push({ versionId, areaId: Number(areaId), min: Number(min), max: Number(max), methods: methods || [] });
+      }
+    }
+    return rows;
+  }
+
   function renderDefenseGroups(container, types) {
     const multipliers = defenseMultipliers(types);
     const groups = [
@@ -2055,7 +2207,10 @@
     capture.type = "button";
     capture.dataset.infoAction = "capture";
     capture.disabled = entry.exceptional || !isLegallyObtainable(entry);
-    actions.append(hunt, capture);
+    const compare = makeElement("button", "button button--ghost", t("comparePokemon"));
+    compare.type = "button";
+    compare.dataset.infoAction = "compare";
+    actions.append(hunt, capture, compare);
     if (spoilerHides(entry) && !revealShiny) {
       const reveal = makeElement("button", "button button--ghost", t("revealShiny"));
       reveal.type = "button";
@@ -2090,13 +2245,17 @@
     }
     facts.append(factGrid);
     if (details.pokemon?.abilities?.length) {
-      const abilityGroup = makeElement("div", "defense-group");
-      abilityGroup.append(makeElement("strong", "", t("abilities")));
-      const pills = makeElement("div", "defense-pills");
+      const abilityGroup = makeElement("div", "ability-summary-list");
+      abilityGroup.append(makeElement("h4", "", t("abilities")));
       for (const ability of details.pokemon.abilities) {
-        pills.append(makeElement("span", "", `${localizedDetailName(ability)}${ability.hidden ? ` (${t("hiddenAbility")})` : ""}`));
+        const reference = DETAILS.abilities?.[ability.id] || ability;
+        const item = makeElement("article");
+        item.append(
+          makeElement("strong", "", `${localizedDetailName(ability)}${ability.hidden ? ` (${t("hiddenAbility")})` : ""}`),
+          makeElement("p", "", localizedTechnicalText(reference) || t("descriptionUnavailable"))
+        );
+        abilityGroup.append(item);
       }
-      abilityGroup.append(pills);
       facts.append(abilityGroup);
     }
 
@@ -2116,12 +2275,112 @@
     const stats = makeElement("section", "info-block");
     stats.append(makeElement("h3", "", t("baseStats")));
     renderStatList(stats, details.pokemon?.stats || {});
+    const rankGrid = makeElement("div", "stat-rank-grid");
+    for (const identifier of STAT_ORDER) {
+      const ranking = statRankFor(details.pokemonId, identifier);
+      const item = makeElement("div");
+      item.append(
+        makeElement("small", "", STAT_LABELS[identifier] || identifier),
+        makeElement("strong", "", t("rankValue", { rank: ranking.rank, total: ranking.total }))
+      );
+      rankGrid.append(item);
+    }
+    stats.append(makeElement("h4", "stat-rank-title", t("statRankings")), rankGrid);
 
     const defenses = makeElement("section", "info-block");
     defenses.append(makeElement("h3", "", t("typeDefenses")));
     renderDefenseGroups(defenses, entry.types);
     grid.append(facts, breeding, stats, defenses);
     body.append(grid);
+
+    const gameSection = makeElement("section", "info-block pokemon-game-data");
+    gameSection.append(makeElement("h3", "", t("gamesAvailability")));
+    const availableGames = gameAvailabilityForEntry(entry);
+    if (!availableGames.length) {
+      gameSection.append(makeElement("p", "hunt-empty", t("noGameData")));
+    } else {
+      const controls = makeElement("div", "pokemon-game-data__controls");
+      const label = makeElement("label", "auth-field");
+      label.append(makeElement("span", "", t("gameVersion")));
+      const select = makeElement("select");
+      for (const game of availableGames) {
+        select.append(new Option(`${localizedVersionName(game.id)} · ${t("generationShort", { generation: game.generation })}`, String(game.id)));
+      }
+      label.append(select);
+      controls.append(label);
+      const content = makeElement("div", "pokemon-game-data__content");
+      const latest = availableGames.at(-1);
+      select.value = String(latest.id);
+      const renderSelectedGame = () => {
+        const game = availableGames.find(item => String(item.id) === select.value) || latest;
+        const encounterRows = gameEncounterRows(details, game);
+        const learnsetRows = gameLearnsetRows(details, game);
+        const fragment = document.createDocumentFragment();
+        const status = makeElement("div", "availability-status");
+        status.dataset.status = game.direct ? "direct" : "present";
+        status.append(
+          makeElement("strong", "", game.direct ? t("wildCaptureDocumented") : t("presentInGame")),
+          makeElement("span", "", game.direct ? t("wildCaptureDocumentedDesc") : t("presentInGameDesc"))
+        );
+        fragment.append(status);
+
+        const locations = makeElement("section", "technical-subsection");
+        locations.append(makeElement("h4", "", t("whereAndHow")));
+        if (encounterRows.length) {
+          const list = makeElement("div", "encounter-list");
+          for (const row of encounterRows) {
+            const item = makeElement("article");
+            const methodLabels = row.methods.map(([methodId, rarity]) => {
+              const method = DETAILS.encounterMethods?.[methodId];
+              return `${localizedDetailName(method) || method?.identifier || t("encounter")} · ${rarity || "?"} %`;
+            });
+            item.append(
+              makeElement("strong", "", localizedDetailName(DETAILS.locations?.[row.areaId]) || `#${row.areaId}`),
+              makeElement("span", "", `${localizedVersionName(row.versionId)} · ${t("levels", { min: row.min, max: row.max })}`),
+              makeElement("small", "", methodLabels.join(" · "))
+            );
+            list.append(item);
+          }
+          locations.append(list);
+        } else locations.append(makeElement("p", "research-note", game.generation >= 8
+          ? t("modernLocationDataMissing")
+          : t("noWildEncounterDocumented")));
+        fragment.append(locations);
+
+        const movesBlock = makeElement("section", "technical-subsection");
+        movesBlock.append(makeElement("h4", "", t("learnableMoves")));
+        if (!learnsetRows.length) movesBlock.append(makeElement("p", "research-note", t("noLearnsetForGame")));
+        else {
+          const table = makeElement("div", "pokemon-move-table");
+          for (const row of learnsetRows) {
+            const move = DETAILS.moves?.[row.moveId];
+            if (!move) continue;
+            const method = DETAILS.moveMethods?.[row.methodId];
+            const item = makeElement("details");
+            const summary = makeElement("summary");
+            const type = makeElement("span", "type-pill", localizedType(move.type));
+            type.dataset.type = move.type;
+            type.style.setProperty("--type-color", TYPE_COLORS[move.type] || "#64748b");
+            typeContainerTextColor(type, move.type);
+            const methodText = [localizedDetailName(method) || method?.identifier, row.level ? t("levelShort", { level: row.level }) : "", row.mastery ? t("masteryLevel", { level: row.mastery }) : ""].filter(Boolean).join(" · ");
+            summary.append(
+              makeElement("strong", "", localizedDetailName(move)), type,
+              makeElement("span", "", `${move.power || "—"} / ${move.accuracy || "—"} / ${move.pp || "—"}`),
+              makeElement("small", "", methodText)
+            );
+            item.append(summary, makeElement("p", "", localizedTechnicalText(move) || t("descriptionUnavailable")));
+            table.append(item);
+          }
+          movesBlock.append(makeElement("p", "research-note", t("moveColumnsHint")), table);
+        }
+        fragment.append(movesBlock);
+        content.replaceChildren(fragment);
+      };
+      select.addEventListener("change", renderSelectedGame);
+      renderSelectedGame();
+      gameSection.append(controls, content);
+    }
+    body.append(gameSection);
     elements.pokemonInfoBody.replaceChildren(body);
   }
 
@@ -2132,15 +2391,53 @@
     showDialog(elements.pokemonInfoDialog);
   }
 
+  function huntGameLabel(value) {
+    const game = GAME_EDITION_BY_ID.get(Number(value));
+    return game ? localizedVersionName(game.id) : String(value || "");
+  }
+
+  function updateHuntEditorAvailability({ selectedGame = "", selectedMethod = "" } = {}) {
+    const entry = entryByKey.get(elements.huntEntrySelect.value);
+    const games = entry ? gameAvailabilityForEntry(entry).filter(game => game.methods.length) : [];
+    elements.huntGame.replaceChildren(new Option(t("selectGame"), ""));
+    const groups = new Map();
+    for (const game of games) {
+      const group = groups.get(game.generation) || document.createElement("optgroup");
+      group.label = t("generationShort", { generation: game.generation });
+      group.append(new Option(`${localizedVersionName(game.id)}${game.direct ? ` · ${t("wildCapture")}` : ""}`, String(game.id)));
+      groups.set(game.generation, group);
+    }
+    elements.huntGame.append(...groups.values());
+    if (selectedGame && ![...elements.huntGame.options].some(option => option.value === String(selectedGame))) {
+      elements.huntGame.append(new Option(`${huntGameLabel(selectedGame)} · ${t("legacyEntry")}`, String(selectedGame)));
+    }
+    elements.huntGame.value = String(selectedGame || "");
+    if (!elements.huntGame.value && games.length === 1) elements.huntGame.value = String(games[0].id);
+
+    const selectedGameRecord = games.find(game => String(game.id) === elements.huntGame.value);
+    const mode = elements.huntRecordMode.value === "caught" ? "caught" : "active";
+    const methods = entry && selectedGameRecord ? huntMethodsFor(entry, selectedGameRecord, mode) : [];
+    elements.huntMethod.replaceChildren(...methods.map(key => new Option(huntMethodLabel(key), key)));
+    if (selectedMethod && !methods.includes(selectedMethod)) {
+      elements.huntMethod.append(new Option(`${huntMethodLabel(selectedMethod)} · ${t("legacyEntry")}`, selectedMethod));
+    }
+    elements.huntMethod.value = methods.includes(selectedMethod) ? selectedMethod : (selectedMethod || methods[0] || "");
+
+    if (!entry) elements.huntAvailabilityNote.textContent = t("huntChoosePokemonFirst");
+    else if (!games.length) elements.huntAvailabilityNote.textContent = t("huntNoCompatibleGame");
+    else if (!selectedGameRecord) elements.huntAvailabilityNote.textContent = t("huntChooseGame");
+    else elements.huntAvailabilityNote.textContent = selectedGameRecord.direct
+      ? t("huntDirectAvailability", { game: localizedVersionName(selectedGameRecord.id) })
+      : t("huntPresenceAvailability", { game: localizedVersionName(selectedGameRecord.id) });
+  }
+
   function openHuntEditor(mode = "active", entryKey = "", recordId = "") {
     const record = recordId ? state.huntRecords[recordId] : null;
     populateEntrySelect(elements.huntEntrySelect, { huntOnly: true, selectedKey: record?.entryKey || entryKey });
-    elements.huntMethod.replaceChildren(...HUNT_METHOD_KEYS.map(key => new Option(huntMethodLabel(key), key)));
     elements.huntRecordId.value = record?.id || "";
     elements.huntRecordMode.value = mode;
     elements.huntEntrySelect.disabled = Boolean(record);
-    elements.huntGame.value = record?.game || "";
-    elements.huntMethod.value = record?.method || "Random";
+    updateHuntEditorAvailability({ selectedGame: record?.game || "", selectedMethod: record?.method || "" });
     elements.huntAttempts.value = String(record?.attempts || 0);
     elements.huntDate.value = mode === "caught" ? (record?.caughtAt || todayDate()) : (record?.startedAt || todayDate());
     elements.huntNickname.value = record?.nickname || "";
@@ -2168,7 +2465,7 @@
     spriteStyle(sprite, entry, caught || !spoilerHides(entry), 72);
     const body = makeElement("div", "hunt-card__body");
     body.append(makeElement("h4", "", record.nickname || localizedName(entry)));
-    const metadata = [variantLabel(entry, { alwaysGender: true }), record.game, huntMethodLabel(record.method), caught ? record.caughtAt : record.startedAt]
+    const metadata = [variantLabel(entry, { alwaysGender: true }), huntGameLabel(record.game), huntMethodLabel(record.method), caught ? record.caughtAt : record.startedAt]
       .filter(Boolean).join(" · ");
     body.append(makeElement("p", "hunt-card__meta", metadata));
     const counter = makeElement("div", "hunt-counter");
@@ -2412,9 +2709,115 @@
     for (const key of HUNT_METHOD_KEYS.filter(key => !["Other", "Distribution"].includes(key))) {
       const card = makeElement("article", "method-card");
       card.append(makeElement("h3", "", huntMethodLabel(key)), makeElement("p", "", t(`methodDescription${key}`)));
+      const steps = makeElement("ol", "method-tutorial");
+      for (const step of t(`methodTutorial${key}`).split("|").filter(Boolean)) steps.append(makeElement("li", "", step));
+      card.append(steps);
+      const compatibleGames = GAME_EDITION_DEFINITIONS.filter(game => game.methods.includes(key));
+      const details = makeElement("details", "method-games");
+      details.append(makeElement("summary", "", t("compatibleGames", { count: compatibleGames.length })));
+      const list = makeElement("div");
+      for (const game of compatibleGames) list.append(makeElement("span", "", localizedVersionName(game.id)));
+      details.append(list);
+      card.append(details);
       grid.append(card);
     }
-    elements.researchDialogBody.replaceChildren(grid);
+    elements.researchDialogBody.replaceChildren(makeElement("p", "research-note", t("methodRestrictionHint")), grid);
+  }
+
+  function gameSpeciesCount(game, directOnly = false) {
+    const aliases = new Set(gameAliases(game.id));
+    const speciesIds = new Set();
+    for (const record of Object.values(DETAILS.pokemon || {})) {
+      const matched = directOnly
+        ? Object.keys(record.encounters || {}).some(versionId => aliases.has(Number(versionId)))
+        : (record.gameVersionIds || []).some(versionId => aliases.has(Number(versionId)));
+      if (matched) speciesIds.add(Number(record.speciesId));
+    }
+    return speciesIds.size;
+  }
+
+  function renderGamesTool(gameId = "", generation = "") {
+    const selected = GAME_EDITION_BY_ID.get(Number(gameId));
+    if (selected) {
+      const back = makeElement("button", "button button--ghost", t("backToGames"));
+      back.type = "button";
+      back.addEventListener("click", () => renderResearchTool("games"));
+      const hero = makeElement("section", "game-detail-hero");
+      hero.style.setProperty("--game-color", selected.color);
+      const mascot = primaryEntryBySpecies.get(selected.mascotSpeciesId);
+      const sprite = makeElement("span", "game-card__sprite");
+      if (mascot) spriteStyle(sprite, mascot, false, 128);
+      const identity = makeElement("div");
+      identity.append(
+        makeElement("p", "eyebrow", t("generationShort", { generation: gameGeneration(selected) })),
+        makeElement("h3", "", localizedVersionName(selected.id)),
+        makeElement("p", "", `${selected.year} · ${selected.platform} · ${selected.region}`)
+      );
+      hero.append(sprite, identity);
+      const facts = makeElement("div", "game-fact-grid");
+      for (const [label, value] of [
+        [t("pokemonPresent"), gameSpeciesCount(selected).toLocaleString(locale())],
+        [t("wildCapturesDocumented"), gameSpeciesCount(selected, true).toLocaleString(locale())],
+        [t("shinyHunting"), selected.methods.length ? t("available") : t("unavailable")]
+      ]) {
+        const fact = makeElement("div");
+        fact.append(makeElement("small", "", label), makeElement("strong", "", value));
+        facts.append(fact);
+      }
+      const guide = makeElement("section", "info-block game-guide");
+      guide.append(makeElement("h3", "", t("gameGuide")), makeElement("p", "", t(`gameGuide${selected.family}`)));
+      const tutorial = makeElement("ol");
+      for (const step of t(`gameTutorial${selected.family}`).split("|").filter(Boolean)) tutorial.append(makeElement("li", "", step));
+      guide.append(tutorial);
+      const methods = makeElement("section", "info-block game-guide");
+      methods.append(makeElement("h3", "", t("huntingMethods")));
+      if (!selected.methods.length) methods.append(makeElement("p", "research-note", t("noShinyInGenerationOne")));
+      else {
+        const list = makeElement("div", "game-method-list");
+        for (const key of selected.methods) {
+          const item = makeElement("article");
+          item.append(makeElement("strong", "", huntMethodLabel(key)), makeElement("p", "", t(`methodDescription${key}`)));
+          list.append(item);
+        }
+        methods.append(list);
+      }
+      elements.researchDialogBody.replaceChildren(back, hero, facts, guide, methods, makeElement("p", "research-note", t("gameDataSourceNote")));
+      return;
+    }
+
+    const controls = makeElement("div", "research-controls");
+    const field = makeElement("label", "auth-field");
+    field.append(makeElement("span", "", t("generationFilterLabel")));
+    const select = makeElement("select");
+    select.append(new Option(t("allGenerations"), ""));
+    for (const value of [...new Set(GAME_EDITION_DEFINITIONS.map(gameGeneration))].sort((a, b) => a - b)) {
+      select.append(new Option(t("generationShort", { generation: value }), String(value)));
+    }
+    select.value = String(generation || "");
+    field.append(select);
+    controls.append(field);
+    select.addEventListener("change", () => renderResearchTool("games", { generation: select.value }));
+    const games = GAME_EDITION_DEFINITIONS.filter(game => !generation || gameGeneration(game) === Number(generation))
+      .sort((left, right) => left.year - right.year || left.id - right.id);
+    const grid = makeElement("div", "game-grid");
+    for (const game of games) {
+      const button = makeElement("button", "game-card");
+      button.type = "button";
+      button.style.setProperty("--game-color", game.color);
+      const mascot = primaryEntryBySpecies.get(game.mascotSpeciesId);
+      const sprite = makeElement("span", "game-card__sprite");
+      if (mascot) spriteStyle(sprite, mascot, false, 96);
+      const body = makeElement("span", "game-card__body");
+      body.append(
+        makeElement("small", "", `${t("generationShort", { generation: gameGeneration(game) })} · ${game.year}`),
+        makeElement("strong", "", localizedVersionName(game.id)),
+        makeElement("span", "", `${game.platform} · ${game.region}`)
+      );
+      button.append(sprite, body);
+      button.addEventListener("click", () => renderResearchTool("games", { gameId: game.id }));
+      grid.append(button);
+    }
+    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("mainSeriesGamesIntro")), grid);
   }
 
   function renderCatalogueControls({ search = "", category = "", categories = [] } = {}, rerender) {
@@ -2446,41 +2849,83 @@
     return controls;
   }
 
-  function renderAbilitiesTool(search = "") {
+  function renderAbilitiesTool(search = "", generation = "") {
     const query = normalize(search);
     const entries = Object.entries(DETAILS.abilities || {})
-      .map(([id, ability]) => ({ id: Number(id), ...ability, label: localizedDetailName(ability) }))
-      .filter(ability => !query || normalize(ability.label).includes(query))
+      .map(([id, ability]) => {
+        const speciesIds = [...new Set((ability.pokemonIds || []).map(pokemonId => DETAILS.pokemon?.[pokemonId]?.speciesId).filter(Boolean))];
+        const pokemonNames = speciesIds.map(speciesId => localizedName(groupsBySpecies.get(speciesId)?.entries?.[0] || {})).filter(Boolean);
+        return { id: Number(id), ...ability, label: localizedDetailName(ability), speciesIds, pokemonNames };
+      })
+      .filter(ability => (!generation || Number(generation) === ability.generation)
+        && (!query || [ability.label, localizedTechnicalText(ability), ...ability.pokemonNames]
+          .some(value => normalize(value).includes(query))))
       .sort((a, b) => a.label.localeCompare(b.label, locale()));
-    const controls = renderCatalogueControls({ search }, nextSearch => renderResearchTool("abilities", { search: nextSearch }));
-    const grid = makeElement("div", "catalogue-grid");
-    for (const ability of entries.slice(0, 80)) {
-      const speciesIds = [...new Set((ability.pokemonIds || []).map(pokemonId => DETAILS.pokemon?.[pokemonId]?.speciesId).filter(Boolean))];
-      const names = speciesIds.slice(0, 6).map(speciesId => localizedName(groupsBySpecies.get(speciesId)?.entries?.[0] || {})).filter(Boolean);
+    const generations = [...new Set(Object.values(DETAILS.abilities || {}).map(ability => Number(ability.generation)).filter(Boolean))]
+      .sort((a, b) => a - b).map(value => ({ value: String(value), label: t("generationShort", { generation: value }) }));
+    const controls = renderCatalogueControls({ search, category: String(generation || ""), categories: generations },
+      (nextSearch, nextGeneration) => renderResearchTool("abilities", { search: nextSearch, generation: nextGeneration }));
+    controls.querySelector("input").placeholder = t("abilitySearchPlaceholder");
+    const grid = makeElement("div", "catalogue-grid ability-catalogue-grid");
+    for (const ability of entries) {
       const card = makeElement("article", "catalogue-card");
       card.append(
         makeElement("h3", "", ability.label),
-        makeElement("strong", "", t("pokemonCount", { count: speciesIds.length.toLocaleString(locale()) })),
-        makeElement("p", "", names.join(" · ") + (speciesIds.length > names.length ? "…" : ""))
+        makeElement("small", "catalogue-generation", t("generationShort", { generation: ability.generation })),
+        makeElement("p", "catalogue-effect", localizedTechnicalText(ability) || t("descriptionUnavailable"))
       );
+      const compatible = makeElement("details", "catalogue-compatible");
+      compatible.append(makeElement("summary", "", t("pokemonCount", { count: ability.speciesIds.length.toLocaleString(locale()) })));
+      const pokemonGrid = makeElement("div", "catalogue-pokemon-list");
+      for (const speciesId of ability.speciesIds) {
+        const entry = primaryEntryBySpecies.get(speciesId);
+        if (!entry) continue;
+        const button = makeElement("button", "", localizedName(entry));
+        button.type = "button";
+        button.addEventListener("click", () => {
+          closeDialog(elements.researchDialog);
+          openPokemonInfo(entry.key);
+        });
+        pokemonGrid.append(button);
+      }
+      compatible.append(pokemonGrid);
+      card.append(compatible);
       grid.append(card);
     }
-    const nodes = [controls, makeElement("p", "research-note", t("browseHint")), grid];
-    if (entries.length > 80) nodes.push(makeElement("p", "research-note", t("showingFirst", { count: 80 })));
+    const nodes = [controls, makeElement("p", "research-note", t("resultCountExact", { count: entries.length.toLocaleString(locale()) })), grid];
     if (!entries.length) nodes.push(makeElement("p", "hunt-empty", t("noResults")));
     elements.researchDialogBody.replaceChildren(...nodes);
   }
 
-  function renderMovesTool(search = "", type = "") {
+  function renderMovesTool(search = "", type = "", sort = "name") {
     const query = normalize(search);
     const entries = Object.entries(DETAILS.moves || {})
       .map(([id, move]) => ({ id: Number(id), ...move, label: localizedDetailName(move) }))
-      .filter(move => (!query || normalize(move.label).includes(query)) && (!type || move.type === type))
-      .sort((a, b) => a.label.localeCompare(b.label, locale()));
+      .filter(move => (!query || [move.label, localizedTechnicalText(move), t(move.damageClass)]
+        .some(value => normalize(value).includes(query))) && (!type || move.type === type))
+      .sort((left, right) => {
+        if (["power", "accuracy", "pp", "generation"].includes(sort)) {
+          return (Number(right[sort]) || 0) - (Number(left[sort]) || 0) || left.label.localeCompare(right.label, locale());
+        }
+        if (sort === "type") return localizedType(left.type).localeCompare(localizedType(right.type), locale()) || left.label.localeCompare(right.label, locale());
+        if (sort === "category") return t(left.damageClass).localeCompare(t(right.damageClass), locale()) || left.label.localeCompare(right.label, locale());
+        return left.label.localeCompare(right.label, locale());
+      });
     const categories = DATA.types.map(value => ({ value, label: localizedType(value) }));
-    const controls = renderCatalogueControls({ search, category: type, categories }, (nextSearch, nextType) => renderResearchTool("moves", { search: nextSearch, type: nextType }));
+    const controls = renderCatalogueControls({ search, category: type, categories },
+      (nextSearch, nextType) => renderResearchTool("moves", { search: nextSearch, type: nextType, sort }));
+    const sortField = makeElement("label", "auth-field");
+    sortField.append(makeElement("span", "", t("sortBy")));
+    const sortSelect = makeElement("select");
+    for (const [value, labelKey] of [["name", "sortName"], ["type", "type"], ["category", "category"], ["power", "movePower"], ["accuracy", "moveAccuracy"], ["pp", "movePp"], ["generation", "generationLabel"]]) {
+      sortSelect.append(new Option(t(labelKey), value));
+    }
+    sortSelect.value = sort;
+    sortField.append(sortSelect);
+    controls.append(sortField);
+    sortSelect.addEventListener("change", () => renderResearchTool("moves", { search, type, sort: sortSelect.value }));
     const table = makeElement("div", "catalogue-table");
-    for (const move of entries.slice(0, 100)) {
+    for (const move of entries) {
       const row = makeElement("article");
       const typePill = makeElement("span", "type-pill", localizedType(move.type));
       typePill.dataset.type = move.type;
@@ -2491,50 +2936,39 @@
         makeElement("span", "", `${t("movePower")} ${move.power || "—"}`),
         makeElement("span", "", `${t("moveAccuracy")} ${move.accuracy ? `${move.accuracy} %` : "—"}`),
         makeElement("span", "", `${t("movePp")} ${move.pp || "—"}`),
-        makeElement("small", "", t(move.damageClass))
+        makeElement("small", "", `${t(move.damageClass)} · ${t("generationShort", { generation: move.generation })}`),
+        makeElement("p", "catalogue-move-effect", localizedTechnicalText(move) || t("descriptionUnavailable"))
       );
       table.append(row);
     }
-    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("browseHint")), table,
-      ...(entries.length > 100 ? [makeElement("p", "research-note", t("showingFirst", { count: 100 }))] : []),
-      ...(!entries.length ? [makeElement("p", "hunt-empty", t("noResults"))] : []));
-  }
-
-  function renderItemsTool(search = "", category = "") {
-    const query = normalize(search);
-    const all = Object.entries(DETAILS.items || {}).map(([id, item]) => ({ id: Number(id), ...item, label: localizedDetailName(item) }));
-    const categoryMap = new Map(all.map(item => [item.category, localizedDetailName({ names: item.categoryNames }) || item.category]));
-    const categories = [...categoryMap].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, locale()));
-    const entries = all.filter(item => (!query || normalize(item.label).includes(query)) && (!category || item.category === category))
-      .sort((a, b) => a.label.localeCompare(b.label, locale()));
-    const controls = renderCatalogueControls({ search, category, categories }, (nextSearch, nextCategory) => renderResearchTool("items", { search: nextSearch, category: nextCategory }));
-    const grid = makeElement("div", "catalogue-grid");
-    for (const item of entries.slice(0, 100)) {
-      const card = makeElement("article", "catalogue-card");
-      card.append(makeElement("h3", "", item.label), makeElement("strong", "", localizedDetailName({ names: item.categoryNames }) || item.category));
-      if (item.cost) card.append(makeElement("p", "", `${t("price")} · ${item.cost.toLocaleString(locale())} ₽`));
-      grid.append(card);
-    }
-    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("browseHint")), grid,
-      ...(entries.length > 100 ? [makeElement("p", "research-note", t("showingFirst", { count: 100 }))] : []),
+    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("resultCountExact", { count: entries.length.toLocaleString(locale()) })), table,
       ...(!entries.length ? [makeElement("p", "hunt-empty", t("noResults"))] : []));
   }
 
   function renderNaturesTool() {
-    const grid = makeElement("div", "catalogue-grid");
-    const natures = Object.values(DETAILS.natures || {}).sort((a, b) => localizedDetailName(a).localeCompare(localizedDetailName(b), locale()));
-    for (const nature of natures) {
-      const card = makeElement("article", "catalogue-card");
-      card.append(makeElement("h3", "", localizedDetailName(nature)));
-      if (nature.increasedStat) {
-        card.append(
-          makeElement("strong", "is-positive", `↑ ${STAT_LABELS[nature.increasedStat] || nature.increasedStat}`),
-          makeElement("p", "is-negative", `↓ ${STAT_LABELS[nature.decreasedStat] || nature.decreasedStat}`)
-        );
-      } else card.append(makeElement("p", "", t("neutralNature")));
-      grid.append(card);
+    const stats = ["attack", "defense", "special-attack", "special-defense", "speed"];
+    const natures = Object.values(DETAILS.natures || {});
+    const table = makeElement("div", "nature-matrix");
+    const corner = makeElement("div", "nature-matrix__corner");
+    corner.append(makeElement("span", "", `↑ ${t("increasedStat")}`), makeElement("span", "", `↓ ${t("decreasedStat")}`));
+    table.append(corner);
+    for (const decreased of stats) table.append(makeElement("strong", "nature-matrix__heading", `↓ ${STAT_LABELS[decreased]}`));
+    for (const increased of stats) {
+      table.append(makeElement("strong", "nature-matrix__heading", `↑ ${STAT_LABELS[increased]}`));
+      for (const decreased of stats) {
+        const nature = natures.find(item => item.increasedStat === increased && item.decreasedStat === decreased);
+        const cell = makeElement("div", `nature-matrix__cell${increased === decreased ? " is-neutral" : ""}`);
+        cell.append(makeElement("strong", "", localizedDetailName(nature) || "—"));
+        if (increased === decreased) cell.append(makeElement("small", "", t("neutralNature")));
+        else cell.append(makeElement("small", "", `↑ ${STAT_LABELS[increased]} · ↓ ${STAT_LABELS[decreased]}`));
+        table.append(cell);
+      }
     }
-    elements.researchDialogBody.replaceChildren(grid);
+    elements.researchDialogBody.replaceChildren(
+      makeElement("p", "research-note", t("natureMatrixHint")),
+      makeElement("div", "nature-matrix-scroll")
+    );
+    elements.researchDialogBody.querySelector(".nature-matrix-scroll").append(table);
   }
 
   function renderRankingsTool(stat = "hp") {
@@ -2597,43 +3031,12 @@
     elements.researchDialogBody.replaceChildren(controls, grid);
   }
 
-  function shareSummaryText() {
-    const ownedEntries = eligibleEntries.filter(entry => isOwned(entry.key));
-    return t("shareText", {
-      species: new Set(ownedEntries.map(entry => entry.speciesId)).size.toLocaleString(locale()),
-      total: eligibleSpeciesIds.size.toLocaleString(locale()),
-      copies: eligibleEntries.reduce((sum, entry) => sum + quantityFor(entry.key), 0).toLocaleString(locale())
-    });
-  }
-
-  function renderShareTool() {
-    const card = makeElement("section", "share-card");
-    card.append(makeElement("p", "", shareSummaryText()));
-    const actions = makeElement("div", "share-actions");
-    const copy = makeElement("button", "button button--primary", t("copySummary"));
-    copy.type = "button";
-    copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(`${shareSummaryText()} ${location.href}`);
-        showToast(t("copied"));
-      } catch {
-        showToast(t("copyImpossible"));
-      }
-    });
-    const backup = makeElement("button", "button button--ghost", t("downloadBackup"));
-    backup.type = "button";
-    backup.addEventListener("click", exportCollection);
-    actions.append(copy, backup);
-    card.append(actions);
-    elements.researchDialogBody.replaceChildren(card);
-  }
-
   function renderResearchTool(tool, options = {}) {
     activeResearchTool = tool;
     const titleKey = {
       pokedex: "technicalPokedex", lineage: "evolutionLines", gallery: "spriteGallery", compare: "comparePokemon",
-      types: "typeChart", odds: "shinyCalculator", methods: "huntingMethods", share: "shareCollection",
-      abilities: "abilityDex", moves: "moveDex", items: "itemDex", natures: "natureDex", rankings: "statRankings",
+      types: "typeChart", odds: "shinyCalculator", methods: "huntingMethods", games: "gameDex",
+      abilities: "abilityDex", moves: "moveDex", natures: "natureDex", rankings: "statRankings",
       eggGroups: "eggGroupDex"
     }[tool] || "explorerTitle";
     elements.researchDialogTitle.textContent = t(titleKey);
@@ -2644,10 +3047,9 @@
     else if (tool === "types") renderTypeTool(options.firstType, options.secondType);
     else if (tool === "odds") renderOddsTool(options);
     else if (tool === "methods") renderMethodsTool();
-    else if (tool === "share") renderShareTool();
-    else if (tool === "abilities") renderAbilitiesTool(options.search);
-    else if (tool === "moves") renderMovesTool(options.search, options.type);
-    else if (tool === "items") renderItemsTool(options.search, options.category);
+    else if (tool === "games") renderGamesTool(options.gameId, options.generation);
+    else if (tool === "abilities") renderAbilitiesTool(options.search, options.generation);
+    else if (tool === "moves") renderMovesTool(options.search, options.type, options.sort);
     else if (tool === "natures") renderNaturesTool();
     else if (tool === "rankings") renderRankingsTool(options.stat);
     else if (tool === "eggGroups") renderEggGroupsTool(options.groupId);
@@ -2995,6 +3397,10 @@
     const entry = entryByKey.get(activePokemonInfoKey);
     if (!action || !entry) return;
     if (action === "reveal") renderPokemonInfo(entry, { revealShiny: true });
+    else if (action === "compare") {
+      closeDialog(elements.pokemonInfoDialog);
+      openResearchTool("compare", { firstKey: entry.key });
+    }
     else if (action === "hunt" || action === "capture") {
       closeDialog(elements.pokemonInfoDialog);
       openHuntEditor(action === "capture" ? "caught" : "active", entry.key);
@@ -3006,6 +3412,11 @@
   elements.newCaptureButton.addEventListener("click", () => openHuntEditor("caught"));
   elements.closeHuntEditorButton.addEventListener("click", () => closeDialog(elements.huntEditorDialog));
   elements.cancelHuntEditorButton.addEventListener("click", () => closeDialog(elements.huntEditorDialog));
+  elements.huntEntrySelect.addEventListener("change", () => updateHuntEditorAvailability());
+  elements.huntGame.addEventListener("change", () => updateHuntEditorAvailability({
+    selectedGame: elements.huntGame.value,
+    selectedMethod: elements.huntMethod.value
+  }));
   elements.activeHuntList.addEventListener("click", handleHuntAction);
   elements.captureJournalList.addEventListener("click", handleHuntAction);
   elements.huntEditorForm.addEventListener("submit", event => {
@@ -3016,6 +3427,15 @@
     const id = elements.huntRecordId.value || newRecordId();
     const existing = state.huntRecords[id];
     const mode = elements.huntRecordMode.value === "caught" ? "caught" : "active";
+    const selectedGame = gameAvailabilityForEntry(entry).find(game => String(game.id) === elements.huntGame.value);
+    const allowedMethods = selectedGame ? huntMethodsFor(entry, selectedGame, mode) : [];
+    const keepsLegacyValues = Boolean(existing)
+      && String(existing.game) === elements.huntGame.value
+      && existing.method === elements.huntMethod.value;
+    if ((!selectedGame || !allowedMethods.includes(elements.huntMethod.value)) && !keepsLegacyValues) {
+      showToast(t("huntInvalidCombination"));
+      return;
+    }
     const date = validDateString(elements.huntDate.value) || todayDate();
     state.huntRecords[id] = {
       id,

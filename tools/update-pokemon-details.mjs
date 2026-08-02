@@ -11,7 +11,9 @@ const FILES = [
   "pokemon.csv",
   "pokemon_forms.csv",
   "pokemon_abilities.csv",
+  "abilities.csv",
   "ability_names.csv",
+  "ability_prose.csv",
   "pokemon_stats.csv",
   "stats.csv",
   "pokemon_species.csv",
@@ -20,13 +22,28 @@ const FILES = [
   "types.csv",
   "moves.csv",
   "move_names.csv",
-  "items.csv",
-  "item_names.csv",
-  "item_categories.csv",
-  "item_category_prose.csv",
+  "move_effect_prose.csv",
+  "pokemon_moves.csv",
+  "pokemon_move_methods.csv",
+  "pokemon_move_method_prose.csv",
+  "version_groups.csv",
+  "versions.csv",
+  "version_names.csv",
+  "pokemon_game_indices.csv",
+  "encounters.csv",
+  "encounter_slots.csv",
+  "encounter_methods.csv",
+  "encounter_method_prose.csv",
+  "location_areas.csv",
+  "location_area_prose.csv",
+  "locations.csv",
+  "location_names.csv",
   "natures.csv",
   "nature_names.csv"
 ];
+
+const EXCLUDED_VERSION_IDS = new Set([19, 20, 49]); // Colosseum, XD et Champions ne sont pas des jeux principaux capturables demandés.
+const EXCLUDED_VERSION_GROUP_IDS = new Set([12, 13, 32]);
 
 const CUSTOM_FORM_POKEMON = {
   201701: 1017,
@@ -97,6 +114,10 @@ function localizedNames(rows, idField, valueField = "name") {
   return names;
 }
 
+function localizedProse(rows, idField, valueField) {
+  return localizedNames(rows, idField, valueField);
+}
+
 function translationsFor(names, id, fallback) {
   const english = names.get(`${id}:${LANGUAGES.en}`) || fallback;
   return Object.fromEntries(Object.entries(LANGUAGES).map(([language, languageId]) => [
@@ -110,13 +131,23 @@ const loaded = await Promise.all(FILES.map(async file => [file, await fetchCsv(f
 const tables = Object.fromEntries(loaded);
 
 const abilityNames = localizedNames(tables["ability_names.csv"], "ability_id");
+const abilityShortEffects = localizedProse(tables["ability_prose.csv"], "ability_id", "short_effect");
+const abilityEffects = localizedProse(tables["ability_prose.csv"], "ability_id", "effect");
 const eggGroupNames = localizedNames(tables["egg_group_prose.csv"], "egg_group_id");
 const moveNames = localizedNames(tables["move_names.csv"], "move_id");
-const itemNames = localizedNames(tables["item_names.csv"], "item_id");
-const itemCategoryNames = localizedNames(tables["item_category_prose.csv"], "item_category_id");
+const moveShortEffects = localizedProse(tables["move_effect_prose.csv"], "move_effect_id", "short_effect");
+const moveEffects = localizedProse(tables["move_effect_prose.csv"], "move_effect_id", "effect");
+const moveMethodNames = localizedNames(tables["pokemon_move_method_prose.csv"], "pokemon_move_method_id");
+const moveMethodDescriptions = localizedProse(tables["pokemon_move_method_prose.csv"], "pokemon_move_method_id", "description");
+const versionNames = localizedNames(tables["version_names.csv"], "version_id");
+const encounterMethodNames = localizedNames(tables["encounter_method_prose.csv"], "encounter_method_id");
+const locationAreaNames = localizedNames(tables["location_area_prose.csv"], "location_area_id");
+const locationNames = localizedNames(tables["location_names.csv"], "location_id");
 const natureNames = localizedNames(tables["nature_names.csv"], "nature_id");
 const statIdentifierById = new Map(tables["stats.csv"].map(row => [Number(row.id), row.identifier]));
 const typeIdentifierById = new Map(tables["types.csv"].map(row => [Number(row.id), row.identifier]));
+const abilityGenerationById = new Map(tables["abilities.csv"].map(row => [Number(row.id), Number(row.generation_id)]));
+const versionGroupById = new Map(tables["version_groups.csv"].map(row => [Number(row.id), row]));
 
 const statsByPokemon = new Map();
 for (const row of tables["pokemon_stats.csv"]) {
@@ -192,11 +223,15 @@ Object.assign(formPokemonIds, CUSTOM_FORM_POKEMON);
 const abilityIds = [...new Set(tables["ability_names.csv"].map(row => Number(row.ability_id)))];
 const abilities = Object.fromEntries(abilityIds.map(id => [id, {
   names: translationsFor(abilityNames, id, `Ability ${id}`),
+  generation: abilityGenerationById.get(id) || 0,
+  shortEffects: translationsFor(abilityShortEffects, id, ""),
+  effects: translationsFor(abilityEffects, id, ""),
   pokemonIds: [...(pokemonIdsByAbility.get(id) || [])].sort((a, b) => a - b)
 }]));
 
 const moves = Object.fromEntries(tables["moves.csv"].map(row => {
   const id = Number(row.id);
+  const effectId = Number(row.effect_id);
   return [id, {
     names: translationsFor(moveNames, id, row.identifier),
     generation: Number(row.generation_id),
@@ -205,22 +240,152 @@ const moves = Object.fromEntries(tables["moves.csv"].map(row => {
     pp: Number(row.pp) || 0,
     accuracy: Number(row.accuracy) || 0,
     priority: Number(row.priority) || 0,
-    damageClass: ({ 1: "status", 2: "physical", 3: "special" })[Number(row.damage_class_id)] || "status"
+    damageClass: ({ 1: "status", 2: "physical", 3: "special" })[Number(row.damage_class_id)] || "status",
+    effectChance: Number(row.effect_chance) || 0,
+    shortEffects: translationsFor(moveShortEffects, effectId, ""),
+    effects: translationsFor(moveEffects, effectId, "")
   }];
 }));
 
-const categoryIdentifierById = new Map(tables["item_categories.csv"].map(row => [Number(row.id), row.identifier]));
-const items = Object.fromEntries(tables["items.csv"].map(row => {
+const moveMethods = Object.fromEntries(tables["pokemon_move_methods.csv"].map(row => {
   const id = Number(row.id);
-  const categoryId = Number(row.category_id);
   return [id, {
-    names: translationsFor(itemNames, id, row.identifier),
-    categoryId,
-    category: categoryIdentifierById.get(categoryId) || "other",
-    categoryNames: translationsFor(itemCategoryNames, categoryId, categoryIdentifierById.get(categoryId) || "Other"),
-    cost: Number(row.cost) || 0,
-    flingPower: Number(row.fling_power) || 0
+    identifier: row.identifier,
+    names: translationsFor(moveMethodNames, id, row.identifier),
+    descriptions: translationsFor(moveMethodDescriptions, id, "")
   }];
+}));
+
+const versions = Object.fromEntries(tables["versions.csv"]
+  .filter(row => !EXCLUDED_VERSION_IDS.has(Number(row.id)))
+  .map(row => {
+    const id = Number(row.id);
+    const versionGroupId = Number(row.version_group_id);
+    return [id, {
+      identifier: row.identifier,
+      versionGroupId,
+      generation: Number(versionGroupById.get(versionGroupId)?.generation_id) || 0,
+      names: translationsFor(versionNames, id, row.identifier)
+    }];
+  }));
+
+const versionGroups = Object.fromEntries(tables["version_groups.csv"]
+  .filter(row => !EXCLUDED_VERSION_GROUP_IDS.has(Number(row.id)))
+  .map(row => {
+    const id = Number(row.id);
+    return [id, {
+      identifier: row.identifier,
+      generation: Number(row.generation_id),
+      order: Number(row.order),
+      versionIds: tables["versions.csv"]
+        .filter(version => Number(version.version_group_id) === id && !EXCLUDED_VERSION_IDS.has(Number(version.id)))
+        .map(version => Number(version.id))
+    }];
+  }));
+
+const gameVersionIdsByPokemon = new Map();
+for (const row of tables["pokemon_game_indices.csv"]) {
+  const pokemonId = Number(row.pokemon_id);
+  const versionId = Number(row.version_id);
+  if (!versions[versionId]) continue;
+  const ids = gameVersionIdsByPokemon.get(pokemonId) || new Set();
+  ids.add(versionId);
+  gameVersionIdsByPokemon.set(pokemonId, ids);
+}
+
+const learnsetsByPokemon = new Map();
+const learnsetDeduplication = new Set();
+for (const row of tables["pokemon_moves.csv"]) {
+  const pokemonId = Number(row.pokemon_id);
+  const versionGroupId = Number(row.version_group_id);
+  if (!versionGroups[versionGroupId]) continue;
+  const packed = [
+    Number(row.move_id),
+    Number(row.pokemon_move_method_id),
+    Number(row.level) || 0,
+    Number(row.mastery) || 0
+  ];
+  const uniqueKey = `${pokemonId}:${versionGroupId}:${packed.join(":")}`;
+  if (learnsetDeduplication.has(uniqueKey)) continue;
+  learnsetDeduplication.add(uniqueKey);
+  const byVersion = learnsetsByPokemon.get(pokemonId) || new Map();
+  const rows = byVersion.get(versionGroupId) || [];
+  rows.push(packed);
+  byVersion.set(versionGroupId, rows);
+  learnsetsByPokemon.set(pokemonId, byVersion);
+}
+
+for (const [pokemonId, byVersion] of learnsetsByPokemon) {
+  const record = pokemon[pokemonId];
+  if (!record) continue;
+  record.learnsets = Object.fromEntries([...byVersion].map(([versionGroupId, rows]) => [
+    versionGroupId,
+    rows.sort((left, right) => left[1] - right[1] || left[2] - right[2] || left[0] - right[0])
+  ]));
+}
+for (const [pokemonId, versionIds] of gameVersionIdsByPokemon) {
+  if (pokemon[pokemonId]) pokemon[pokemonId].gameVersionIds = [...versionIds].sort((a, b) => a - b);
+}
+
+const encounterMethods = Object.fromEntries(tables["encounter_methods.csv"].map(row => {
+  const id = Number(row.id);
+  return [id, { identifier: row.identifier, names: translationsFor(encounterMethodNames, id, row.identifier) }];
+}));
+const encounterSlotById = new Map(tables["encounter_slots.csv"].map(row => [Number(row.id), {
+  methodId: Number(row.encounter_method_id),
+  rarity: Number(row.rarity) || 0
+}]));
+const locationById = new Map(tables["locations.csv"].map(row => [Number(row.id), row]));
+const locationAreaById = new Map(tables["location_areas.csv"].map(row => [Number(row.id), row]));
+const usedLocationAreaIds = new Set();
+const encountersByPokemon = new Map();
+for (const row of tables["encounters.csv"]) {
+  const pokemonId = Number(row.pokemon_id);
+  const versionId = Number(row.version_id);
+  if (!versions[versionId]) continue;
+  const areaId = Number(row.location_area_id);
+  const slot = encounterSlotById.get(Number(row.encounter_slot_id));
+  if (!slot) continue;
+  usedLocationAreaIds.add(areaId);
+  const byVersion = encountersByPokemon.get(pokemonId) || new Map();
+  const byArea = byVersion.get(versionId) || new Map();
+  const aggregate = byArea.get(areaId) || {
+    min: Number(row.min_level) || 0,
+    max: Number(row.max_level) || 0,
+    methods: new Map()
+  };
+  aggregate.min = Math.min(aggregate.min || Number(row.min_level), Number(row.min_level) || aggregate.min);
+  aggregate.max = Math.max(aggregate.max, Number(row.max_level) || 0);
+  aggregate.methods.set(slot.methodId, Math.max(aggregate.methods.get(slot.methodId) || 0, slot.rarity));
+  byArea.set(areaId, aggregate);
+  byVersion.set(versionId, byArea);
+  encountersByPokemon.set(pokemonId, byVersion);
+}
+for (const [pokemonId, byVersion] of encountersByPokemon) {
+  const record = pokemon[pokemonId];
+  if (!record) continue;
+  record.encounters = Object.fromEntries([...byVersion].map(([versionId, byArea]) => [versionId,
+    [...byArea].map(([areaId, aggregate]) => [
+      areaId,
+      aggregate.min,
+      aggregate.max,
+      [...aggregate.methods].sort((left, right) => left[0] - right[0])
+    ]).sort((left, right) => left[0] - right[0])
+  ]));
+}
+
+const locations = Object.fromEntries([...usedLocationAreaIds].sort((a, b) => a - b).map(areaId => {
+  const area = locationAreaById.get(areaId);
+  const locationId = Number(area?.location_id);
+  const location = locationById.get(locationId);
+  const fallback = area?.identifier || location?.identifier || `Location ${areaId}`;
+  const areaTranslations = translationsFor(locationAreaNames, areaId, "");
+  const locationTranslations = translationsFor(locationNames, locationId, fallback);
+  const names = Object.fromEntries(Object.keys(LANGUAGES).map(language => [
+    language,
+    [locationTranslations[language], areaTranslations[language]].filter(Boolean).join(" — ") || fallback
+  ]));
+  return [areaId, { names }];
 }));
 
 const natures = Object.fromEntries(tables["natures.csv"].map(row => {
@@ -229,13 +394,14 @@ const natures = Object.fromEntries(tables["natures.csv"].map(row => {
   const decreasedStat = statIdentifierById.get(Number(row.decreased_stat_id)) || "";
   return [id, {
     names: translationsFor(natureNames, id, row.identifier),
-    increasedStat: increasedStat === decreasedStat ? "" : increasedStat,
-    decreasedStat: increasedStat === decreasedStat ? "" : decreasedStat
+    increasedStat,
+    decreasedStat,
+    neutral: !increasedStat || increasedStat === decreasedStat
   }];
 }));
 
 const payload = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
   source: "https://github.com/PokeAPI/pokeapi/tree/master/data/v2/csv",
   formPokemonIds,
@@ -243,7 +409,11 @@ const payload = {
   species,
   abilities,
   moves,
-  items,
+  moveMethods,
+  versions,
+  versionGroups,
+  encounterMethods,
+  locations,
   natures
 };
 
