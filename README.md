@@ -55,6 +55,32 @@ différences mâle/femelle disponibles, etc.
 - données, sprites normaux et shiny entièrement locaux : aucune requête PokeAPI
   ou GitHub depuis le site.
 
+## Laboratoire expérimental
+
+La branche `experimental` réimplémente indépendamment plusieurs idées générales
+observées dans Shinydex et Pokémon Database, sans reprendre leur code, leurs
+textes ni leur design :
+
+- menu central « Explorer » donnant accès au Pokédex technique, aux lignées,
+  à la galerie 2D/3D, au comparateur de statistiques, à la table défensive des
+  types, au calculateur de probabilité shiny et au catalogue des méthodes ;
+- catalogues hors ligne des talents, capacités, objets, natures et groupes
+  d’Œuf, ainsi qu’un classement interactif des statistiques de base ;
+- carnet de chasse synchronisable avec compteurs `+1`/`+10`, jeu, méthode,
+  date, nombre d’essais, surnom et notes ;
+- journal détaillé des captures, une capture terminée mettant aussi à jour la
+  quantité de la variante correspondante ;
+- préférence anti-divulgâchage qui empêche l’aperçu des couleurs shiny non
+  encore obtenues, avec révélation temporaire volontaire dans la fiche ;
+- partage local d’un résumé et sauvegarde JSON complète, carnet inclus.
+
+Les données techniques factuelles sont générées dans
+`data/pokemon-details.js` par `tools/update-pokemon-details.mjs` à partir des
+tables CSV de PokéAPI. Elles restent entièrement locales pour les visiteurs.
+Les fonctions sociales publiques (amis, fil et notifications) ne sont pas
+activées : elles nécessitent d’abord un modèle de consentement et des règles
+Firebase publiques distinctes de la sauvegarde privée actuelle.
+
 ## Sauvegarde Firebase
 
 Le site utilise le projet Firebase dédié `pokemon-shinydex`, avec
@@ -98,8 +124,9 @@ des sources et ouvre ou complète automatiquement une issue GitHub dès qu’une
 source change ou devient inaccessible afin que les données éditoriales puissent
 être revérifiées avant publication.
 
-La source PokeAPI n’est utilisée que par le script de construction
-`tools/update-data.mjs`, jamais par les visiteurs.
+La source PokeAPI n’est utilisée que par les scripts de construction
+`tools/update-data.mjs` et `tools/update-pokemon-details.mjs`, jamais par les
+visiteurs.
 
 ## Commandes locales
 

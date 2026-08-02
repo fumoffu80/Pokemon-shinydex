@@ -24,7 +24,7 @@
         </div>
         <div>
           <p class="eyebrow" data-i18n="heroEyebrow">Ma collection chromatique</p>
-          <h1>Pokémon <span>Shinydex</span></h1>
+          <h1>Pokémon <span>Shinydex</span> <small class="experimental-badge">EXP</small></h1>
         </div>
       </div>
 
@@ -41,6 +41,15 @@
             <strong id="accountLabel" data-i18n="login">Connexion</strong>
           </span>
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 18a5 5 0 0 1-.6-9.96A7 7 0 0 1 19.7 10.5 3.75 3.75 0 0 1 19.25 18H7Z"/></svg>
+        </button>
+        <button class="button button--explore" id="explorerButton" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m15 9-2 4-4 2 2-4 4-2Z"/></svg>
+          <span data-i18n="explore">Explorer</span>
+        </button>
+        <button class="button button--ghost" id="huntButton" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+          <span data-i18n="huntBook">Carnet de chasse</span>
+          <strong class="button__count" id="activeHuntCount">0</strong>
         </button>
         <button class="button button--ghost" id="exportButton" type="button" data-i18n-title="export">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 15v4h14v-4"/></svg>
@@ -253,6 +262,7 @@
 
   <template id="pokemonCardTemplate">
     <article class="pokemon-card">
+      <button class="pokemon-card__info" type="button" data-i18n-aria="openPokedexInfo" aria-label="Informations Pokédex">i</button>
       <button class="variant-badge" type="button" hidden>
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 7h10v10H7z"/><path d="M4 4h10M4 4v10M20 20H10M20 20V10"/></svg>
         <strong></strong>
@@ -298,6 +308,7 @@
 
   <template id="variantCardTemplate">
     <article class="variant-option">
+      <button class="variant-option__info" type="button" data-i18n-aria="openPokedexInfo" aria-label="Informations Pokédex">i</button>
       <button class="variant-option__toggle" type="button">
         <span class="variant-option__check" aria-hidden="true">
           <span class="status-check">✓</span>
@@ -399,6 +410,13 @@
         </span>
         <input id="confirmSetting" type="checkbox" role="switch">
       </label>
+      <label class="setting-row">
+        <span>
+          <strong data-i18n="spoilerGuard">Masquer les shiny inconnus</strong>
+          <small data-i18n="spoilerGuardDesc">Désactive l’aperçu shiny au survol tant que la variante n’est pas possédée.</small>
+        </span>
+        <input id="spoilerSetting" type="checkbox" role="switch">
+      </label>
       <div class="danger-zone">
         <div>
           <strong data-i18n="resetTitle">Recommencer le Shinydex</strong>
@@ -408,6 +426,149 @@
       </div>
     </form>
   </dialog>
+
+  <dialog class="modal explorer-modal" id="explorerDialog">
+    <div class="explorer-panel">
+      <div class="modal__heading">
+        <div>
+          <p class="eyebrow" data-i18n="experimentalLab">Laboratoire expérimental</p>
+          <h2 data-i18n="explorerTitle">Explorer le Shinydex</h2>
+        </div>
+        <button class="icon-button" id="closeExplorerButton" type="button" data-i18n-aria="close">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <p class="variant-panel__intro" data-i18n="explorerIntro">Tous les outils de collection, de recherche et de chasse réunis sans quitter l’identité du Shinydex.</p>
+      <div class="explorer-groups">
+        <section>
+          <h3 data-i18n="explorerCollection">Collection & chasse</h3>
+          <div class="explorer-grid">
+            <button type="button" data-tool="collection"><span>◉</span><strong data-i18n="collectionTitle">Ma collection</strong><small data-i18n="explorerCollectionDesc">Filtres et progression</small></button>
+            <button type="button" data-tool="hunts"><span>◎</span><strong data-i18n="activeHunts">Chasses en cours</strong><small data-i18n="activeHuntsDesc">Compteurs et objectifs</small></button>
+            <button type="button" data-tool="journal"><span>✦</span><strong data-i18n="captureJournal">Journal des captures</strong><small data-i18n="captureJournalDesc">Jeu, méthode, date et essais</small></button>
+            <button type="button" data-tool="share"><span>↗</span><strong data-i18n="shareCollection">Partager</strong><small data-i18n="shareCollectionDesc">Résumé ou sauvegarde</small></button>
+          </div>
+        </section>
+        <section>
+          <h3 data-i18n="explorerPokedex">Pokédex & données</h3>
+          <div class="explorer-grid">
+            <button type="button" data-tool="pokedex"><span>№</span><strong data-i18n="technicalPokedex">Pokédex technique</strong><small data-i18n="technicalPokedexDesc">Stats, talents et élevage</small></button>
+            <button type="button" data-tool="lineage"><span>⌁</span><strong data-i18n="evolutionLines">Lignées évolutives</strong><small data-i18n="evolutionLinesDesc">De la base au dernier stade</small></button>
+            <button type="button" data-tool="gallery"><span>▧</span><strong data-i18n="spriteGallery">Galerie de sprites</strong><small data-i18n="spriteGalleryDesc">Normal et shiny, 2D et 3D</small></button>
+            <button type="button" data-tool="compare"><span>⇄</span><strong data-i18n="comparePokemon">Comparer</strong><small data-i18n="comparePokemonDesc">Statistiques côte à côte</small></button>
+            <button type="button" data-tool="abilities"><span>✺</span><strong data-i18n="abilityDex">Talents</strong><small data-i18n="abilityDexDesc">Catalogue et Pokémon compatibles</small></button>
+            <button type="button" data-tool="moves"><span>↯</span><strong data-i18n="moveDex">Capacités</strong><small data-i18n="moveDexDesc">Type, puissance, précision et PP</small></button>
+            <button type="button" data-tool="items"><span>◇</span><strong data-i18n="itemDex">Objets</strong><small data-i18n="itemDexDesc">Catalogue par catégorie</small></button>
+            <button type="button" data-tool="natures"><span>↕</span><strong data-i18n="natureDex">Natures</strong><small data-i18n="natureDexDesc">Statistiques augmentées et réduites</small></button>
+            <button type="button" data-tool="rankings"><span>≋</span><strong data-i18n="statRankings">Classement des stats</strong><small data-i18n="statRankingsDesc">Meilleures statistiques de base</small></button>
+            <button type="button" data-tool="eggGroups"><span>◌</span><strong data-i18n="eggGroupDex">Groupes d’Œuf</strong><small data-i18n="eggGroupDexDesc">Compatibilités d’élevage</small></button>
+          </div>
+        </section>
+        <section>
+          <h3 data-i18n="explorerTools">Outils</h3>
+          <div class="explorer-grid">
+            <button type="button" data-tool="types"><span>◆</span><strong data-i18n="typeChart">Table des types</strong><small data-i18n="typeChartDesc">Faiblesses et résistances</small></button>
+            <button type="button" data-tool="odds"><span>%</span><strong data-i18n="shinyCalculator">Calculateur shiny</strong><small data-i18n="shinyCalculatorDesc">Probabilité par rencontre et cumulée</small></button>
+            <button type="button" data-tool="methods"><span>⌕</span><strong data-i18n="huntingMethods">Méthodes de chasse</strong><small data-i18n="huntingMethodsDesc">Référentiel par mécanique</small></button>
+            <button type="button" data-tool="distributions"><span>!</span><strong data-i18n="informationTitle">Informations & distributions</strong><small data-i18n="distributionsMenuDesc">Actualités mondiales suivies</small></button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="modal research-modal" id="researchDialog">
+    <div class="research-panel">
+      <div class="modal__heading">
+        <div>
+          <p class="eyebrow" data-i18n="experimentalLab">Laboratoire expérimental</p>
+          <h2 id="researchDialogTitle">Outil</h2>
+        </div>
+        <button class="icon-button" id="closeResearchButton" type="button" data-i18n-aria="close">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div id="researchDialogBody" class="research-body"></div>
+    </div>
+  </dialog>
+
+  <dialog class="modal pokemon-info-modal" id="pokemonInfoDialog">
+    <div class="pokemon-info-panel">
+      <div class="modal__heading">
+        <div>
+          <p class="eyebrow" data-i18n="technicalPokedex">Pokédex technique</p>
+          <h2 id="pokemonInfoTitle">Pokémon</h2>
+        </div>
+        <button class="icon-button" id="closePokemonInfoButton" type="button" data-i18n-aria="close">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div id="pokemonInfoBody"></div>
+    </div>
+  </dialog>
+
+  <dialog class="modal hunt-modal" id="huntDialog">
+    <div class="hunt-panel">
+      <div class="modal__heading">
+        <div>
+          <p class="eyebrow" data-i18n="collectionProgress">Progression de la collection</p>
+          <h2 data-i18n="huntBook">Carnet de chasse</h2>
+        </div>
+        <button class="icon-button" id="closeHuntButton" type="button" data-i18n-aria="close">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div class="hunt-toolbar">
+        <button class="button button--primary" id="newHuntButton" type="button" data-i18n="newHunt">Nouvelle chasse</button>
+        <button class="button button--ghost" id="newCaptureButton" type="button" data-i18n="addCapture">Ajouter une capture</button>
+      </div>
+      <section class="hunt-section">
+        <div class="hunt-section__heading"><h3 data-i18n="activeHunts">Chasses en cours</h3><span id="huntDialogActiveCount">0</span></div>
+        <div class="hunt-list" id="activeHuntList"></div>
+        <p class="hunt-empty" id="activeHuntEmpty" data-i18n="activeHuntsEmpty">Aucune chasse en cours. Choisissez une cible et commencez à compter.</p>
+      </section>
+      <section class="hunt-section">
+        <div class="hunt-section__heading"><h3 data-i18n="captureJournal">Journal des captures</h3><span id="captureJournalCount">0</span></div>
+        <div class="capture-list" id="captureJournalList"></div>
+        <p class="hunt-empty" id="captureJournalEmpty" data-i18n="captureJournalEmpty">Les captures détaillées apparaîtront ici.</p>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog class="modal hunt-editor-modal" id="huntEditorDialog">
+    <form id="huntEditorForm">
+      <div class="modal__heading">
+        <div>
+          <p class="eyebrow" data-i18n="huntBook">Carnet de chasse</p>
+          <h2 id="huntEditorTitle">Nouvelle chasse</h2>
+        </div>
+        <button class="icon-button" id="closeHuntEditorButton" type="button" data-i18n-aria="close">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <input id="huntRecordId" type="hidden">
+      <input id="huntRecordMode" type="hidden" value="active">
+      <label class="auth-field"><span data-i18n="pokemon">Pokémon</span><select id="huntEntrySelect" required></select></label>
+      <div class="hunt-form-grid">
+        <label class="auth-field"><span data-i18n="game">Jeu</span><input id="huntGame" type="text" list="huntGameOptions" maxlength="60" placeholder="Pokémon Écarlate"></label>
+        <label class="auth-field"><span data-i18n="method">Méthode</span><select id="huntMethod"></select></label>
+        <label class="auth-field"><span data-i18n="attempts">Rencontres / essais</span><input id="huntAttempts" type="number" min="0" max="999999999" value="0"></label>
+        <label class="auth-field"><span id="huntDateLabel" data-i18n="startDate">Date de début</span><input id="huntDate" type="date"></label>
+        <label class="auth-field"><span data-i18n="nickname">Surnom</span><input id="huntNickname" type="text" maxlength="40"></label>
+      </div>
+      <label class="auth-field"><span data-i18n="notes">Notes</span><textarea id="huntNotes" rows="3" maxlength="600"></textarea></label>
+      <div class="modal__actions">
+        <button class="button button--ghost" id="cancelHuntEditorButton" type="button" data-i18n="cancel">Annuler</button>
+        <button class="button button--primary" type="submit" data-i18n="save">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <datalist id="huntGameOptions">
+    <option value="Pokémon Écarlate"><option value="Pokémon Violet"><option value="Pokémon Légendes : Z-A">
+    <option value="Pokémon HOME"><option value="Pokémon GO"><option value="Pokémon Épée"><option value="Pokémon Bouclier">
+    <option value="Pokémon Diamant Étincelant"><option value="Pokémon Perle Scintillante"><option value="Légendes Pokémon : Arceus">
+  </datalist>
 
   <dialog class="modal auth-modal" id="authDialog">
     <div class="auth-panel">
@@ -506,6 +667,7 @@
   <script src="i18n.js"></script>
   <script src="gender-differences.js"></script>
   <script src="data/pokedex-data.js"></script>
+  <script src="data/pokemon-details.js"></script>
   <script src="data/shiny-availability.js"></script>
   <script src="data/distribution-source-locales.js"></script>
   <script src="data/distributions.js"></script>

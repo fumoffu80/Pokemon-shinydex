@@ -51,8 +51,9 @@ function tr(key, values) {
 
 function serializableState(state) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     collection: state?.collection && typeof state.collection === "object" ? state.collection : {},
+    huntRecords: state?.huntRecords && typeof state.huntRecords === "object" ? state.huntRecords : {},
     preferences: state?.preferences && typeof state.preferences === "object" ? state.preferences : {}
   };
 }
@@ -60,7 +61,8 @@ function serializableState(state) {
 function fingerprint(state) {
   const normalized = serializableState(state);
   const collection = Object.fromEntries(Object.entries(normalized.collection).sort(([a], [b]) => a.localeCompare(b)));
-  return JSON.stringify({ collection, preferences: normalized.preferences });
+  const huntRecords = Object.fromEntries(Object.entries(normalized.huntRecords).sort(([a], [b]) => a.localeCompare(b)));
+  return JSON.stringify({ collection, huntRecords, preferences: normalized.preferences });
 }
 
 function mergeWithoutLoss(localState, cloudState) {
@@ -79,9 +81,17 @@ function mergeWithoutLoss(localState, cloudState) {
         ? EXCEPTION_VALUE
         : 0;
   }
+  const huntRecords = { ...cloud.huntRecords };
+  for (const [id, localRecord] of Object.entries(local.huntRecords)) {
+    const cloudRecord = huntRecords[id];
+    if (!cloudRecord || (Number(localRecord?.updatedAt) || 0) >= (Number(cloudRecord?.updatedAt) || 0)) {
+      huntRecords[id] = localRecord;
+    }
+  }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     collection,
+    huntRecords,
     preferences: { ...local.preferences, ...cloud.preferences }
   };
 }

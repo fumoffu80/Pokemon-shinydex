@@ -27,6 +27,7 @@ const [
   firebaseSource,
   firebaseBundle,
   dataSource,
+  detailsSource,
   availabilitySource,
   sourceLocalesSource,
   distributionsSource,
@@ -43,6 +44,7 @@ const [
   readFile(resolve(root, "firebase-sync.source.js"), "utf8"),
   readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
+  readFile(resolve(root, "data/pokemon-details.js"), "utf8"),
   readFile(resolve(root, "data/shiny-availability.js"), "utf8"),
   readFile(resolve(root, "data/distribution-source-locales.js"), "utf8"),
   readFile(resolve(root, "data/distributions.js"), "utf8"),
@@ -56,6 +58,7 @@ for (const [source, name] of [
   [i18nSource, "i18n.js"],
   [genderDifferencesSource, "gender-differences.js"],
   [app, "app.js"],
+  [detailsSource, "data/pokemon-details.js"],
   [availabilitySource, "data/shiny-availability.js"],
   [sourceLocalesSource, "data/distribution-source-locales.js"],
   [distributionsSource, "data/distributions.js"],
@@ -70,10 +73,13 @@ for (const [source, name] of [
 }
 
 let data;
+let details;
 try {
   const context = { window: {} };
   vm.runInNewContext(dataSource, context, { filename: "pokedex-data.js" });
+  vm.runInNewContext(detailsSource, context, { filename: "pokemon-details.js" });
   data = context.window.SHINYDEX_DATA;
+  details = context.window.SHINYDEX_POKEMON_DETAILS;
 } catch (error) {
   errors.push(`Base Pokédex illisible : ${error.message}`);
 }
@@ -110,6 +116,15 @@ try {
 }
 
 check(data?.schemaVersion === 2, "Version de schéma inattendue.");
+check(details?.schemaVersion === 1, "Version des données techniques inattendue.");
+check(Object.keys(details?.species || {}).length === 1025, "Les données techniques des 1 025 espèces sont incomplètes.");
+check(Object.keys(details?.pokemon || {}).length >= 1350, "Les statistiques des formes Pokémon sont incomplètes.");
+check(Object.keys(details?.abilities || {}).length >= 370, "Le catalogue des talents est incomplet.");
+check(Object.keys(details?.moves || {}).length >= 930, "Le catalogue des capacités est incomplet.");
+check(Object.keys(details?.items || {}).length >= 2200, "Le catalogue des objets est incomplet.");
+check(Object.keys(details?.natures || {}).length === 25, "Les 25 natures ne sont pas toutes disponibles.");
+check(details?.pokemon?.[6]?.stats?.["special-attack"] === 109, "Les statistiques techniques de Dracaufeu sont erronées.");
+check(details?.formPokemonIds?.[201704] === 10275, "La forme Téracristallisée du Masque de la Pierre n’est pas reliée à ses données.");
 check(availability?.schemaVersion === 1, "Version du référentiel de légalité inattendue.");
 check(availability?.unavailableSpeciesIds?.length === 24, "Les 24 espèces sans shiny légal ne sont pas toutes référencées.");
 check(new Set(availability?.unavailableSpeciesIds || []).size === 24, "Le référentiel contient des espèces indisponibles dupliquées.");
@@ -584,11 +599,12 @@ check(manifest?.icons?.some(icon => icon.src === "assets/shiny-pokeball-192.png"
 check(manifest?.icons?.some(icon => icon.src === "assets/shiny-pokeball-512.png"), "L’icône Poké Ball 512 px est absente du manifeste.");
 check(firebaseBundle.includes("pokemon-shinydex"), "La configuration Firebase attendue est absente.");
 check(firebaseBundle.includes("users") && firebaseBundle.includes("shinydex"), "Le document Firebase Shinydex est absent.");
-check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource.includes("schemaVersion: 2"),
+check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource.includes("schemaVersion: 3")
+  && firebaseSource.includes("huntRecords"),
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-v16"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-experimental-v17"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js")
   && serviceWorker.includes("gender-differences.js")
   && serviceWorker.includes("shiny-pokeball.svg")
@@ -597,6 +613,7 @@ check(serviceWorker.includes("i18n.js")
 "Les nouvelles ressources ne sont pas mises en cache.");
 check(
   serviceWorker.includes("shiny-availability.js")
+    && serviceWorker.includes("pokemon-details.js")
     && serviceWorker.includes("distribution-source-locales.js")
     && serviceWorker.includes("distributions.js"),
   "Les référentiels live ne sont pas disponibles hors ligne."
@@ -634,6 +651,7 @@ try {
   dom.window.eval(i18nSource);
   dom.window.eval(genderDifferencesSource);
   dom.window.eval(dataSource);
+  dom.window.eval(detailsSource);
   dom.window.eval(availabilitySource);
   dom.window.eval(sourceLocalesSource);
   dom.window.eval(distributionsSource);
@@ -651,6 +669,35 @@ try {
 
   const cards = dom.window.document.querySelectorAll(".pokemon-card");
   check(cards.length === data.speciesCount, `Le rendu affiche ${cards.length} fiches au lieu d’une par espèce.`);
+  const charizardInfoButton = dom.window.document.querySelector('.pokemon-card[data-species-id="6"] .pokemon-card__info');
+  charizardInfoButton?.click();
+  check(dom.window.document.getElementById("pokemonInfoDialog").hasAttribute("open")
+    && dom.window.document.getElementById("pokemonInfoBody").textContent.includes("109")
+    && dom.window.document.getElementById("pokemonInfoBody").textContent.includes("Brasier"),
+  "Le Pokédex technique n’affiche pas les statistiques et talents locaux de Dracaufeu.");
+  dom.window.document.getElementById("pokemonInfoDialog").close();
+
+  dom.window.document.getElementById("explorerButton").click();
+  check(dom.window.document.getElementById("explorerDialog").hasAttribute("open")
+    && dom.window.document.querySelectorAll("#explorerDialog [data-tool]").length >= 18,
+  "Le menu Explorer ne propose pas tous ses outils expérimentaux.");
+  dom.window.document.querySelector('#explorerDialog [data-tool="types"]')?.click();
+  check(dom.window.document.getElementById("researchDialog").hasAttribute("open")
+    && dom.window.document.querySelectorAll("#researchDialogBody select").length === 2
+    && dom.window.document.getElementById("researchDialogBody").textContent.includes("Faiblesses"),
+  "La table défensive des types ne s’ouvre pas depuis Explorer.");
+  dom.window.document.getElementById("researchDialog").close();
+
+  dom.window.document.getElementById("huntButton").click();
+  dom.window.document.getElementById("newHuntButton").click();
+  const huntSelect = dom.window.document.getElementById("huntEntrySelect");
+  huntSelect.value = [...huntSelect.options].find(option => option.value)?.value || "";
+  dom.window.document.getElementById("huntAttempts").value = "25";
+  dom.window.document.getElementById("huntEditorForm").dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
+  check(Object.values(dom.window.SHINYDEX_APP.getState().huntRecords).some(record => record.status === "active" && record.attempts === 25)
+    && dom.window.document.getElementById("activeHuntCount").textContent === "1",
+  "Le carnet n’enregistre pas une chasse active et son compteur.");
+  dom.window.document.getElementById("huntDialog").close();
   const spriteModeButton = dom.window.document.getElementById("spriteModeButton");
   const homeBackgroundSizeFor = displaySize => {
     const scaledAtlasSize = data.homeAtlasSize * displaySize / data.homeCellSize;
@@ -757,8 +804,20 @@ try {
     bulbizarreSprite?.style.backgroundImage === bulbizarreNormalImage,
     "Quitter une fiche de l’accueil ne restaure pas son état réel."
   );
+  const spoilerSetting = dom.window.document.getElementById("spoilerSetting");
+  spoilerSetting.checked = true;
+  spoilerSetting.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  const guardedCard = cardFor(1);
+  const guardedSprite = guardedCard?.querySelector(".pokemon-sprite");
+  const guardedImage = guardedSprite?.style.backgroundImage;
+  guardedCard?.dispatchEvent(new dom.window.Event("pointerenter"));
+  check(guardedSprite?.style.backgroundImage === guardedImage
+    && dom.window.SHINYDEX_APP.getState().preferences.spoilerGuard,
+  "Le mode anti-divulgâchage révèle encore un shiny non possédé au survol.");
+  spoilerSetting.checked = false;
+  spoilerSetting.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
 
-  const bulbizarrePosition = bulbizarreSprite?.style.backgroundPosition;
+  const bulbizarrePosition = cardFor(1)?.querySelector(".pokemon-sprite")?.style.backgroundPosition;
   const rattataCard = cardFor(19);
   const rattataSprite = rattataCard?.querySelector(".pokemon-sprite");
   const rattataPosition = rattataSprite?.style.backgroundPosition;

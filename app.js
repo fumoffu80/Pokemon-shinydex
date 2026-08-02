@@ -7,6 +7,7 @@
   const DISTRIBUTIONS = window.SHINYDEX_DISTRIBUTIONS || { items: [] };
   const DISTRIBUTION_SOURCE_LOCALES = window.SHINYDEX_DISTRIBUTION_SOURCE_LOCALES?.sources || {};
   const GENDER_DIFFERENCES = window.SHINYDEX_GENDER_DIFFERENCES || {};
+  const DETAILS = window.SHINYDEX_POKEMON_DETAILS || { formPokemonIds: {}, pokemon: {}, species: {} };
   if (!DATA?.entries?.length || !I18N?.strings?.fr) {
     document.body.innerHTML = "<p style='padding:2rem'>La base locale du Shinydex est introuvable.</p>";
     return;
@@ -74,6 +75,33 @@
     steel: "#B7B7CE",
     fairy: "#D685AD"
   };
+  const TYPE_EFFECTIVENESS = Object.freeze({
+    normal: { rock: 0.5, ghost: 0, steel: 0.5 },
+    fire: { fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2 },
+    water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+    electric: { water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+    grass: { fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5, steel: 0.5 },
+    ice: { fire: 0.5, water: 0.5, grass: 2, ice: 0.5, ground: 2, flying: 2, dragon: 2, steel: 0.5 },
+    fighting: { normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dark: 2, steel: 2, fairy: 0.5 },
+    poison: { grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0, fairy: 2 },
+    ground: { fire: 2, electric: 2, grass: 0.5, poison: 2, flying: 0, bug: 0.5, rock: 2, steel: 2 },
+    flying: { electric: 0.5, grass: 2, fighting: 2, bug: 2, rock: 0.5, steel: 0.5 },
+    psychic: { fighting: 2, poison: 2, psychic: 0.5, dark: 0, steel: 0.5 },
+    bug: { fire: 0.5, grass: 2, fighting: 0.5, poison: 0.5, flying: 0.5, psychic: 2, ghost: 0.5, dark: 2, steel: 0.5, fairy: 0.5 },
+    rock: { fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2, steel: 0.5 },
+    ghost: { normal: 0, psychic: 2, ghost: 2, dark: 0.5 },
+    dragon: { dragon: 2, steel: 0.5, fairy: 0 },
+    dark: { fighting: 0.5, psychic: 2, ghost: 2, dark: 0.5, fairy: 0.5 },
+    steel: { fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2 },
+    fairy: { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 }
+  });
+  const HUNT_METHOD_KEYS = Object.freeze([
+    "Random", "Masuda", "Reset", "Radar", "Outbreak", "Sandwich", "Raid", "Fishing", "Sos", "Dynamax", "Distribution", "Other"
+  ]);
+  const STAT_ORDER = Object.freeze(["hp", "attack", "defense", "special-attack", "special-defense", "speed"]);
+  const STAT_LABELS = Object.freeze({
+    hp: "PV", attack: "Attaque", defense: "Défense", "special-attack": "Att. Spé.", "special-defense": "Déf. Spé.", speed: "Vitesse"
+  });
 
   const elements = Object.fromEntries([
     "metaDescription", "languageFlag", "languageSelect", "searchInput", "generationFilter", "typeFilter",
@@ -93,7 +121,15 @@
     "distributionGrid", "distributionEmpty", "distributionUpdatedAt", "distributionCount", "distributionTicker",
     "evolutionSuggestions", "evolutionEmpty", "evolutionCount",
     "evolutionDialog", "evolutionDialogTitle", "evolutionDialogIntro", "evolutionDialogSource",
-    "evolutionDialogGrid", "closeEvolutionButton", "lineageButton"
+    "evolutionDialogGrid", "closeEvolutionButton", "lineageButton",
+    "explorerButton", "explorerDialog", "closeExplorerButton", "researchDialog", "researchDialogTitle",
+    "researchDialogBody", "closeResearchButton", "pokemonInfoDialog", "pokemonInfoTitle", "pokemonInfoBody",
+    "closePokemonInfoButton", "huntButton", "activeHuntCount", "huntDialog", "closeHuntButton", "newHuntButton",
+    "newCaptureButton", "activeHuntList", "activeHuntEmpty", "huntDialogActiveCount", "captureJournalList",
+    "captureJournalEmpty", "captureJournalCount", "huntEditorDialog", "huntEditorForm", "huntEditorTitle",
+    "closeHuntEditorButton", "cancelHuntEditorButton", "huntRecordId", "huntRecordMode", "huntEntrySelect",
+    "huntGame", "huntMethod", "huntAttempts", "huntDate", "huntDateLabel", "huntNickname", "huntNotes",
+    "spoilerSetting"
   ].map(id => [id, document.getElementById(id)]));
 
   const validKeys = new Set(DATA.entries.map(entry => entry.key));
@@ -144,6 +180,12 @@
   const groupByEntryKey = new Map(
     speciesGroups.flatMap(group => group.entries.map(entry => [entry.key, group]))
   );
+  const primaryEntryBySpecies = new Map(speciesGroups.map(group => [
+    group.speciesId,
+    group.entries.find(entry => entry.isDefault && !entry.exceptional)
+      || group.entries.find(entry => !entry.exceptional)
+      || group.entries[0]
+  ]));
   const evolutionAdjacency = new Map();
   const evolutionPredecessors = new Map();
   const evolutionNeighbors = new Map();
@@ -174,6 +216,9 @@
   let activeEvolutionSourceKey = "";
   let activeLineageSpeciesIds = null;
   let activeLineageRootId = 0;
+  let activePokemonInfoKey = "";
+  let activeResearchTool = "";
+  let pokemonInfoShinyRevealed = false;
   let variantExitTimer;
   let toastTimer;
   let spriteModeTimer;
@@ -186,12 +231,14 @@
 
   function defaultState() {
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       collection: {},
+      huntRecords: {},
       preferences: {
         language: preferredLanguage(),
         animations: true,
         confirmRemove: false,
+        spoilerGuard: false,
         cardSize: "normal",
         spriteMode: "2d"
       }
@@ -221,15 +268,47 @@
     const clean = defaultState();
     if (!raw || typeof raw !== "object") return clean;
     clean.collection = sanitizeCollection(raw.collection || raw.caught || raw);
+    clean.huntRecords = sanitizeHuntRecords(raw.huntRecords);
     const language = raw.preferences?.language;
     clean.preferences.language = DATA.languages?.includes(language) ? language : clean.preferences.language;
     clean.preferences.animations = raw.preferences?.animations !== false;
     clean.preferences.confirmRemove = Boolean(raw.preferences?.confirmRemove);
+    clean.preferences.spoilerGuard = Boolean(raw.preferences?.spoilerGuard);
     clean.preferences.cardSize = CARD_SIZE_LEVELS.some(level => level.id === raw.preferences?.cardSize)
       ? raw.preferences.cardSize
       : clean.preferences.cardSize;
     clean.preferences.spriteMode = raw.preferences?.spriteMode === "3d" ? "3d" : "2d";
     return clean;
+  }
+
+  function sanitizeHuntRecords(records) {
+    const sanitized = {};
+    if (!records || typeof records !== "object" || Array.isArray(records)) return sanitized;
+    for (const [id, raw] of Object.entries(records)) {
+      if (!raw || typeof raw !== "object") continue;
+      const entryKey = DATA.keyAliases?.[raw.entryKey] || raw.entryKey;
+      if (!validKeys.has(entryKey)) continue;
+      const status = ["active", "caught", "discarded"].includes(raw.status) ? raw.status : "active";
+      sanitized[id] = {
+        id,
+        entryKey,
+        status,
+        game: String(raw.game || "").slice(0, 60),
+        method: HUNT_METHOD_KEYS.includes(raw.method) ? raw.method : "Other",
+        attempts: Math.min(999999999, Math.max(0, Number.parseInt(raw.attempts, 10) || 0)),
+        startedAt: validDateString(raw.startedAt),
+        caughtAt: validDateString(raw.caughtAt),
+        nickname: String(raw.nickname || "").slice(0, 40),
+        notes: String(raw.notes || "").slice(0, 600),
+        updatedAt: Number(raw.updatedAt) || Date.now()
+      };
+    }
+    return sanitized;
+  }
+
+  function validDateString(value) {
+    const normalized = String(value || "");
+    return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
   }
 
   function loadState() {
@@ -281,6 +360,45 @@
     return DATA.typeNames?.[identifier]?.[language()]
       || DATA.typeNames?.[identifier]?.fr
       || identifier;
+  }
+
+  function detailForEntry(entry) {
+    if (!entry) return { pokemon: null, species: null, pokemonId: 0 };
+    const pokemonId = Number(DETAILS.formPokemonIds?.[entry.formId]) || entry.speciesId;
+    return {
+      pokemonId,
+      pokemon: DETAILS.pokemon?.[pokemonId] || DETAILS.pokemon?.[entry.speciesId] || null,
+      species: DETAILS.species?.[entry.speciesId] || null
+    };
+  }
+
+  function localizedDetailName(item) {
+    return item?.names?.[language()] || item?.names?.fr || item?.names?.en || "";
+  }
+
+  function defenseMultipliers(types) {
+    return Object.fromEntries(DATA.types.map(attackingType => [
+      attackingType,
+      types.reduce((multiplier, defendingType) =>
+        multiplier * (TYPE_EFFECTIVENESS[attackingType]?.[defendingType] ?? 1), 1)
+    ]));
+  }
+
+  function todayDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function newRecordId() {
+    return globalThis.crypto?.randomUUID?.()
+      || `hunt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  function huntMethodLabel(method) {
+    return t(`method${HUNT_METHOD_KEYS.includes(method) ? method : "Other"}`);
+  }
+
+  function spoilerHides(entry) {
+    return Boolean(state.preferences.spoilerGuard && entry && !isShinyOwned(entry.key));
   }
 
   function currentCardSize() {
@@ -352,6 +470,11 @@
         .find(option => option.source.key === activeEvolutionSourceKey);
       if (group) renderEvolutionDialog(group);
     }
+    renderHunts();
+    if (activePokemonInfoKey && elements.pokemonInfoDialog.hasAttribute("open")) {
+      renderPokemonInfo(entryByKey.get(activePokemonInfoKey), { revealShiny: pokemonInfoShinyRevealed });
+    }
+    if (activeResearchTool === "gallery" && elements.researchDialog.hasAttribute("open")) renderResearchTool("gallery");
     if (next === "3d") preloadShinySheets(true);
   }
 
@@ -658,8 +781,8 @@
     }
   }
 
-  function spriteStyle(sprite, entry, shiny, explicitSize = 0) {
-    const useHome = spriteMode() === "3d"
+  function spriteStyle(sprite, entry, shiny, explicitSize = 0, forcedMode = "") {
+    const useHome = (forcedMode || spriteMode()) === "3d"
       && Number.isInteger(entry.homeSheet)
       && Number.isInteger(entry.homeSlot)
       && DATA.homeNormalSheets?.length
@@ -798,6 +921,9 @@
   );
 
   card.querySelector(".pokemon-card__number").textContent = `#${String(entry.speciesId).padStart(4, "0")}`;
+  const infoButton = card.querySelector(".pokemon-card__info");
+  infoButton.setAttribute("aria-label", `${t("openPokedexInfo")} · ${fullVariantName(entry)}`);
+  infoButton.setAttribute("title", t("technicalPokedex"));
   card.querySelector(".pokemon-card__name").textContent = localizedName(entry);
   const label = visualVariantLabel(visual);
   form.textContent = label;
@@ -851,6 +977,7 @@
     card.addEventListener("pointerenter", event => {
       if (event.pointerType === "touch") return;
       const visual = currentVisual(group);
+      if (spoilerHides(visual.entry)) return;
       card.classList.add("is-shiny-preview");
       spriteStyle(card.querySelector(".pokemon-sprite"), visual.entry, true);
     });
@@ -1576,6 +1703,7 @@
   function syncPreferences() {
     elements.animationSetting.checked = state.preferences.animations;
     elements.confirmSetting.checked = state.preferences.confirmRemove;
+    elements.spoilerSetting.checked = state.preferences.spoilerGuard;
     elements.languageSelect.value = language();
     applyCardSize();
     applySpriteMode();
@@ -1590,8 +1718,9 @@
 
   function publicState() {
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       collection: { ...state.collection },
+      huntRecords: Object.fromEntries(Object.entries(state.huntRecords).map(([id, record]) => [id, { ...record }])),
       preferences: { ...state.preferences }
     };
   }
@@ -1606,6 +1735,7 @@
       updateStats();
       render();
       renderEvolutionSuggestions();
+      renderHunts();
       if (activeDialogSpecies) {
         const group = groupsBySpecies.get(activeDialogSpecies);
         if (group) renderVariantDialog(group);
@@ -1670,10 +1800,11 @@
   function exportCollection() {
     const payload = {
       format: "pokemon-shinydex",
-      schemaVersion: 2,
+      schemaVersion: 3,
       exportedAt: new Date().toISOString(),
       dataGeneratedAt: DATA.generatedAt,
       collection: state.collection,
+      huntRecords: state.huntRecords,
       preferences: state.preferences
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -1728,6 +1859,9 @@
     const owned = !unavailable && isOwned(entry.key);
     const exception = !unavailable && isException(entry.key);
     card.dataset.key = entry.key;
+    const infoButton = item.querySelector(".variant-option__info");
+    infoButton.setAttribute("aria-label", `${t("openPokedexInfo")} · ${fullVariantName(entry)}`);
+    infoButton.setAttribute("title", t("technicalPokedex"));
     card.classList.toggle("is-owned", owned);
     card.classList.toggle("is-exception", exception);
     card.classList.toggle("is-unobtainable", unavailable);
@@ -1757,6 +1891,7 @@
     placeholderBadge.setAttribute("title", t("placeholderSpriteDescription"));
     card.addEventListener("pointerenter", event => {
       if (event.pointerType === "touch") return;
+      if (spoilerHides(entry)) return;
       spriteStyle(sprite, entry, true);
       card.classList.toggle("is-shiny-preview", !owned);
     });
@@ -1808,6 +1943,736 @@
     renderVariantDialog(group, preferredKey);
     showDialog(elements.variantDialog);
     if (autoCloseOutside) scheduleVariantExitClose();
+  }
+
+  function makeElement(tag, className = "", textContent = "") {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (textContent) node.textContent = textContent;
+    return node;
+  }
+
+  function primaryEntries() {
+    return [...primaryEntryBySpecies.values()];
+  }
+
+  function entryOptionLabel(entry) {
+    return `#${String(entry.speciesId).padStart(4, "0")} ${localizedName(entry)} — ${variantLabel(entry, { alwaysGender: true }) || t("defaultForm")}`;
+  }
+
+  function populateEntrySelect(select, { primaryOnly = false, huntOnly = false, selectedKey = "" } = {}) {
+    const entries = (primaryOnly ? primaryEntries() : DATA.entries).filter(entry =>
+      !huntOnly || (!entry.exceptional && isLegallyObtainable(entry))
+    );
+    select.replaceChildren(new Option(t("selectPokemon"), ""));
+    for (const entry of entries) select.append(new Option(entryOptionLabel(entry), entry.key));
+    select.value = entryByKey.has(selectedKey) ? selectedKey : "";
+  }
+
+  function genderRatioText(species) {
+    const rate = Number(species?.genderRate);
+    if (rate === -1) return t("genderless");
+    if (rate === 0) return `100 % ${t("male")}`;
+    if (rate === 8) return `100 % ${t("female")}`;
+    if (!Number.isFinite(rate)) return "—";
+    const female = rate * 12.5;
+    return `♂ ${100 - female} % · ♀ ${female} %`;
+  }
+
+  function renderStatList(container, stats, comparisonStats = null) {
+    const list = makeElement("div", "stat-list");
+    let total = 0;
+    for (const identifier of STAT_ORDER) {
+      const value = Number(stats?.[identifier]) || 0;
+      total += value;
+      const row = makeElement("div", "stat-row");
+      if (comparisonStats && value > (Number(comparisonStats?.[identifier]) || 0)) row.classList.add("is-winner");
+      const label = makeElement("small", "", STAT_LABELS[identifier] || identifier);
+      const number = makeElement("strong", "", String(value));
+      const bar = makeElement("span", "stat-bar");
+      const fill = makeElement("span");
+      fill.style.width = `${Math.min(100, (value / 255) * 100)}%`;
+      bar.append(fill);
+      row.append(label, number, bar);
+      list.append(row);
+    }
+    const totalRow = makeElement("div", "stat-row");
+    totalRow.append(makeElement("small", "", t("total")), makeElement("strong", "", String(total)), makeElement("span", "stat-bar"));
+    list.append(totalRow);
+    container.append(list);
+  }
+
+  function renderDefenseGroups(container, types) {
+    const multipliers = defenseMultipliers(types);
+    const groups = [
+      ["weaknesses", Object.entries(multipliers).filter(([, value]) => value > 1)],
+      ["resistances", Object.entries(multipliers).filter(([, value]) => value > 0 && value < 1)],
+      ["immunities", Object.entries(multipliers).filter(([, value]) => value === 0)]
+    ];
+    let rendered = false;
+    for (const [labelKey, entries] of groups) {
+      if (!entries.length) continue;
+      rendered = true;
+      const group = makeElement("div", "defense-group");
+      group.append(makeElement("strong", "", t(labelKey)));
+      const pills = makeElement("div", "defense-pills");
+      for (const [type, multiplier] of entries.sort((a, b) => b[1] - a[1] || localizedType(a[0]).localeCompare(localizedType(b[0]), locale()))) {
+        const pill = makeElement("span", "", `${localizedType(type)} ×${multiplier}`);
+        pill.dataset.multiplier = String(multiplier);
+        pills.append(pill);
+      }
+      group.append(pills);
+      container.append(group);
+    }
+    if (!rendered) container.append(makeElement("p", "research-note", t("neutralDamage")));
+  }
+
+  function renderPokemonInfo(entry, { revealShiny = false } = {}) {
+    if (!entry) return;
+    activePokemonInfoKey = entry.key;
+    pokemonInfoShinyRevealed = revealShiny;
+    const details = detailForEntry(entry);
+    elements.pokemonInfoTitle.textContent = localizedName(entry);
+    const body = document.createDocumentFragment();
+    const hero = makeElement("section", "pokemon-info__hero");
+    const sprite = makeElement("span", "pokemon-info__sprite");
+    const shinyVisible = isShinyOwned(entry.key) || revealShiny || !spoilerHides(entry);
+    spriteStyle(sprite, entry, shinyVisible, 128);
+    const identity = makeElement("div");
+    identity.append(
+      makeElement("h3", "", localizedName(entry)),
+      makeElement("p", "", `#${String(entry.speciesId).padStart(4, "0")} · ${variantLabel(entry, { alwaysGender: true }) || t("defaultForm")}`)
+    );
+    const types = makeElement("div", "pokemon-info__types");
+    renderTypes(types, entry.types);
+    identity.append(types);
+    const actions = makeElement("div", "pokemon-info__actions");
+    const hunt = makeElement("button", "button button--primary", t("startHunt"));
+    hunt.type = "button";
+    hunt.dataset.infoAction = "hunt";
+    hunt.disabled = entry.exceptional || !isLegallyObtainable(entry);
+    const capture = makeElement("button", "button button--ghost", t("recordCapture"));
+    capture.type = "button";
+    capture.dataset.infoAction = "capture";
+    capture.disabled = entry.exceptional || !isLegallyObtainable(entry);
+    actions.append(hunt, capture);
+    if (spoilerHides(entry) && !revealShiny) {
+      const reveal = makeElement("button", "button button--ghost", t("revealShiny"));
+      reveal.type = "button";
+      reveal.dataset.infoAction = "reveal";
+      actions.append(reveal);
+      identity.append(makeElement("p", "research-note", t("shinyHidden")));
+    }
+    identity.append(actions);
+    hero.append(sprite, identity);
+    body.append(hero);
+
+    if (!details.pokemon && !details.species) {
+      body.append(makeElement("p", "hunt-empty", t("noTechnicalData")));
+      elements.pokemonInfoBody.replaceChildren(body);
+      return;
+    }
+
+    const grid = makeElement("div", "pokemon-info__grid");
+    const facts = makeElement("section", "info-block");
+    facts.append(makeElement("h3", "", t("technicalPokedex")));
+    const factGrid = makeElement("div", "fact-grid");
+    const values = [
+      [t("height"), details.pokemon ? `${(details.pokemon.height / 10).toLocaleString(locale(), { maximumFractionDigits: 1 })} m` : "—"],
+      [t("weight"), details.pokemon ? `${(details.pokemon.weight / 10).toLocaleString(locale(), { maximumFractionDigits: 1 })} kg` : "—"],
+      [t("captureRate"), details.species?.captureRate ?? "—"],
+      [t("hatchCycles"), details.species?.hatchCounter ?? "—"]
+    ];
+    for (const [label, value] of values) {
+      const item = makeElement("div");
+      item.append(makeElement("small", "", String(label)), makeElement("strong", "", String(value)));
+      factGrid.append(item);
+    }
+    facts.append(factGrid);
+    if (details.pokemon?.abilities?.length) {
+      const abilityGroup = makeElement("div", "defense-group");
+      abilityGroup.append(makeElement("strong", "", t("abilities")));
+      const pills = makeElement("div", "defense-pills");
+      for (const ability of details.pokemon.abilities) {
+        pills.append(makeElement("span", "", `${localizedDetailName(ability)}${ability.hidden ? ` (${t("hiddenAbility")})` : ""}`));
+      }
+      abilityGroup.append(pills);
+      facts.append(abilityGroup);
+    }
+
+    const breeding = makeElement("section", "info-block");
+    breeding.append(makeElement("h3", "", t("breeding")));
+    const breedingFacts = makeElement("div", "fact-grid");
+    const genderFact = makeElement("div");
+    genderFact.append(makeElement("small", "", t("genderRatio")), makeElement("strong", "", genderRatioText(details.species)));
+    const eggsFact = makeElement("div");
+    eggsFact.append(
+      makeElement("small", "", t("eggGroups")),
+      makeElement("strong", "", details.species?.eggGroups?.map(localizedDetailName).filter(Boolean).join(" · ") || "—")
+    );
+    breedingFacts.append(genderFact, eggsFact);
+    breeding.append(breedingFacts);
+
+    const stats = makeElement("section", "info-block");
+    stats.append(makeElement("h3", "", t("baseStats")));
+    renderStatList(stats, details.pokemon?.stats || {});
+
+    const defenses = makeElement("section", "info-block");
+    defenses.append(makeElement("h3", "", t("typeDefenses")));
+    renderDefenseGroups(defenses, entry.types);
+    grid.append(facts, breeding, stats, defenses);
+    body.append(grid);
+    elements.pokemonInfoBody.replaceChildren(body);
+  }
+
+  function openPokemonInfo(entryKey) {
+    const entry = entryByKey.get(entryKey);
+    if (!entry) return;
+    renderPokemonInfo(entry);
+    showDialog(elements.pokemonInfoDialog);
+  }
+
+  function openHuntEditor(mode = "active", entryKey = "", recordId = "") {
+    const record = recordId ? state.huntRecords[recordId] : null;
+    populateEntrySelect(elements.huntEntrySelect, { huntOnly: true, selectedKey: record?.entryKey || entryKey });
+    elements.huntMethod.replaceChildren(...HUNT_METHOD_KEYS.map(key => new Option(huntMethodLabel(key), key)));
+    elements.huntRecordId.value = record?.id || "";
+    elements.huntRecordMode.value = mode;
+    elements.huntEntrySelect.disabled = Boolean(record);
+    elements.huntGame.value = record?.game || "";
+    elements.huntMethod.value = record?.method || "Random";
+    elements.huntAttempts.value = String(record?.attempts || 0);
+    elements.huntDate.value = mode === "caught" ? (record?.caughtAt || todayDate()) : (record?.startedAt || todayDate());
+    elements.huntNickname.value = record?.nickname || "";
+    elements.huntNotes.value = record?.notes || "";
+    elements.huntDateLabel.textContent = t(mode === "caught" ? "caughtDate" : "startDate");
+    elements.huntEditorTitle.textContent = t(record ? "edit" : mode === "caught" ? "addCapture" : "newHunt");
+    showDialog(elements.huntEditorDialog);
+  }
+
+  function activeHuntRecords() {
+    return Object.values(state.huntRecords).filter(record => record.status === "active")
+      .sort((a, b) => (a.startedAt || "9999").localeCompare(b.startedAt || "9999") || b.updatedAt - a.updatedAt);
+  }
+
+  function caughtHuntRecords() {
+    return Object.values(state.huntRecords).filter(record => record.status === "caught")
+      .sort((a, b) => (b.caughtAt || "").localeCompare(a.caughtAt || "") || b.updatedAt - a.updatedAt);
+  }
+
+  function renderHuntCard(record, caught = false) {
+    const entry = entryByKey.get(record.entryKey);
+    const card = makeElement("article", caught ? "capture-card" : "hunt-card");
+    card.dataset.recordId = record.id;
+    const sprite = makeElement("span", "hunt-card__sprite");
+    spriteStyle(sprite, entry, caught || !spoilerHides(entry), 72);
+    const body = makeElement("div", "hunt-card__body");
+    body.append(makeElement("h4", "", record.nickname || localizedName(entry)));
+    const metadata = [variantLabel(entry, { alwaysGender: true }), record.game, huntMethodLabel(record.method), caught ? record.caughtAt : record.startedAt]
+      .filter(Boolean).join(" · ");
+    body.append(makeElement("p", "hunt-card__meta", metadata));
+    const counter = makeElement("div", "hunt-counter");
+    counter.append(makeElement("strong", "", formatNumber(record.attempts)));
+    if (!caught) {
+      for (const amount of [1, 10]) {
+        const button = makeElement("button", "", `+${amount}`);
+        button.type = "button";
+        button.dataset.huntAction = "increment";
+        button.dataset.amount = String(amount);
+        counter.append(button);
+      }
+    }
+    body.append(counter);
+    const actions = makeElement("div", "hunt-card__actions");
+    const edit = makeElement("button", "", t("edit"));
+    edit.type = "button";
+    edit.dataset.huntAction = "edit";
+    actions.append(edit);
+    if (!caught) {
+      const complete = makeElement("button", "is-complete", t("complete"));
+      complete.type = "button";
+      complete.dataset.huntAction = "complete";
+      actions.append(complete);
+    }
+    const discard = makeElement("button", "", t("discard"));
+    discard.type = "button";
+    discard.dataset.huntAction = "discard";
+    actions.append(discard);
+    body.append(actions);
+    card.append(sprite, body);
+    return card;
+  }
+
+  function renderHunts() {
+    const active = activeHuntRecords();
+    const caught = caughtHuntRecords();
+    elements.activeHuntCount.textContent = String(active.length);
+    elements.huntDialogActiveCount.textContent = formatNumber(active.length);
+    elements.captureJournalCount.textContent = formatNumber(caught.length);
+    elements.activeHuntList.replaceChildren(...active.map(record => renderHuntCard(record)));
+    elements.captureJournalList.replaceChildren(...caught.map(record => renderHuntCard(record, true)));
+    elements.activeHuntEmpty.hidden = active.length > 0;
+    elements.captureJournalEmpty.hidden = caught.length > 0;
+  }
+
+  function updateHuntRecord(recordId, changes) {
+    const record = state.huntRecords[recordId];
+    if (!record) return;
+    state.huntRecords[recordId] = { ...record, ...changes, updatedAt: Date.now() };
+    saveState();
+    renderHunts();
+  }
+
+  function completeHunt(recordId) {
+    const record = state.huntRecords[recordId];
+    if (!record || record.status !== "active") return;
+    state.huntRecords[recordId] = { ...record, status: "caught", caughtAt: todayDate(), updatedAt: Date.now() };
+    setQuantity(record.entryKey, quantityFor(record.entryKey) + 1, { sparkle: true });
+    renderHunts();
+    showToast(t("huntCompleted"));
+  }
+
+  function handleHuntAction(event) {
+    const button = event.target.closest("[data-hunt-action]");
+    const card = button?.closest("[data-record-id]");
+    const record = card ? state.huntRecords[card.dataset.recordId] : null;
+    if (!button || !record) return;
+    const action = button.dataset.huntAction;
+    if (action === "increment") {
+      updateHuntRecord(record.id, { attempts: Math.min(999999999, record.attempts + Number(button.dataset.amount || 1)) });
+    } else if (action === "edit") {
+      openHuntEditor(record.status === "caught" ? "caught" : "active", record.entryKey, record.id);
+    } else if (action === "complete") {
+      completeHunt(record.id);
+    } else if (action === "discard") {
+      updateHuntRecord(record.id, { status: "discarded" });
+      showToast(t("huntRemoved"));
+    }
+  }
+
+  function openHuntBook() {
+    renderHunts();
+    showDialog(elements.huntDialog);
+  }
+
+  function renderGallery(entryKey = "") {
+    const entry = entryByKey.get(entryKey) || primaryEntries()[0];
+    const controls = makeElement("div", "research-controls");
+    const field = makeElement("label", "auth-field");
+    field.append(makeElement("span", "", t("choosePokemon")));
+    const select = makeElement("select");
+    populateEntrySelect(select, { selectedKey: entry.key });
+    field.append(select);
+    controls.append(field);
+    const gallery = makeElement("div", "gallery-grid");
+    for (const [mode, shiny, label] of [["2d", false, `2D · ${t("normalSprite")}`], ["2d", true, `2D · ${t("shinySprite")}`], ["3d", false, `3D · ${t("normalSprite")}`], ["3d", true, `3D · ${t("shinySprite")}`]]) {
+      const card = makeElement("article", "gallery-card");
+      const sprite = makeElement("span", "gallery-sprite");
+      spriteStyle(sprite, entry, shiny, 128, mode);
+      if (shiny && spoilerHides(entry)) sprite.style.filter = "brightness(0) drop-shadow(0 10px 10px rgba(3, 8, 18, 0.35))";
+      card.append(sprite, makeElement("strong", "", label));
+      gallery.append(card);
+    }
+    select.addEventListener("change", () => renderResearchTool("gallery", { entryKey: select.value }));
+    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("galleryHint")), gallery);
+  }
+
+  function renderPokedexSearch(entryKey = "") {
+    const controls = makeElement("div", "research-controls");
+    const field = makeElement("label", "auth-field");
+    field.append(makeElement("span", "", t("searchPokedex")));
+    const select = makeElement("select");
+    populateEntrySelect(select, { selectedKey: entryKey });
+    field.append(select);
+    const button = makeElement("button", "button button--primary", t("technicalPokedex"));
+    button.type = "button";
+    button.disabled = !entryKey;
+    select.addEventListener("change", () => { button.disabled = !select.value; });
+    button.addEventListener("click", () => openPokemonInfo(select.value));
+    controls.append(field, button);
+    elements.researchDialogBody.replaceChildren(controls);
+  }
+
+  function renderLineageSearch(entryKey = "") {
+    const controls = makeElement("div", "research-controls");
+    const field = makeElement("label", "auth-field");
+    field.append(makeElement("span", "", t("choosePokemon")));
+    const select = makeElement("select");
+    populateEntrySelect(select, { primaryOnly: true, selectedKey: entryKey });
+    field.append(select);
+    const button = makeElement("button", "button button--primary", t("applyLineageSearch"));
+    button.type = "button";
+    button.disabled = !entryKey;
+    select.addEventListener("change", () => { button.disabled = !select.value; });
+    button.addEventListener("click", () => {
+      const entry = entryByKey.get(select.value);
+      if (!entry) return;
+      closeDialog(elements.researchDialog);
+      applyLineageFilter(entry.speciesId);
+    });
+    controls.append(field, button);
+    elements.researchDialogBody.replaceChildren(controls);
+  }
+
+  function renderComparison(firstKey = "", secondKey = "") {
+    const defaults = primaryEntries();
+    const first = entryByKey.get(firstKey) || defaults.find(entry => entry.speciesId === 6) || defaults[0];
+    const second = entryByKey.get(secondKey) || defaults.find(entry => entry.speciesId === 9) || defaults[1];
+    const controls = makeElement("div", "research-controls");
+    const selects = [];
+    for (const [label, entry] of [[t("firstPokemon"), first], [t("secondPokemon"), second]]) {
+      const field = makeElement("label", "auth-field");
+      field.append(makeElement("span", "", label));
+      const select = makeElement("select");
+      populateEntrySelect(select, { primaryOnly: true, selectedKey: entry.key });
+      field.append(select);
+      controls.append(field);
+      selects.push(select);
+    }
+    const grid = makeElement("div", "comparison-grid");
+    const firstStats = detailForEntry(first).pokemon?.stats || {};
+    const secondStats = detailForEntry(second).pokemon?.stats || {};
+    for (const [entry, stats, otherStats] of [[first, firstStats, secondStats], [second, secondStats, firstStats]]) {
+      const card = makeElement("article", "comparison-card");
+      card.append(makeElement("h3", "", localizedName(entry)));
+      renderStatList(card, stats, otherStats);
+      grid.append(card);
+    }
+    for (const select of selects) select.addEventListener("change", () => renderResearchTool("compare", { firstKey: selects[0].value, secondKey: selects[1].value }));
+    elements.researchDialogBody.replaceChildren(controls, grid);
+  }
+
+  function renderTypeTool(firstType = "normal", secondType = "") {
+    const controls = makeElement("div", "research-controls");
+    const selects = [];
+    for (const [label, value, optional] of [[t("defendingTypeOne"), firstType, false], [t("defendingTypeTwo"), secondType, true]]) {
+      const field = makeElement("label", "auth-field");
+      field.append(makeElement("span", "", label));
+      const select = makeElement("select");
+      if (optional) select.append(new Option(t("noSecondType"), ""));
+      for (const type of DATA.types) select.append(new Option(localizedType(type), type));
+      select.value = value;
+      field.append(select);
+      controls.append(field);
+      selects.push(select);
+    }
+    const block = makeElement("section", "info-block");
+    block.append(makeElement("h3", "", t("typeDefenses")));
+    renderDefenseGroups(block, [selects[0].value, selects[1].value].filter(Boolean));
+    for (const select of selects) select.addEventListener("change", () => renderResearchTool("types", { firstType: selects[0].value, secondType: selects[1].value }));
+    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("typeSelectHint")), block);
+  }
+
+  function renderOddsTool(values = {}) {
+    const base = Math.max(2, Number(values.base) || 4096);
+    const rolls = Math.max(1, Number(values.rolls) || 1);
+    const encounters = Math.max(1, Number(values.encounters) || 100);
+    const presets = makeElement("div", "odds-presets");
+    for (const [labelKey, presetBase, presetRolls] of [["fullOddsModern", 4096, 1], ["fullOddsClassic", 8192, 1], ["shinyCharm", 4096, 3], ["masudaMethod", 4096, 6], ["masudaCharm", 4096, 8]]) {
+      const button = makeElement("button", "", t(labelKey));
+      button.type = "button";
+      button.addEventListener("click", () => renderResearchTool("odds", { base: presetBase, rolls: presetRolls, encounters }));
+      presets.append(button);
+    }
+    const controls = makeElement("div", "research-controls");
+    const inputs = [];
+    for (const [labelKey, value, minimum] of [["baseDenominator", base, 2], ["independentRolls", rolls, 1], ["encounters", encounters, 1]]) {
+      const field = makeElement("label", "auth-field");
+      field.append(makeElement("span", "", t(labelKey)));
+      const input = makeElement("input");
+      input.type = "number";
+      input.min = String(minimum);
+      input.max = "999999999";
+      input.value = String(value);
+      field.append(input);
+      controls.append(field);
+      inputs.push(input);
+    }
+    const probability = 1 - Math.pow(1 - 1 / base, rolls);
+    const cumulative = 1 - Math.pow(1 - probability, encounters);
+    const percentage = value => `${(value * 100).toLocaleString(locale(), { maximumFractionDigits: 6 })} %`;
+    const result = makeElement("div", "odds-result");
+    for (const [label, value] of [
+      [t("chancePerEncounter"), percentage(probability)],
+      [t("averageOneIn", { count: Math.round(1 / probability).toLocaleString(locale()) }), `1/${Math.round(1 / probability).toLocaleString(locale())}`],
+      [t("cumulativeChance", { count: encounters.toLocaleString(locale()) }), percentage(cumulative)]
+    ]) {
+      const item = makeElement("div");
+      item.append(makeElement("small", "", label), makeElement("strong", "", value));
+      result.append(item);
+    }
+    for (const input of inputs) input.addEventListener("change", () => renderResearchTool("odds", {
+      base: inputs[0].value, rolls: inputs[1].value, encounters: inputs[2].value
+    }));
+    elements.researchDialogBody.replaceChildren(presets, controls, result, makeElement("p", "research-note", t("probabilityNote")));
+  }
+
+  function renderMethodsTool() {
+    const grid = makeElement("div", "method-grid");
+    for (const key of HUNT_METHOD_KEYS.filter(key => !["Other", "Distribution"].includes(key))) {
+      const card = makeElement("article", "method-card");
+      card.append(makeElement("h3", "", huntMethodLabel(key)), makeElement("p", "", t(`methodDescription${key}`)));
+      grid.append(card);
+    }
+    elements.researchDialogBody.replaceChildren(grid);
+  }
+
+  function renderCatalogueControls({ search = "", category = "", categories = [] } = {}, rerender) {
+    const controls = makeElement("div", "research-controls");
+    const searchField = makeElement("label", "auth-field");
+    searchField.append(makeElement("span", "", t("catalogueSearch")));
+    const searchInput = makeElement("input");
+    searchInput.type = "search";
+    searchInput.value = search;
+    searchField.append(searchInput);
+    controls.append(searchField);
+    let categorySelect = null;
+    if (categories.length) {
+      const field = makeElement("label", "auth-field");
+      field.append(makeElement("span", "", t("category")));
+      categorySelect = makeElement("select");
+      categorySelect.append(new Option(t("allCategories"), ""));
+      for (const option of categories) categorySelect.append(new Option(option.label, option.value));
+      categorySelect.value = category;
+      field.append(categorySelect);
+      controls.append(field);
+    }
+    let timer;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => rerender(searchInput.value, categorySelect?.value || ""), 120);
+    });
+    categorySelect?.addEventListener("change", () => rerender(searchInput.value, categorySelect.value));
+    return controls;
+  }
+
+  function renderAbilitiesTool(search = "") {
+    const query = normalize(search);
+    const entries = Object.entries(DETAILS.abilities || {})
+      .map(([id, ability]) => ({ id: Number(id), ...ability, label: localizedDetailName(ability) }))
+      .filter(ability => !query || normalize(ability.label).includes(query))
+      .sort((a, b) => a.label.localeCompare(b.label, locale()));
+    const controls = renderCatalogueControls({ search }, nextSearch => renderResearchTool("abilities", { search: nextSearch }));
+    const grid = makeElement("div", "catalogue-grid");
+    for (const ability of entries.slice(0, 80)) {
+      const speciesIds = [...new Set((ability.pokemonIds || []).map(pokemonId => DETAILS.pokemon?.[pokemonId]?.speciesId).filter(Boolean))];
+      const names = speciesIds.slice(0, 6).map(speciesId => localizedName(groupsBySpecies.get(speciesId)?.entries?.[0] || {})).filter(Boolean);
+      const card = makeElement("article", "catalogue-card");
+      card.append(
+        makeElement("h3", "", ability.label),
+        makeElement("strong", "", t("pokemonCount", { count: speciesIds.length.toLocaleString(locale()) })),
+        makeElement("p", "", names.join(" · ") + (speciesIds.length > names.length ? "…" : ""))
+      );
+      grid.append(card);
+    }
+    const nodes = [controls, makeElement("p", "research-note", t("browseHint")), grid];
+    if (entries.length > 80) nodes.push(makeElement("p", "research-note", t("showingFirst", { count: 80 })));
+    if (!entries.length) nodes.push(makeElement("p", "hunt-empty", t("noResults")));
+    elements.researchDialogBody.replaceChildren(...nodes);
+  }
+
+  function renderMovesTool(search = "", type = "") {
+    const query = normalize(search);
+    const entries = Object.entries(DETAILS.moves || {})
+      .map(([id, move]) => ({ id: Number(id), ...move, label: localizedDetailName(move) }))
+      .filter(move => (!query || normalize(move.label).includes(query)) && (!type || move.type === type))
+      .sort((a, b) => a.label.localeCompare(b.label, locale()));
+    const categories = DATA.types.map(value => ({ value, label: localizedType(value) }));
+    const controls = renderCatalogueControls({ search, category: type, categories }, (nextSearch, nextType) => renderResearchTool("moves", { search: nextSearch, type: nextType }));
+    const table = makeElement("div", "catalogue-table");
+    for (const move of entries.slice(0, 100)) {
+      const row = makeElement("article");
+      const typePill = makeElement("span", "type-pill", localizedType(move.type));
+      typePill.dataset.type = move.type;
+      typePill.style.setProperty("--type-color", TYPE_COLORS[move.type] || "#64748b");
+      typeContainerTextColor(typePill, move.type);
+      row.append(
+        makeElement("strong", "", move.label), typePill,
+        makeElement("span", "", `${t("movePower")} ${move.power || "—"}`),
+        makeElement("span", "", `${t("moveAccuracy")} ${move.accuracy ? `${move.accuracy} %` : "—"}`),
+        makeElement("span", "", `${t("movePp")} ${move.pp || "—"}`),
+        makeElement("small", "", t(move.damageClass))
+      );
+      table.append(row);
+    }
+    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("browseHint")), table,
+      ...(entries.length > 100 ? [makeElement("p", "research-note", t("showingFirst", { count: 100 }))] : []),
+      ...(!entries.length ? [makeElement("p", "hunt-empty", t("noResults"))] : []));
+  }
+
+  function renderItemsTool(search = "", category = "") {
+    const query = normalize(search);
+    const all = Object.entries(DETAILS.items || {}).map(([id, item]) => ({ id: Number(id), ...item, label: localizedDetailName(item) }));
+    const categoryMap = new Map(all.map(item => [item.category, localizedDetailName({ names: item.categoryNames }) || item.category]));
+    const categories = [...categoryMap].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, locale()));
+    const entries = all.filter(item => (!query || normalize(item.label).includes(query)) && (!category || item.category === category))
+      .sort((a, b) => a.label.localeCompare(b.label, locale()));
+    const controls = renderCatalogueControls({ search, category, categories }, (nextSearch, nextCategory) => renderResearchTool("items", { search: nextSearch, category: nextCategory }));
+    const grid = makeElement("div", "catalogue-grid");
+    for (const item of entries.slice(0, 100)) {
+      const card = makeElement("article", "catalogue-card");
+      card.append(makeElement("h3", "", item.label), makeElement("strong", "", localizedDetailName({ names: item.categoryNames }) || item.category));
+      if (item.cost) card.append(makeElement("p", "", `${t("price")} · ${item.cost.toLocaleString(locale())} ₽`));
+      grid.append(card);
+    }
+    elements.researchDialogBody.replaceChildren(controls, makeElement("p", "research-note", t("browseHint")), grid,
+      ...(entries.length > 100 ? [makeElement("p", "research-note", t("showingFirst", { count: 100 }))] : []),
+      ...(!entries.length ? [makeElement("p", "hunt-empty", t("noResults"))] : []));
+  }
+
+  function renderNaturesTool() {
+    const grid = makeElement("div", "catalogue-grid");
+    const natures = Object.values(DETAILS.natures || {}).sort((a, b) => localizedDetailName(a).localeCompare(localizedDetailName(b), locale()));
+    for (const nature of natures) {
+      const card = makeElement("article", "catalogue-card");
+      card.append(makeElement("h3", "", localizedDetailName(nature)));
+      if (nature.increasedStat) {
+        card.append(
+          makeElement("strong", "is-positive", `↑ ${STAT_LABELS[nature.increasedStat] || nature.increasedStat}`),
+          makeElement("p", "is-negative", `↓ ${STAT_LABELS[nature.decreasedStat] || nature.decreasedStat}`)
+        );
+      } else card.append(makeElement("p", "", t("neutralNature")));
+      grid.append(card);
+    }
+    elements.researchDialogBody.replaceChildren(grid);
+  }
+
+  function renderRankingsTool(stat = "hp") {
+    const controls = makeElement("div", "research-controls");
+    const field = makeElement("label", "auth-field");
+    field.append(makeElement("span", "", t("rankingBy")));
+    const select = makeElement("select");
+    for (const identifier of STAT_ORDER) select.append(new Option(STAT_LABELS[identifier], identifier));
+    select.value = STAT_ORDER.includes(stat) ? stat : "hp";
+    field.append(select);
+    controls.append(field);
+    const ranked = primaryEntries().map(entry => ({ entry, value: Number(detailForEntry(entry).pokemon?.stats?.[select.value]) || 0 }))
+      .sort((a, b) => b.value - a.value || a.entry.speciesId - b.entry.speciesId).slice(0, 50);
+    const table = makeElement("div", "ranking-table");
+    ranked.forEach((item, index) => {
+      const row = makeElement("button");
+      row.type = "button";
+      row.addEventListener("click", () => openPokemonInfo(item.entry.key));
+      const sprite = makeElement("span", "ranking-sprite");
+      spriteStyle(sprite, item.entry, isShinyOwned(item.entry.key), 52);
+      row.append(makeElement("strong", "", `#${index + 1}`), sprite, makeElement("span", "", localizedName(item.entry)), makeElement("em", "", String(item.value)));
+      table.append(row);
+    });
+    select.addEventListener("change", () => renderResearchTool("rankings", { stat: select.value }));
+    elements.researchDialogBody.replaceChildren(controls, table);
+  }
+
+  function renderEggGroupsTool(groupId = "") {
+    const groups = new Map();
+    for (const [speciesId, species] of Object.entries(DETAILS.species || {})) {
+      for (const group of species.eggGroups || []) {
+        const record = groups.get(group.id) || { ...group, speciesIds: [] };
+        record.speciesIds.push(Number(speciesId));
+        groups.set(group.id, record);
+      }
+    }
+    const options = [...groups.values()].sort((a, b) => localizedDetailName(a).localeCompare(localizedDetailName(b), locale()));
+    const selected = groups.get(Number(groupId)) || options[0];
+    const controls = makeElement("div", "research-controls");
+    const field = makeElement("label", "auth-field");
+    field.append(makeElement("span", "", t("eggGroups")));
+    const select = makeElement("select");
+    for (const group of options) select.append(new Option(localizedDetailName(group), String(group.id)));
+    select.value = String(selected?.id || "");
+    field.append(select);
+    controls.append(field);
+    const grid = makeElement("div", "egg-species-grid");
+    for (const speciesId of selected?.speciesIds || []) {
+      const entry = primaryEntryBySpecies.get(speciesId);
+      if (!entry) continue;
+      const button = makeElement("button");
+      button.type = "button";
+      button.addEventListener("click", () => openPokemonInfo(entry.key));
+      const sprite = makeElement("span", "ranking-sprite");
+      spriteStyle(sprite, entry, isShinyOwned(entry.key), 52);
+      button.append(sprite, makeElement("strong", "", localizedName(entry)));
+      grid.append(button);
+    }
+    select.addEventListener("change", () => renderResearchTool("eggGroups", { groupId: select.value }));
+    elements.researchDialogBody.replaceChildren(controls, grid);
+  }
+
+  function shareSummaryText() {
+    const ownedEntries = eligibleEntries.filter(entry => isOwned(entry.key));
+    return t("shareText", {
+      species: new Set(ownedEntries.map(entry => entry.speciesId)).size.toLocaleString(locale()),
+      total: eligibleSpeciesIds.size.toLocaleString(locale()),
+      copies: eligibleEntries.reduce((sum, entry) => sum + quantityFor(entry.key), 0).toLocaleString(locale())
+    });
+  }
+
+  function renderShareTool() {
+    const card = makeElement("section", "share-card");
+    card.append(makeElement("p", "", shareSummaryText()));
+    const actions = makeElement("div", "share-actions");
+    const copy = makeElement("button", "button button--primary", t("copySummary"));
+    copy.type = "button";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(`${shareSummaryText()} ${location.href}`);
+        showToast(t("copied"));
+      } catch {
+        showToast(t("copyImpossible"));
+      }
+    });
+    const backup = makeElement("button", "button button--ghost", t("downloadBackup"));
+    backup.type = "button";
+    backup.addEventListener("click", exportCollection);
+    actions.append(copy, backup);
+    card.append(actions);
+    elements.researchDialogBody.replaceChildren(card);
+  }
+
+  function renderResearchTool(tool, options = {}) {
+    activeResearchTool = tool;
+    const titleKey = {
+      pokedex: "technicalPokedex", lineage: "evolutionLines", gallery: "spriteGallery", compare: "comparePokemon",
+      types: "typeChart", odds: "shinyCalculator", methods: "huntingMethods", share: "shareCollection",
+      abilities: "abilityDex", moves: "moveDex", items: "itemDex", natures: "natureDex", rankings: "statRankings",
+      eggGroups: "eggGroupDex"
+    }[tool] || "explorerTitle";
+    elements.researchDialogTitle.textContent = t(titleKey);
+    if (tool === "pokedex") renderPokedexSearch(options.entryKey);
+    else if (tool === "lineage") renderLineageSearch(options.entryKey);
+    else if (tool === "gallery") renderGallery(options.entryKey);
+    else if (tool === "compare") renderComparison(options.firstKey, options.secondKey);
+    else if (tool === "types") renderTypeTool(options.firstType, options.secondType);
+    else if (tool === "odds") renderOddsTool(options);
+    else if (tool === "methods") renderMethodsTool();
+    else if (tool === "share") renderShareTool();
+    else if (tool === "abilities") renderAbilitiesTool(options.search);
+    else if (tool === "moves") renderMovesTool(options.search, options.type);
+    else if (tool === "items") renderItemsTool(options.search, options.category);
+    else if (tool === "natures") renderNaturesTool();
+    else if (tool === "rankings") renderRankingsTool(options.stat);
+    else if (tool === "eggGroups") renderEggGroupsTool(options.groupId);
+  }
+
+  function openResearchTool(tool, options = {}) {
+    closeDialog(elements.explorerDialog);
+    renderResearchTool(tool, options);
+    showDialog(elements.researchDialog);
+  }
+
+  function handleExplorerTool(tool) {
+    if (tool === "collection") {
+      closeDialog(elements.explorerDialog);
+      document.querySelector(".collection-panel")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    } else if (tool === "hunts" || tool === "journal") {
+      closeDialog(elements.explorerDialog);
+      openHuntBook();
+      if (tool === "journal") elements.captureJournalList?.scrollIntoView?.({ block: "start" });
+    } else if (tool === "distributions") {
+      closeDialog(elements.explorerDialog);
+      const panel = document.getElementById("informationPanel");
+      panel.open = true;
+      panel.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    } else openResearchTool(tool);
   }
 
   function renderDistributionTicker(entries) {
@@ -1940,11 +2805,16 @@
     renderEvolutionSuggestions();
     renderCloudStatus();
     renderDistributions();
+    renderHunts();
     updateDataVersion();
     if (activeDialogSpecies && elements.variantDialog.hasAttribute("open")) {
       const group = groupsBySpecies.get(activeDialogSpecies);
       if (group) renderVariantDialog(group);
     }
+    if (activePokemonInfoKey && elements.pokemonInfoDialog.hasAttribute("open")) {
+      renderPokemonInfo(entryByKey.get(activePokemonInfoKey), { revealShiny: pokemonInfoShinyRevealed });
+    }
+    if (activeResearchTool && elements.researchDialog.hasAttribute("open")) renderResearchTool(activeResearchTool);
     document.dispatchEvent(new CustomEvent("shinydex:language-change"));
   }
 
@@ -2000,7 +2870,9 @@
     const speciesId = Number(card.dataset.speciesId);
     const group = groupsBySpecies.get(speciesId);
     const entry = currentEntry(group);
-    if (event.target.closest(".variant-badge")) {
+    if (event.target.closest(".pokemon-card__info")) {
+      openPokemonInfo(entry.key);
+    } else if (event.target.closest(".variant-badge")) {
       openVariantDialog(speciesId, entry.key, { autoCloseOutside: event.detail > 0 });
     } else if (event.target.closest(".pokemon-card__toggle")) {
       if (group.entries.length > 1) {
@@ -2024,7 +2896,9 @@
     const option = event.target.closest(".variant-option");
     const key = option?.dataset.key;
     if (!key) return;
-    if (event.target.closest(".variant-option__toggle")) {
+    if (event.target.closest(".variant-option__info")) {
+      openPokemonInfo(key);
+    } else if (event.target.closest(".variant-option__toggle")) {
       toggleEntry(key);
     } else if (event.target.closest(".quantity__plus")) {
       incrementEntry(key);
@@ -2096,6 +2970,71 @@
   elements.confirmSetting.addEventListener("change", () => {
     state.preferences.confirmRemove = elements.confirmSetting.checked;
     saveState();
+  });
+  elements.spoilerSetting.addEventListener("change", () => {
+    state.preferences.spoilerGuard = elements.spoilerSetting.checked;
+    saveState();
+    render();
+    renderHunts();
+    if (activePokemonInfoKey && elements.pokemonInfoDialog.hasAttribute("open")) renderPokemonInfo(entryByKey.get(activePokemonInfoKey));
+  });
+  elements.explorerButton.addEventListener("click", () => showDialog(elements.explorerDialog));
+  elements.closeExplorerButton.addEventListener("click", () => closeDialog(elements.explorerDialog));
+  elements.explorerDialog.addEventListener("click", event => {
+    const tool = event.target.closest("[data-tool]")?.dataset.tool;
+    if (tool) handleExplorerTool(tool);
+  });
+  elements.closeResearchButton.addEventListener("click", () => closeDialog(elements.researchDialog));
+  elements.closePokemonInfoButton.addEventListener("click", () => closeDialog(elements.pokemonInfoDialog));
+  elements.pokemonInfoDialog.addEventListener("close", () => {
+    activePokemonInfoKey = "";
+    pokemonInfoShinyRevealed = false;
+  });
+  elements.pokemonInfoBody.addEventListener("click", event => {
+    const action = event.target.closest("[data-info-action]")?.dataset.infoAction;
+    const entry = entryByKey.get(activePokemonInfoKey);
+    if (!action || !entry) return;
+    if (action === "reveal") renderPokemonInfo(entry, { revealShiny: true });
+    else if (action === "hunt" || action === "capture") {
+      closeDialog(elements.pokemonInfoDialog);
+      openHuntEditor(action === "capture" ? "caught" : "active", entry.key);
+    }
+  });
+  elements.huntButton.addEventListener("click", openHuntBook);
+  elements.closeHuntButton.addEventListener("click", () => closeDialog(elements.huntDialog));
+  elements.newHuntButton.addEventListener("click", () => openHuntEditor("active"));
+  elements.newCaptureButton.addEventListener("click", () => openHuntEditor("caught"));
+  elements.closeHuntEditorButton.addEventListener("click", () => closeDialog(elements.huntEditorDialog));
+  elements.cancelHuntEditorButton.addEventListener("click", () => closeDialog(elements.huntEditorDialog));
+  elements.activeHuntList.addEventListener("click", handleHuntAction);
+  elements.captureJournalList.addEventListener("click", handleHuntAction);
+  elements.huntEditorForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const entryKey = elements.huntEntrySelect.value;
+    const entry = entryByKey.get(entryKey);
+    if (!entry || entry.exceptional || !isLegallyObtainable(entry)) return;
+    const id = elements.huntRecordId.value || newRecordId();
+    const existing = state.huntRecords[id];
+    const mode = elements.huntRecordMode.value === "caught" ? "caught" : "active";
+    const date = validDateString(elements.huntDate.value) || todayDate();
+    state.huntRecords[id] = {
+      id,
+      entryKey,
+      status: mode,
+      game: elements.huntGame.value.trim().slice(0, 60),
+      method: HUNT_METHOD_KEYS.includes(elements.huntMethod.value) ? elements.huntMethod.value : "Other",
+      attempts: Math.min(999999999, Math.max(0, Number.parseInt(elements.huntAttempts.value, 10) || 0)),
+      startedAt: mode === "active" ? date : (existing?.startedAt || ""),
+      caughtAt: mode === "caught" ? date : "",
+      nickname: elements.huntNickname.value.trim().slice(0, 40),
+      notes: elements.huntNotes.value.trim().slice(0, 600),
+      updatedAt: Date.now()
+    };
+    if (!existing && mode === "caught") setQuantity(entryKey, quantityFor(entryKey) + 1, { sparkle: true });
+    else saveState();
+    closeDialog(elements.huntEditorDialog);
+    renderHunts();
+    showToast(t(mode === "caught" ? "captureSaved" : "huntSaved"));
   });
   elements.openResetButton.addEventListener("click", () => {
     closeDialog(elements.settingsDialog);
