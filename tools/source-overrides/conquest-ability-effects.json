@@ -1,0 +1,246 @@
+{
+  "source": "https://bulbapedia.bulbagarden.net/wiki/List_of_Abilities_in_Pok%C3%A9mon_Conquest",
+  "note": "Résumés factuels rédigés localement à partir des mécaniques documentées de Pokémon Conquest.",
+  "abilities": {
+    "10001": {
+      "fr": "Permet d’atteindre des cases situées plus haut que la normale.",
+      "en": "Allows movement onto tiles that are normally too high to reach."
+    },
+    "10002": {
+      "fr": "Augmente la portée de déplacement sur l’eau, y compris vers les cases adjacentes reliées à l’eau.",
+      "en": "Extends movement range across water and onto adjacent tiles connected to water."
+    },
+    "10003": {
+      "fr": "Augmente la portée de déplacement sur la glace, y compris vers les cases adjacentes reliées à la glace.",
+      "en": "Extends movement range across ice and onto adjacent tiles connected to ice."
+    },
+    "10004": {
+      "fr": "Repousse la cible d’une case supplémentaire.",
+      "en": "Pushes the target one additional tile away."
+    },
+    "10005": {
+      "fr": "Permet d’esquiver les capacités utilisées par les alliés.",
+      "en": "Allows the user to evade moves used by its allies."
+    },
+    "10006": {
+      "fr": "Permet de parer les attaques directes à l’aide de griffes ou de lames.",
+      "en": "Allows the user to parry direct attacks with claws or blades."
+    },
+    "10007": {
+      "fr": "Permet d’esquiver instinctivement les attaques directes ennemies.",
+      "en": "Allows the user to instinctively evade direct enemy attacks."
+    },
+    "10008": {
+      "fr": "Permet d’esquiver une attaque directe ; après l’esquive, la Défense et la Vitesse de l’attaquant baissent d’un niveau.",
+      "en": "May evade a direct attack, then lower the attacker’s Defense and Speed by one stage."
+    },
+    "10009": {
+      "fr": "Un assaillant utilisant une attaque de contact peut perdre un huitième de ses PV maximum ; l’effet peut se répéter sur une attaque multiple.",
+      "en": "A contact attacker may lose one eighth of its maximum HP; the effect can trigger on each hit of a multistrike move."
+    },
+    "10010": {
+      "fr": "Un assaillant utilisant une attaque de contact peut être gelé.",
+      "en": "A contact attacker may be frozen."
+    },
+    "10011": {
+      "fr": "Un assaillant utilisant une attaque de contact peut avoir peur.",
+      "en": "A contact attacker may flinch."
+    },
+    "10012": {
+      "fr": "Augmente l’Attaque et la Défense lorsque le Pokémon subit une altération de statut.",
+      "en": "Raises Attack and Defense while the Pokémon has a status condition."
+    },
+    "10013": {
+      "fr": "Restaure un huitième des PV maximum au début de chaque tour lorsque le Pokémon dort.",
+      "en": "Restores one eighth of maximum HP at the start of each turn while asleep."
+    },
+    "10014": {
+      "fr": "Quand les PV tombent à un tiers ou moins, restaure des PV puis endort le Pokémon.",
+      "en": "At one third HP or less, restores some HP and then puts the Pokémon to sleep."
+    },
+    "10015": {
+      "fr": "Quand les PV tombent à un tiers ou moins, restaure des PV et augmente l’Attaque d’un niveau.",
+      "en": "At one third HP or less, restores some HP and raises Attack by one stage."
+    },
+    "10016": {
+      "fr": "Restaure un huitième des PV maximum au début du tour lorsque le Pokémon se trouve sur du magma.",
+      "en": "Restores one eighth of maximum HP at the start of the turn while standing on magma."
+    },
+    "10017": {
+      "fr": "Restaure un huitième des PV maximum au début du tour lorsque le Pokémon se trouve sur l’eau.",
+      "en": "Restores one eighth of maximum HP at the start of the turn while standing on water."
+    },
+    "10018": {
+      "fr": "Restaure un huitième des PV maximum au début du tour lorsque le Pokémon se trouve sur de l’herbe.",
+      "en": "Restores one eighth of maximum HP at the start of the turn while standing on grass."
+    },
+    "10019": {
+      "fr": "Restaure un huitième des PV maximum au début du tour lorsque le Pokémon se trouve sur du sol ou du sable.",
+      "en": "Restores one eighth of maximum HP at the start of the turn while standing on soil or sand."
+    },
+    "10020": {
+      "fr": "Restaure un huitième des PV maximum au début du tour sur du magma, du sol ou du sable.",
+      "en": "Restores one eighth of maximum HP at the start of the turn on magma, soil, or sand."
+    },
+    "10021": {
+      "fr": "Restaure un huitième des PV maximum des alliés situés à une case ou moins.",
+      "en": "Restores one eighth of maximum HP to allies within one tile."
+    },
+    "10022": {
+      "fr": "Restaure un huitième des PV maximum au début de chaque tour.",
+      "en": "Restores one eighth of maximum HP at the start of every turn."
+    },
+    "10023": {
+      "fr": "Restaure un huitième des PV maximum lorsque le Pokémon termine son tour avec « Attendre ».",
+      "en": "Restores one eighth of maximum HP when the Pokémon ends its turn by waiting."
+    },
+    "10024": {
+      "fr": "Peut soigner les altérations de statut d’un allié adjacent.",
+      "en": "May cure the status conditions of an adjacent ally."
+    },
+    "10025": {
+      "fr": "Inflige des dégâts supplémentaires égaux à un seizième des PV maximum aux ennemis adjacents qui subissent des dégâts.",
+      "en": "Deals extra damage equal to one sixteenth of maximum HP to adjacent enemies whenever they take damage."
+    },
+    "10026": {
+      "fr": "Retire un seizième des PV maximum aux ennemis adjacents et rend au Pokémon la moitié du total drainé.",
+      "en": "Drains one sixteenth of maximum HP from adjacent enemies and heals the user for half the total drained."
+    },
+    "10027": {
+      "fr": "Intercepte une attaque visant un allié adjacent en échangeant sa position avec lui.",
+      "en": "Intercepts an attack aimed at an adjacent ally by switching positions with that ally."
+    },
+    "10028": {
+      "fr": "Augmente l’Attaque et la Défense d’un niveau lorsque la force totale de l’armée est inférieure au tiers de celle de l’ennemi.",
+      "en": "Raises Attack and Defense by one stage when the army’s total strength is below one third of the enemy army’s strength."
+    },
+    "10029": {
+      "fr": "Augmente l’Attaque et la Défense de deux niveaux lorsque tous les alliés ont été vaincus.",
+      "en": "Raises Attack and Defense by two stages after all allies have been defeated."
+    },
+    "10030": {
+      "fr": "Peut esquiver les attaques directes lorsque la case occupée correspond à l’un des types du Pokémon.",
+      "en": "May evade direct attacks while standing on terrain matching one of the Pokémon’s types."
+    },
+    "10031": {
+      "fr": "Augmente de 50 % les dégâts des attaques exécutées au début du tour.",
+      "en": "Increases damage by 50 percent when the Pokémon attacks at the start of the turn."
+    },
+    "10032": {
+      "fr": "Augmente l’Attaque en fonction de la distance parcourue.",
+      "en": "Raises Attack in proportion to the distance moved."
+    },
+    "10033": {
+      "fr": "Augmente l’Attaque en fonction du nombre d’alliés de type Électrik adjacents.",
+      "en": "Raises Attack according to the number of adjacent Electric-type allies."
+    },
+    "10034": {
+      "fr": "Augmente la Défense lorsque le Pokémon se trouve sur de l’herbe.",
+      "en": "Raises Defense while the Pokémon is standing on grass."
+    },
+    "10035": {
+      "fr": "Après avoir vaincu un ennemi, permet de se déplacer et d’agir de nouveau.",
+      "en": "After defeating an enemy, allows the Pokémon to move and act again."
+    },
+    "10036": {
+      "fr": "Au début du tour, peut endormir par son chant les ennemis situés à deux cases ou moins.",
+      "en": "At the start of the turn, may sing adjacent enemies within two tiles to sleep."
+    },
+    "10037": {
+      "fr": "Au début du tour, peut endormir les ennemis situés à deux cases ou moins.",
+      "en": "At the start of the turn, may put enemies within two tiles to sleep."
+    },
+    "10038": {
+      "fr": "Au début du tour, peut infliger un sommeil prolongé aux ennemis situés à deux cases ou moins.",
+      "en": "At the start of the turn, may inflict a longer-lasting sleep on enemies within two tiles."
+    },
+    "10039": {
+      "fr": "Au début du tour, réduit d’une case la portée des ennemis proches, sans descendre sous un, et baisse leur Vitesse d’un niveau.",
+      "en": "At the start of the turn, lowers nearby enemies’ Range by one, to a minimum of one, and lowers their Speed by one stage."
+    },
+    "10040": {
+      "fr": "Au début du tour, baisse d’un niveau la Précision des ennemis situés à deux cases ou moins.",
+      "en": "At the start of the turn, lowers the Accuracy of enemies within two tiles by one stage."
+    },
+    "10041": {
+      "fr": "Augmente d’un niveau l’Énergie des alliés situés à deux cases ou moins pendant un tour.",
+      "en": "Raises the Energy of allies within two tiles by one stage for one turn."
+    },
+    "10042": {
+      "fr": "Augmente la Défense des alliés situés à deux cases ou moins jusqu’au début de la phase ennemie.",
+      "en": "Raises the Defense of allies within two tiles until the enemy phase begins."
+    },
+    "10043": {
+      "fr": "Augmente la quantité d’or obtenue dans les coffres.",
+      "en": "Increases the amount of gold collected from treasure boxes."
+    },
+    "10044": {
+      "fr": "Augmente fortement la quantité d’or obtenue dans les coffres.",
+      "en": "Greatly increases the amount of gold collected from treasure boxes."
+    },
+    "10045": {
+      "fr": "Lorsque le Pokémon est vaincu, il explose et blesse les combattants des huit cases adjacentes selon son Attaque.",
+      "en": "When defeated, explodes and damages combatants on the eight adjacent tiles according to its Attack."
+    },
+    "10046": {
+      "fr": "Réunit les effets d’Instinct, Mountaineer et Life Force, et permet d’infliger des dégâts à tous les types.",
+      "en": "Combines Instinct, Mountaineer, and Life Force, and allows damage to be dealt to every type."
+    },
+    "10047": {
+      "fr": "Fait bénéficier le Pokémon des Talents de Guerrier alliés où qu’ils soient, sauf Ambition, Desire, Motivate et Willpower.",
+      "en": "Shares allied Warrior Skills regardless of distance, except Ambition, Desire, Motivate, and Willpower."
+    },
+    "10048": {
+      "fr": "Réduit à zéro la portée des ennemis adjacents.",
+      "en": "Reduces the Range of adjacent enemies to zero."
+    },
+    "10049": {
+      "fr": "Augmente la portée de deux cases, jusqu’à six, lorsqu’aucun allié ni ennemi ne se trouve à trois cases ou moins.",
+      "en": "Raises Range by two, up to six, when no ally or enemy is within three tiles."
+    },
+    "10050": {
+      "fr": "Augmente la portée d’une case.",
+      "en": "Raises Range by one tile."
+    },
+    "10051": {
+      "fr": "Les ennemis touchés sont forcés d’échanger leur place avec un autre ennemi adjacent.",
+      "en": "Forces struck enemies to switch places with another adjacent enemy."
+    },
+    "10052": {
+      "fr": "Augmente l’Attaque lorsque le Pokémon se trouve plus haut que sa cible.",
+      "en": "Raises Attack when the Pokémon is on higher terrain than its target."
+    },
+    "10053": {
+      "fr": "Augmente l’Attaque lorsque le Pokémon se trouve plus bas que sa cible.",
+      "en": "Raises Attack when the Pokémon is on lower terrain than its target."
+    },
+    "10054": {
+      "fr": "Augmente les dégâts des attaques de type Feu utilisées par les alliés adjacents.",
+      "en": "Boosts the damage of Fire-type moves used by adjacent allies."
+    },
+    "10055": {
+      "fr": "Augmente les dégâts des attaques de type Eau utilisées par les alliés adjacents.",
+      "en": "Boosts the damage of Water-type moves used by adjacent allies."
+    },
+    "10056": {
+      "fr": "Augmente l’Attaque en fonction de la distance parcourue.",
+      "en": "Raises Attack in proportion to the distance moved."
+    },
+    "10057": {
+      "fr": "Chaque ennemi vaincu augmente de 20 % l’Attaque, la Défense et la Vitesse pour le reste du combat ; les bonus se cumulent.",
+      "en": "Each defeated enemy raises Attack, Defense, and Speed by 20 percent for the rest of the battle; the boosts stack."
+    },
+    "10058": {
+      "fr": "Réduit d’une case la portée des ennemis touchés, sans descendre sous un.",
+      "en": "Lowers the Range of struck enemies by one, to a minimum of one."
+    },
+    "10059": {
+      "fr": "Devrait attirer les attaques ennemies, mais n’a aucun effet à cause d’une erreur de programmation du jeu.",
+      "en": "Is intended to attract enemy attacks but has no effect because of an in-game programming error."
+    },
+    "10060": {
+      "fr": "Bloque les attaques en colonne afin qu’elles n’atteignent pas les alliés placés directement derrière le Pokémon.",
+      "en": "Blocks column attacks from reaching allies positioned directly behind the Pokémon."
+    }
+  }
+}

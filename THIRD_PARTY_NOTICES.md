@@ -35,3 +35,15 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## Effets propres à Pokémon Conquest
+
+PokéAPI répertorie 60 talents propres à Pokémon Conquest sans en fournir les
+effets. Les résumés factuels locaux correspondants ont été rédigés à partir de
+la documentation de la communauté Bulbapedia :
+https://bulbapedia.bulbagarden.net/wiki/List_of_Abilities_in_Pok%C3%A9mon_Conquest
+
+Les cinq capacités Torque de Pokémon Écarlate et Violet ne disposent pas de
+texte descriptif dans les tables PokéAPI utilisées. Leurs résumés factuels
+locaux ont été vérifiés dans l’AttackDex de Serebii :
+https://www.serebii.net/attackdex-sv/

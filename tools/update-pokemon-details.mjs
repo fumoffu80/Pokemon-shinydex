@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const OUTPUT = resolve(ROOT, "data/pokemon-details.js");
+const TECHNICAL_EFFECTS_OUTPUT = resolve(ROOT, "data/technical-effects.js");
+const CONQUEST_ABILITY_EFFECTS = resolve(ROOT, "tools/source-overrides/conquest-ability-effects.json");
+const MOVE_EFFECT_OVERRIDES = resolve(ROOT, "tools/source-overrides/move-effects.json");
 const CSV_BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv";
 const LANGUAGES = { fr: 5, en: 9, es: 7, de: 6, it: 8, ja: 1 };
 const FILES = [
@@ -14,6 +17,7 @@ const FILES = [
   "abilities.csv",
   "ability_names.csv",
   "ability_prose.csv",
+  "ability_flavor_text.csv",
   "pokemon_stats.csv",
   "stats.csv",
   "pokemon_species.csv",
@@ -23,6 +27,7 @@ const FILES = [
   "moves.csv",
   "move_names.csv",
   "move_effect_prose.csv",
+  "move_flavor_text.csv",
   "pokemon_moves.csv",
   "pokemon_move_methods.csv",
   "pokemon_move_method_prose.csv",
@@ -126,17 +131,47 @@ function translationsFor(names, id, fallback) {
   ]));
 }
 
+function localizedLatestText(rows, idField, orderField, valueField) {
+  const supported = new Set(Object.values(LANGUAGES));
+  const values = new Map();
+  for (const row of rows) {
+    const languageId = Number(row.language_id || row.local_language_id);
+    if (!supported.has(languageId)) continue;
+    const key = `${row[idField]}:${languageId}`;
+    const order = Number(row[orderField]) || 0;
+    const previous = values.get(key);
+    if (!previous || order >= previous.order) values.set(key, { order, value: row[valueField] });
+  }
+  return new Map([...values].map(([key, record]) => [key, record.value]));
+}
+
+function cleanTechnicalText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function technicalTranslations(sources, override = {}) {
+  const exact = language => sources
+    .map(source => cleanTechnicalText(source.map.get(`${source.id}:${LANGUAGES[language]}`)))
+    .find(Boolean) || cleanTechnicalText(override[language]);
+  const english = exact("en") || Object.values(override).map(cleanTechnicalText).find(Boolean) || "";
+  return Object.fromEntries(Object.keys(LANGUAGES).map(language => [language, exact(language) || english]));
+}
+
 console.log("Téléchargement des données techniques PokéAPI…");
 const loaded = await Promise.all(FILES.map(async file => [file, await fetchCsv(file)]));
 const tables = Object.fromEntries(loaded);
+const conquestAbilityEffects = JSON.parse(await readFile(CONQUEST_ABILITY_EFFECTS, "utf8"));
+const moveEffectOverrides = JSON.parse(await readFile(MOVE_EFFECT_OVERRIDES, "utf8"));
 
 const abilityNames = localizedNames(tables["ability_names.csv"], "ability_id");
 const abilityShortEffects = localizedProse(tables["ability_prose.csv"], "ability_id", "short_effect");
 const abilityEffects = localizedProse(tables["ability_prose.csv"], "ability_id", "effect");
+const abilityFlavorTexts = localizedLatestText(tables["ability_flavor_text.csv"], "ability_id", "version_group_id", "flavor_text");
 const eggGroupNames = localizedNames(tables["egg_group_prose.csv"], "egg_group_id");
 const moveNames = localizedNames(tables["move_names.csv"], "move_id");
 const moveShortEffects = localizedProse(tables["move_effect_prose.csv"], "move_effect_id", "short_effect");
 const moveEffects = localizedProse(tables["move_effect_prose.csv"], "move_effect_id", "effect");
+const moveFlavorTexts = localizedLatestText(tables["move_flavor_text.csv"], "move_id", "version_group_id", "flavor_text");
 const moveMethodNames = localizedNames(tables["pokemon_move_method_prose.csv"], "pokemon_move_method_id");
 const moveMethodDescriptions = localizedProse(tables["pokemon_move_method_prose.csv"], "pokemon_move_method_id", "description");
 const versionNames = localizedNames(tables["version_names.csv"], "version_id");
@@ -221,17 +256,54 @@ const formPokemonIds = Object.fromEntries(tables["pokemon_forms.csv"].map(row =>
 Object.assign(formPokemonIds, CUSTOM_FORM_POKEMON);
 
 const abilityIds = [...new Set(tables["ability_names.csv"].map(row => Number(row.ability_id)))];
-const abilities = Object.fromEntries(abilityIds.map(id => [id, {
-  names: translationsFor(abilityNames, id, `Ability ${id}`),
-  generation: abilityGenerationById.get(id) || 0,
-  shortEffects: translationsFor(abilityShortEffects, id, ""),
-  effects: translationsFor(abilityEffects, id, ""),
-  pokemonIds: [...(pokemonIdsByAbility.get(id) || [])].sort((a, b) => a - b)
-}]));
+const abilityTechnicalEffects = {};
+const abilities = Object.fromEntries(abilityIds.map(id => {
+  const shortEffects = translationsFor(abilityShortEffects, id, "");
+  const effects = translationsFor(abilityEffects, id, "");
+  if (!shortEffects.fr) {
+    abilityTechnicalEffects[id] = {
+      sourceGame: id >= 10001 ? "pokemon-conquest" : "",
+      shortEffects: technicalTranslations([
+        { map: abilityShortEffects, id },
+        { map: abilityFlavorTexts, id },
+        { map: abilityEffects, id }
+      ], conquestAbilityEffects.abilities?.[id]),
+      effects: technicalTranslations([
+        { map: abilityEffects, id },
+        { map: abilityFlavorTexts, id },
+        { map: abilityShortEffects, id }
+      ], conquestAbilityEffects.abilities?.[id])
+    };
+  }
+  return [id, {
+    names: translationsFor(abilityNames, id, `Ability ${id}`),
+    generation: abilityGenerationById.get(id) || 0,
+    shortEffects,
+    effects,
+    pokemonIds: [...(pokemonIdsByAbility.get(id) || [])].sort((a, b) => a - b)
+  }];
+}));
 
+const moveTechnicalEffects = {};
 const moves = Object.fromEntries(tables["moves.csv"].map(row => {
   const id = Number(row.id);
   const effectId = Number(row.effect_id);
+  const shortEffects = translationsFor(moveShortEffects, effectId, "");
+  const effects = translationsFor(moveEffects, effectId, "");
+  if (!shortEffects.fr) {
+    moveTechnicalEffects[id] = {
+      shortEffects: technicalTranslations([
+        { map: moveShortEffects, id: effectId },
+        { map: moveFlavorTexts, id },
+        { map: moveEffects, id: effectId }
+      ], moveEffectOverrides.moves?.[id]),
+      effects: technicalTranslations([
+        { map: moveEffects, id: effectId },
+        { map: moveFlavorTexts, id },
+        { map: moveShortEffects, id: effectId }
+      ], moveEffectOverrides.moves?.[id])
+    };
+  }
   return [id, {
     names: translationsFor(moveNames, id, row.identifier),
     generation: Number(row.generation_id),
@@ -242,8 +314,8 @@ const moves = Object.fromEntries(tables["moves.csv"].map(row => {
     priority: Number(row.priority) || 0,
     damageClass: ({ 1: "status", 2: "physical", 3: "special" })[Number(row.damage_class_id)] || "status",
     effectChance: Number(row.effect_chance) || 0,
-    shortEffects: translationsFor(moveShortEffects, effectId, ""),
-    effects: translationsFor(moveEffects, effectId, "")
+    shortEffects,
+    effects
   }];
 }));
 
@@ -422,4 +494,13 @@ await writeFile(
   OUTPUT,
   `/* Généré par tools/update-pokemon-details.mjs — ne pas modifier manuellement. */\nwindow.SHINYDEX_POKEMON_DETAILS = ${JSON.stringify(payload)};\n`
 );
-console.log(`${Object.keys(pokemon).length} Pokémon et ${Object.keys(species).length} espèces exportés.`);
+const technicalEffectsPayload = {
+  schemaVersion: 1,
+  abilities: abilityTechnicalEffects,
+  moves: moveTechnicalEffects
+};
+await writeFile(
+  TECHNICAL_EFFECTS_OUTPUT,
+  `/* Généré par tools/update-pokemon-details.mjs — compléments locaux et textes de jeu PokéAPI. */\n(() => {\n  const payload = ${JSON.stringify(technicalEffectsPayload)};\n  const details = window.SHINYDEX_POKEMON_DETAILS;\n  if (details) {\n    for (const [id, effect] of Object.entries(payload.abilities)) Object.assign(details.abilities?.[id] || {}, effect);\n    for (const [id, effect] of Object.entries(payload.moves)) Object.assign(details.moves?.[id] || {}, effect);\n  }\n  window.SHINYDEX_TECHNICAL_EFFECT_OVERRIDES = payload;\n})();\n`
+);
+console.log(`${Object.keys(pokemon).length} Pokémon et ${Object.keys(species).length} espèces exportés ; ${Object.keys(abilityTechnicalEffects).length} talents et ${Object.keys(moveTechnicalEffects).length} capacités complétés.`);

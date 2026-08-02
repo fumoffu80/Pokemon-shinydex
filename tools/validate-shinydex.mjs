@@ -28,6 +28,7 @@ const [
   firebaseBundle,
   dataSource,
   detailsSource,
+  technicalEffectsSource,
   availabilitySource,
   sourceLocalesSource,
   distributionsSource,
@@ -45,6 +46,7 @@ const [
   readFile(resolve(root, "firebase-sync.js"), "utf8"),
   readFile(resolve(root, "data/pokedex-data.js"), "utf8"),
   readFile(resolve(root, "data/pokemon-details.js"), "utf8"),
+  readFile(resolve(root, "data/technical-effects.js"), "utf8"),
   readFile(resolve(root, "data/shiny-availability.js"), "utf8"),
   readFile(resolve(root, "data/distribution-source-locales.js"), "utf8"),
   readFile(resolve(root, "data/distributions.js"), "utf8"),
@@ -59,6 +61,7 @@ for (const [source, name] of [
   [genderDifferencesSource, "gender-differences.js"],
   [app, "app.js"],
   [detailsSource, "data/pokemon-details.js"],
+  [technicalEffectsSource, "data/technical-effects.js"],
   [availabilitySource, "data/shiny-availability.js"],
   [sourceLocalesSource, "data/distribution-source-locales.js"],
   [distributionsSource, "data/distributions.js"],
@@ -78,6 +81,7 @@ try {
   const context = { window: {} };
   vm.runInNewContext(dataSource, context, { filename: "pokedex-data.js" });
   vm.runInNewContext(detailsSource, context, { filename: "pokemon-details.js" });
+  vm.runInNewContext(technicalEffectsSource, context, { filename: "technical-effects.js" });
   data = context.window.SHINYDEX_DATA;
   details = context.window.SHINYDEX_POKEMON_DETAILS;
 } catch (error) {
@@ -119,14 +123,19 @@ check(data?.schemaVersion === 2, "Version de schéma inattendue.");
 check(details?.schemaVersion === 2, "Version des données techniques inattendue.");
 check(Object.keys(details?.species || {}).length === 1025, "Les données techniques des 1 025 espèces sont incomplètes.");
 check(Object.keys(details?.pokemon || {}).length >= 1350, "Les statistiques des formes Pokémon sont incomplètes.");
-check(Object.keys(details?.abilities || {}).length >= 370, "Le catalogue des talents est incomplet.");
-check(Object.keys(details?.moves || {}).length >= 930, "Le catalogue des capacités est incomplet.");
-check(Object.keys(details?.abilities || {}).length >= 370
+check(Object.keys(details?.abilities || {}).length === 373, "Le catalogue ne contient pas exactement 373 talents.");
+check(Object.keys(details?.moves || {}).length === 937, "Le catalogue ne contient pas exactement 937 capacités.");
+check(Object.keys(details?.abilities || {}).length === 373
   && Object.values(details?.abilities || {}).every(ability => ability.shortEffects?.fr),
 "Le catalogue des talents et leurs descriptions sont incomplets.");
-check(Object.keys(details?.moves || {}).length >= 930
-  && Object.values(details?.moves || {}).every(move => move.shortEffects?.fr || move.effects?.fr),
+check(Object.values(details?.abilities || {}).filter(ability => ability.sourceGame === "pokemon-conquest").length === 60
+  && details?.abilities?.[10001]?.shortEffects?.fr.includes("cases"),
+"Les effets locaux des 60 talents de Pokémon Conquest sont incomplets.");
+check(Object.keys(details?.moves || {}).length === 937
+  && Object.values(details?.moves || {}).every(move => move.shortEffects?.fr),
 "Le catalogue des capacités et leurs descriptions est incomplet.");
+check([896, 897, 898, 899, 900].every(id => details?.moves?.[id]?.shortEffects?.fr),
+"Les effets locaux des cinq capacités Torque sont incomplets.");
 check(Object.keys(details?.versions || {}).length >= 50
   && Object.keys(details?.locations || {}).length >= 1300,
 "Les versions ou lieux du Pokédex technique sont incomplets.");
@@ -619,7 +628,7 @@ check(firebaseSource.includes('EXCEPTION_VALUE = "exception"') && firebaseSource
   "La synchronisation Firebase ne prend pas en charge les exceptions.");
 check(firestoreRules.includes("request.auth.uid == userId"), "Les règles Firestore ne protègent pas les données par utilisateur.");
 check(firestoreRules.includes("match /users/{userId}/apps/shinydex"), "Les règles Firestore ne ciblent pas uniquement le document Shinydex.");
-check(serviceWorker.includes("pokemon-shinydex-experimental-v18"), "Le cache PWA n’a pas été renouvelé.");
+check(serviceWorker.includes("pokemon-shinydex-experimental-v19"), "Le cache PWA n’a pas été renouvelé.");
 check(serviceWorker.includes("i18n.js")
   && serviceWorker.includes("gender-differences.js")
   && serviceWorker.includes("shiny-pokeball.svg")
@@ -629,6 +638,7 @@ check(serviceWorker.includes("i18n.js")
 check(
   serviceWorker.includes("shiny-availability.js")
     && serviceWorker.includes("pokemon-details.js")
+    && serviceWorker.includes("technical-effects.js")
     && serviceWorker.includes("distribution-source-locales.js")
     && serviceWorker.includes("distributions.js"),
   "Les référentiels live ne sont pas disponibles hors ligne."
@@ -637,7 +647,7 @@ check(languages.every(language => serviceWorker.includes(`assets/flags/${languag
 
 const runtime = [
   html, css, i18nSource, genderDifferencesSource, app, firebaseBundle,
-  dataSource, availabilitySource, sourceLocalesSource, distributionsSource, serviceWorker
+  dataSource, detailsSource, technicalEffectsSource, availabilitySource, sourceLocalesSource, distributionsSource, serviceWorker
 ].join("\n").toLowerCase();
 for (const forbidden of ["pokeapi.co", "raw.githubusercontent.com"]) {
   check(!runtime.includes(forbidden), `Dépendance réseau interdite dans le site : ${forbidden}`);
@@ -667,6 +677,7 @@ try {
   dom.window.eval(genderDifferencesSource);
   dom.window.eval(dataSource);
   dom.window.eval(detailsSource);
+  dom.window.eval(technicalEffectsSource);
   dom.window.eval(availabilitySource);
   dom.window.eval(sourceLocalesSource);
   dom.window.eval(distributionsSource);
@@ -702,9 +713,11 @@ try {
   check(!dom.window.document.querySelector('#explorerDialog [data-tool="share"], #explorerDialog [data-tool="items"]'),
     "Partager ou Objets n’a pas été retiré du laboratoire expérimental.");
   dom.window.document.querySelector('#explorerDialog [data-tool="games"]')?.click();
-  check(dom.window.document.querySelectorAll("#researchDialogBody .game-card").length === 41
-    && dom.window.document.getElementById("researchDialogBody").textContent.includes("Vert (Japon)")
-    && !dom.window.document.getElementById("researchDialogBody").textContent.includes("Pokémon HOME"),
+  const gameCards = [...dom.window.document.querySelectorAll("#researchDialogBody .game-card")];
+  check(gameCards.length === 41
+    && gameCards.some(card => card.textContent.includes("Vert (Japon)"))
+    && gameCards.every(card => !card.textContent.includes("Pokémon HOME"))
+    && dom.window.document.getElementById("researchDialogBody").textContent.includes("Pokémon HOME est exclu"),
   "Le catalogue n’affiche pas les 41 éditions principales, dont Pokémon Vert, ou conserve Pokémon HOME comme jeu.");
   dom.window.document.getElementById("researchDialog").close();
   dom.window.document.getElementById("explorerButton").click();

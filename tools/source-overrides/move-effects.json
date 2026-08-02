@@ -1,0 +1,26 @@
+{
+  "source": "https://www.serebii.net/attackdex-sv/",
+  "note": "Résumés factuels locaux pour les cinq capacités Torque sans texte descriptif dans PokéAPI.",
+  "moves": {
+    "896": {
+      "fr": "Inflige des dégâts et a 30 % de chances de brûler la cible.",
+      "en": "Deals damage and has a 30 percent chance to burn the target."
+    },
+    "897": {
+      "fr": "Inflige des dégâts et a 10 % de chances d’endormir la cible.",
+      "en": "Deals damage and has a 10 percent chance to put the target to sleep."
+    },
+    "898": {
+      "fr": "Inflige des dégâts et a 30 % de chances d’empoisonner la cible.",
+      "en": "Deals damage and has a 30 percent chance to poison the target."
+    },
+    "899": {
+      "fr": "Inflige des dégâts et a 30 % de chances de paralyser la cible.",
+      "en": "Deals damage and has a 30 percent chance to paralyze the target."
+    },
+    "900": {
+      "fr": "Inflige des dégâts et a 30 % de chances de rendre la cible confuse.",
+      "en": "Deals damage and has a 30 percent chance to confuse the target."
+    }
+  }
+}

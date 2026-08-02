@@ -2871,7 +2871,9 @@
       const card = makeElement("article", "catalogue-card");
       card.append(
         makeElement("h3", "", ability.label),
-        makeElement("small", "catalogue-generation", t("generationShort", { generation: ability.generation })),
+        makeElement("small", "catalogue-generation", ability.sourceGame === "pokemon-conquest"
+          ? "Pokémon Conquest"
+          : t("generationShort", { generation: ability.generation })),
         makeElement("p", "catalogue-effect", localizedTechnicalText(ability) || t("descriptionUnavailable"))
       );
       const compatible = makeElement("details", "catalogue-compatible");
