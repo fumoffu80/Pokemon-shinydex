@@ -2866,7 +2866,7 @@ input[role="switch"]:checked::after {
 }
 
 .pokemon-card__info {
-  top: 32px;
+  top: 44px;
   left: 11px;
   translate: 0;
 }
