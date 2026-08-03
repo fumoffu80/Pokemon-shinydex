@@ -1050,10 +1050,10 @@ main {
 
 .pokemon-card__number {
   position: absolute;
-  top: 10px;
+  top: 11px;
   left: 11px;
   color: #8798b3;
-  font: 750 0.7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 1001 0.82rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .pokemon-card__check {
@@ -1238,7 +1238,7 @@ main {
   flex: 0 0 var(--sprite-size);
   width: var(--sprite-size);
   height: var(--sprite-size);
-  margin: 11px auto 3px;
+  margin: 30px auto 3px;
   overflow: hidden;
 }
 
@@ -1343,7 +1343,7 @@ main {
 }
 
 .pokemon-card__toggle > .sprite-placeholder-badge {
-  top: calc(20px + var(--sprite-size) * 0.64);
+  top: calc(39px + var(--sprite-size) * 0.64);
   width: calc(100% + 18px);
 }
 
@@ -2866,9 +2866,9 @@ input[role="switch"]:checked::after {
 }
 
 .pokemon-card__info {
-  top: 9px;
-  left: 50%;
-  translate: -50% 0;
+  top: 32px;
+  left: 11%;
+  translate: 0;
 }
 
 .variant-option__info {
